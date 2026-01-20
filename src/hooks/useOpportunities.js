@@ -162,7 +162,6 @@ export function useOpportunitySummary(opportunities) {
     total: 0,
     byStage: {},
     totalValue: 0,
-    totalAssignmentFees: 0,
   });
 
   useEffect(() => {
@@ -171,14 +170,12 @@ export function useOpportunitySummary(opportunities) {
         total: 0,
         byStage: {},
         totalValue: 0,
-        totalAssignmentFees: 0,
       });
       return;
     }
 
     const byStage = {};
     let totalValue = 0;
-    let totalAssignmentFees = 0;
 
     OPPORTUNITY_STAGES.forEach(stage => {
       byStage[stage.key] = { count: 0, value: 0 };
@@ -190,14 +187,12 @@ export function useOpportunitySummary(opportunities) {
         byStage[opp.stage].value += opp.estimated_value || 0;
       }
       totalValue += opp.estimated_value || 0;
-      totalAssignmentFees += opp.assignment_fee || 0;
     });
 
     setSummary({
       total: opportunities.length,
       byStage,
       totalValue,
-      totalAssignmentFees,
     });
   }, [opportunities]);
 

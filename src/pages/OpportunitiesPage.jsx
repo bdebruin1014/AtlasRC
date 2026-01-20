@@ -1,5 +1,6 @@
 // OpportunitiesPage.jsx - List and manage opportunities
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useOpportunities, useOpportunityActions, useOpportunitySummary, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
 import OpportunityModal from '@/components/OpportunityModal';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,8 @@ const OpportunitiesPage = () => {
   
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
+  const navigate = useNavigate();
 
   const handleCreate = () => {
     setEditingOpportunity(null);
@@ -78,15 +81,33 @@ const OpportunitiesPage = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
         <div>
           <h1 className="text-2xl font-bold">Opportunities</h1>
           <p className="text-gray-500">Manage your deal pipeline</p>
         </div>
-        <Button onClick={handleCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Opportunity
-        </Button>
+        <div className="flex gap-2 items-center">
+          <div className="flex border rounded overflow-hidden">
+            <button
+              className={`px-3 py-1 text-sm ${viewMode === 'list' ? 'bg-gray-200 font-semibold' : 'bg-white'} transition`}
+              onClick={() => setViewMode('list')}
+              type="button"
+            >
+              List
+            </button>
+            <button
+              className={`px-3 py-1 text-sm ${viewMode === 'grid' ? 'bg-gray-200 font-semibold' : 'bg-white'} transition`}
+              onClick={() => setViewMode('grid')}
+              type="button"
+            >
+              Grid
+            </button>
+          </div>
+          <Button onClick={handleCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Opportunity
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -106,7 +127,7 @@ const OpportunitiesPage = () => {
         ))}
       </div>
 
-      {/* Opportunities Table */}
+      {/* Opportunities List/Grid View */}
       <Card>
         <CardHeader>
           <CardTitle>All Opportunities ({opportunities.length})</CardTitle>
@@ -116,7 +137,7 @@ const OpportunitiesPage = () => {
             <div className="text-center py-8 text-gray-500">
               No opportunities yet. Click "New Opportunity" to add one.
             </div>
-          ) : (
+          ) : viewMode === 'list' ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -124,16 +145,19 @@ const OpportunitiesPage = () => {
                     <th className="text-left py-3 px-4 font-medium">Deal #</th>
                     <th className="text-left py-3 px-4 font-medium">Address</th>
                     <th className="text-left py-3 px-4 font-medium">Stage</th>
-                    <th className="text-left py-3 px-4 font-medium">Type</th>
+                    <th className="text-left py-3 px-4 font-medium">Opportunity Type</th>
                     <th className="text-right py-3 px-4 font-medium">Est. Value</th>
-                    <th className="text-right py-3 px-4 font-medium">Assignment Fee</th>
                     <th className="text-left py-3 px-4 font-medium">Seller</th>
                     <th className="text-right py-3 px-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {opportunities.map((opp) => (
-                    <tr key={opp.id} className="border-b hover:bg-gray-50">
+                    <tr
+                      key={opp.id}
+                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => navigate(`/opportunities/${opp.id}`)}
+                    >
                       <td className="py-3 px-4 font-medium">{opp.deal_number}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
@@ -147,11 +171,8 @@ const OpportunitiesPage = () => {
                       <td className="py-3 px-4">
                         <Badge className={getStageBadgeColor(opp.stage)}>{opp.stage}</Badge>
                       </td>
-                      <td className="py-3 px-4 capitalize">{opp.property_type?.replace('-', ' ')}</td>
+                      <td className="py-3 px-4 capitalize">{opp.opportunity_type?.replace('-', ' ')}</td>
                       <td className="py-3 px-4 text-right">{formatCurrency(opp.estimated_value)}</td>
-                      <td className="py-3 px-4 text-right text-green-600 font-medium">
-                        {formatCurrency(opp.assignment_fee)}
-                      </td>
                       <td className="py-3 px-4">
                         {opp.seller_name && (
                           <div className="flex items-center gap-2">
@@ -160,7 +181,7 @@ const OpportunitiesPage = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(opp)}>
                             <Edit className="h-4 w-4" />
@@ -175,6 +196,43 @@ const OpportunitiesPage = () => {
                 </tbody>
               </table>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {opportunities.map((opp) => (
+                <Card
+                  key={opp.id}
+                  className="cursor-pointer hover:shadow-lg transition"
+                  onClick={() => navigate(`/opportunities/${opp.id}`)}
+                >
+                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                    <div className="font-bold text-lg">{opp.deal_number}</div>
+                    <Badge className={getStageBadgeColor(opp.stage)}>{opp.stage}</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-2 text-gray-700 font-medium capitalize">{opp.opportunity_type?.replace('-', ' ')}</div>
+                    <div className="mb-1 flex items-center gap-2 text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      <span>{opp.address}, {opp.city}, {opp.state}</span>
+                    </div>
+                    <div className="mb-1 text-gray-600">Est. Value: <span className="font-semibold">{formatCurrency(opp.estimated_value)}</span></div>
+                    {opp.seller_name && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <User className="h-4 w-4" />
+                        <span>{opp.seller_name}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleEdit(opp); }}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleDelete(opp.id); }} className="text-red-500 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -182,7 +240,6 @@ const OpportunitiesPage = () => {
       {/* Summary Footer */}
       <div className="flex justify-end gap-8 text-sm">
         <div>Total Pipeline Value: <span className="font-bold">{formatCurrency(summary.totalValue)}</span></div>
-        <div>Total Assignment Fees: <span className="font-bold text-green-600">{formatCurrency(summary.totalAssignmentFees)}</span></div>
       </div>
 
       {/* Modal */}

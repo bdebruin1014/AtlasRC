@@ -1,4 +1,224 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/datepicker';
+import { useEntities } from '@/hooks/useEntities';
+import { useProjects } from '@/hooks/useProjects';
+import { useContacts } from '@/hooks/useContacts';
+
+const INCOME_CATEGORIES = [
+  'Capital Raise', 'Builder Deposits', 'Lot Sales', 'Rental Income', 'Property Sale', 'Other Income'
+];
+const EXPENSE_CATEGORIES = [
+  'Land Acquisition', 'Construction', 'Professional Fees', 'Contingency', 'Debt Financing', 'Marketing', 'Utilities', 'Property Tax', 'Insurance', 'Repairs & Maintenance', 'Other Expense'
+];
+
+export default function TransactionModal({ open, onClose, transaction, onSave, isLoading }) {
+  const { entities } = useEntities();
+  const { projects } = useProjects();
+  const { contacts } = useContacts();
+  const [formData, setFormData] = useState({
+    transaction_date: '',
+    entity_id: '',
+    project_id: '',
+    transaction_type: '',
+    category: '',
+    amount: '',
+    description: '',
+    notes: '',
+    vendor_id: '',
+    attachments: [],
+  });
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (transaction) {
+      setFormData({
+        transaction_date: transaction.transaction_date || '',
+        entity_id: transaction.entity_id || '',
+        project_id: transaction.project_id || '',
+        transaction_type: transaction.transaction_type || '',
+        category: transaction.category || '',
+        amount: transaction.amount || '',
+        description: transaction.description || '',
+        notes: transaction.notes || '',
+        vendor_id: transaction.vendor_id || '',
+        attachments: transaction.attachments || [],
+      });
+    }
+  }, [transaction, open]);
+
+  const validate = () => {
+    const errs = {};
+    if (!formData.transaction_date) errs.transaction_date = 'Date required';
+    if (!formData.entity_id) errs.entity_id = 'Entity required';
+    if (!formData.transaction_type) errs.transaction_type = 'Type required';
+    if (!formData.category) errs.category = 'Category required';
+    if (!formData.amount || isNaN(formData.amount) || Number(formData.amount) <= 0) errs.amount = 'Amount required and must be positive';
+    if (!formData.description || formData.description.length < 5) errs.description = 'Description required (min 5 chars)';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'entity_id') setFormData(prev => ({ ...prev, project_id: '' }));
+    if (field === 'transaction_type') setFormData(prev => ({ ...prev, category: '' }));
+  };
+
+  const handleFileChange = (e) => {
+    setFormData(prev => ({ ...prev, attachments: Array.from(e.target.files) }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    await onSave({
+      ...formData,
+      amount: formData.amount ? parseFloat(formData.amount) : null,
+    });
+  };
+
+  // Filter projects by selected entity
+  const filteredProjects = formData.entity_id ? projects.filter(p => p.entity_id === formData.entity_id) : projects;
+  // Category options
+  const categoryOptions = formData.transaction_type === 'income' ? INCOME_CATEGORIES : formData.transaction_type === 'expense' ? EXPENSE_CATEGORIES : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{transaction ? 'Edit Transaction' : 'New Transaction'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* TRANSACTION DETAILS */}
+          <div>
+            <h4 className="font-medium mb-2">Transaction Details</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Date *</Label>
+                <DatePicker value={formData.transaction_date} onChange={date => handleChange('transaction_date', date)} required />
+                {errors.transaction_date && <div className="text-xs text-red-500 mt-1">{errors.transaction_date}</div>}
+              </div>
+              <div>
+                <Label>Entity *</Label>
+                <Select value={formData.entity_id} onValueChange={v => handleChange('entity_id', v)} required>
+                  <SelectTrigger><SelectValue placeholder="Select Entity" /></SelectTrigger>
+                  <SelectContent>
+                    {entities.map(ent => (
+                      <SelectItem key={ent.id} value={ent.id}>{ent.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.entity_id && <div className="text-xs text-red-500 mt-1">{errors.entity_id}</div>}
+              </div>
+              <div>
+                <Label>Project</Label>
+                <Select value={formData.project_id} onValueChange={v => handleChange('project_id', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select Project" /></SelectTrigger>
+                  <SelectContent>
+                    {filteredProjects.map(proj => (
+                      <SelectItem key={proj.id} value={proj.id}>{proj.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* CLASSIFICATION */}
+          <div>
+            <h4 className="font-medium mb-2">Classification</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Type *</Label>
+                <Select value={formData.transaction_type} onValueChange={v => handleChange('transaction_type', v)} required>
+                  <SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.transaction_type && <div className="text-xs text-red-500 mt-1">{errors.transaction_type}</div>}
+              </div>
+              <div>
+                <Label>Category *</Label>
+                <Select value={formData.category} onValueChange={v => handleChange('category', v)} required>
+                  <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category && <div className="text-xs text-red-500 mt-1">{errors.category}</div>}
+              </div>
+            </div>
+          </div>
+
+          {/* FINANCIAL INFORMATION */}
+          <div>
+            <h4 className="font-medium mb-2">Financial Information</h4>
+            <div>
+              <Label>Amount *</Label>
+              <Input type="number" value={formData.amount} onChange={e => handleChange('amount', e.target.value)} required min={0} />
+              {errors.amount && <div className="text-xs text-red-500 mt-1">{errors.amount}</div>}
+            </div>
+          </div>
+
+          {/* DESCRIPTION */}
+          <div>
+            <h4 className="font-medium mb-2">Description</h4>
+            <Input value={formData.description} onChange={e => handleChange('description', e.target.value)} required minLength={5} />
+            {errors.description && <div className="text-xs text-red-500 mt-1">{errors.description}</div>}
+            <Label className="mt-2">Notes</Label>
+            <Textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} rows={3} />
+          </div>
+
+          {/* VENDOR/CONTACT */}
+          <div>
+            <h4 className="font-medium mb-2">Vendor/Contact</h4>
+            <Select value={formData.vendor_id} onValueChange={v => handleChange('vendor_id', v)}>
+              <SelectTrigger><SelectValue placeholder="Select Vendor/Contact" /></SelectTrigger>
+              <SelectContent>
+                {contacts.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name} {c.company ? `(${c.company})` : ''}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* ATTACHMENTS */}
+          <div>
+            <h4 className="font-medium mb-2">Attachments</h4>
+            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" onChange={handleFileChange} className="block w-full border rounded p-2" />
+            <div className="text-xs text-gray-500 mt-1">Supported: PDF, JPG, PNG, XLS</div>
+            {formData.attachments.length > 0 && (
+              <ul className="mt-2 text-xs text-gray-700">
+                {formData.attachments.map((file, idx) => (
+                  <li key={idx}>{file.name || file}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save Transaction'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,

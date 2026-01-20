@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 
 const STAGES = ['Prospecting', 'Contacted', 'Qualified', 'Negotiating', 'Under Contract'];
-const PROPERTY_TYPES = [
-  { value: 'vacant-lot', label: 'Vacant Lot' },
-  { value: 'flip-property', label: 'Flip Property' },
-  { value: 'other', label: 'Other' },
+const OPPORTUNITY_TYPES = [
+  { value: 'development-lot-sale', label: 'Development Lot Sale' },
+  { value: 'development-for-sale', label: 'Development For Sale' },
+  { value: 'development-btr', label: 'Development BTR' },
+  { value: 'scattered-lot', label: 'Scattered Lot' },
+  { value: 'brrr', label: 'BRRR' },
 ];
 
 const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => {
@@ -21,7 +23,7 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
     state: 'SC',
     zip_code: '',
     stage: 'Prospecting',
-    property_type: 'vacant-lot',
+    opportunity_type: 'development-lot-sale',
     estimated_value: '',
     asking_price: '',
     assignment_fee: '',
@@ -40,7 +42,7 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
         state: opportunity.state || 'SC',
         zip_code: opportunity.zip_code || '',
         stage: opportunity.stage || 'Prospecting',
-        property_type: opportunity.property_type || 'vacant-lot',
+        opportunity_type: opportunity.opportunity_type || 'development-lot-sale',
         estimated_value: opportunity.estimated_value || '',
         asking_price: opportunity.asking_price || '',
         assignment_fee: opportunity.assignment_fee || '',
@@ -130,11 +132,11 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Property Type</Label>
-              <Select value={formData.property_type} onValueChange={(v) => handleChange('property_type', v)}>
+              <Label>Opportunity Type</Label>
+              <Select value={formData.opportunity_type} onValueChange={(v) => handleChange('opportunity_type', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PROPERTY_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {OPPORTUNITY_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -149,25 +151,7 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Asking Price</Label>
-              <Input
-                type="number"
-                value={formData.asking_price}
-                onChange={(e) => handleChange('asking_price', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Assignment Fee</Label>
-              <Input
-                type="number"
-                value={formData.assignment_fee}
-                onChange={(e) => handleChange('assignment_fee', e.target.value)}
-                placeholder="10000"
-              />
-            </div>
-          </div>
+          {/* Remove Asking Price and Assignment Fee fields */}
 
           <div className="border-t pt-4 mt-4">
             <h4 className="font-medium mb-2">Seller Information</h4>
