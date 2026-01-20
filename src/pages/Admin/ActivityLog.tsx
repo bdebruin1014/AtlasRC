@@ -34,8 +34,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/components/ui/use-toast';
+import { activityService, type ActivityLogEntry as ServiceActivityLogEntry } from '@/services/activityService';
 
-interface ActivityLogEntry {
+// Local interface that maps from service data
+interface LocalActivityLogEntry {
   id: string;
   timestamp: string;
   user: {
@@ -234,8 +237,10 @@ const mockActivityLogs: ActivityLogEntry[] = [
 ];
 
 export default function ActivityLog() {
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
+  const [logs, setLogs] = useState<LocalActivityLogEntry[]>([]);
+  const [uniqueUsers, setUniqueUsers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [resourceFilter, setResourceFilter] = useState<string>('all');
@@ -244,15 +249,56 @@ export default function ActivityLog() {
 
   useEffect(() => {
     loadActivityLogs();
+    loadUniqueUsers();
   }, []);
 
   const loadActivityLogs = async () => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const data = await activityService.getAll({
+        action: actionFilter !== 'all' ? actionFilter : undefined,
+        resource_type: resourceFilter !== 'all' ? resourceFilter : undefined,
+        user_id: userFilter !== 'all' ? userFilter : undefined,
+        start_date: dateRange.start || undefined,
+        end_date: dateRange.end || undefined,
+        search: searchQuery || undefined,
+      });
+
+      // Map service data to local format
+      const mappedLogs: LocalActivityLogEntry[] = data.map(log => ({
+        id: log.id,
+        timestamp: log.timestamp,
+        user: {
+          id: log.user?.id || log.user_id,
+          name: log.user?.full_name || 'Unknown User',
+          email: log.user?.email || '',
+          avatar: log.user?.avatar_url,
+        },
+        action: log.action,
+        resourceType: log.resource_type,
+        resourceId: log.resource_id,
+        resourceName: log.resource_name,
+        details: log.details || '',
+        ipAddress: log.ip_address || '',
+        userAgent: log.user_agent || '',
+      }));
+
+      setLogs(mappedLogs);
+    } catch (error) {
+      console.error('Error loading activity logs:', error);
+      // Fallback to mock data for demo
       setLogs(mockActivityLogs);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadUniqueUsers = async () => {
+    try {
+      const users = await activityService.getUniqueUsers();
+      setUniqueUsers(users);
+    } catch (error) {
+      console.error('Error loading users:', error);
     }
   };
 
@@ -282,8 +328,11 @@ export default function ActivityLog() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const uniqueUsers = Array.from(new Set(logs.map(l => l.user.id)))
-    .map(id => logs.find(l => l.user.id === id)!.user);
+  // Use uniqueUsers from state, or fall back to extracting from current logs
+  const displayUsers = uniqueUsers.length > 0
+    ? uniqueUsers.map(u => ({ id: u.id, name: u.full_name, email: u.email }))
+    : Array.from(new Set(logs.map(l => l.user.id)))
+        .map(id => logs.find(l => l.user.id === id)!.user);
 
   const filteredLogs = logs.filter(log => {
     if (searchQuery) {
@@ -309,9 +358,44 @@ export default function ActivityLog() {
     deletes: logs.filter(l => l.action === 'delete').length
   };
 
-  const handleExport = () => {
-    console.log('Exporting activity logs...');
-    // Export implementation would go here
+  const handleExport = async (format: 'csv' | 'json') => {
+    try {
+      toast({
+        title: 'Export Started',
+        description: `Generating ${format.toUpperCase()} file...`,
+      });
+
+      const content = await activityService.export({
+        action: actionFilter !== 'all' ? actionFilter : undefined,
+        resource_type: resourceFilter !== 'all' ? resourceFilter : undefined,
+        user_id: userFilter !== 'all' ? userFilter : undefined,
+        start_date: dateRange.start || undefined,
+        end_date: dateRange.end || undefined,
+        search: searchQuery || undefined,
+      }, format);
+
+      const blob = new Blob([content], {
+        type: format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `activity-log-${new Date().toISOString().split('T')[0]}.${format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Export Complete',
+        description: `Activity logs exported to ${format.toUpperCase()}`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export activity logs',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (isLoading) {
@@ -344,10 +428,10 @@ export default function ActivityLog() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleExport}>
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
                 Export as CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExport}>
+              <DropdownMenuItem onClick={() => handleExport('json')}>
                 Export as JSON
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -453,7 +537,7 @@ export default function ActivityLog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Users</SelectItem>
-                  {uniqueUsers.map(user => (
+                  {displayUsers.map(user => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name}
                     </SelectItem>
