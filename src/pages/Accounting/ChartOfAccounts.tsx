@@ -49,6 +49,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { accountService, type Account as ServiceAccount, type AccountHierarchy } from '@/services/accountService';
 
 interface Account {
   id: string;
@@ -112,7 +113,8 @@ const ACCOUNT_SUBTYPES: Record<string, { value: string; label: string }[]> = {
   ]
 };
 
-const mockAccounts: Account[] = [
+// Default accounts for fallback
+const defaultAccounts: Account[] = [
   // Assets
   {
     id: '1000',
@@ -303,8 +305,29 @@ export default function ChartOfAccounts() {
   const loadAccounts = async () => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setAccounts(mockAccounts);
+      const data = await accountService.getHierarchy();
+      if (data && data.length > 0) {
+        // Map service data to component format
+        const mapAccount = (a: AccountHierarchy): Account => ({
+          id: a.id,
+          code: a.code,
+          name: a.name,
+          type: a.type as Account['type'],
+          subtype: a.subtype || '',
+          description: a.description || '',
+          parentId: a.parent_id || null,
+          balance: a.balance || 0,
+          isActive: a.is_active ?? true,
+          children: a.children?.map(mapAccount),
+        });
+        setAccounts(data.map(mapAccount));
+      } else {
+        // Use default if no data
+        setAccounts(defaultAccounts);
+      }
+    } catch (error) {
+      console.warn('Using default accounts data:', error);
+      setAccounts(defaultAccounts);
     } finally {
       setIsLoading(false);
     }
@@ -388,13 +411,35 @@ export default function ChartOfAccounts() {
 
     setIsSaving(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const accountData = {
+        code: formData.code,
+        name: formData.name,
+        type: formData.type as 'asset' | 'liability' | 'equity' | 'revenue' | 'expense',
+        subtype: formData.subtype || undefined,
+        description: formData.description || undefined,
+        parent_id: formData.parentId || undefined,
+        is_active: formData.isActive,
+      };
+
+      if (editingAccount) {
+        await accountService.update(editingAccount.id, accountData);
+      } else {
+        await accountService.create(accountData);
+      }
+
       toast({
         title: 'Success',
         description: editingAccount ? 'Account updated successfully.' : 'Account created successfully.'
       });
       handleCloseModal();
       loadAccounts();
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save account.',
+        variant: 'destructive'
+      });
     } finally {
       setIsSaving(false);
     }
@@ -404,7 +449,7 @@ export default function ChartOfAccounts() {
     if (!deletingAccount) return;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await accountService.delete(deletingAccount.id);
       toast({
         title: 'Success',
         description: 'Account deleted successfully.'
@@ -413,6 +458,7 @@ export default function ChartOfAccounts() {
       setDeletingAccount(null);
       loadAccounts();
     } catch (error) {
+      console.error('Delete error:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete account.',

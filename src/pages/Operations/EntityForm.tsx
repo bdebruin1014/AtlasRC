@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { entityService } from '@/services/entityService';
 
 const US_STATES = [
   { value: 'AL', label: 'Alabama' }, { value: 'AK', label: 'Alaska' }, { value: 'AZ', label: 'Arizona' },
@@ -46,8 +47,8 @@ const LEGAL_STRUCTURES = [
   { value: 'Other', label: 'Other' },
 ];
 
-// Mock entities for parent selection
-const mockEntities = [
+// Default entities for fallback
+const defaultParentEntities = [
   { id: '1', name: 'Olive Brynn LLC' },
   { id: '2', name: 'VanRock Holdings LLC' },
 ];
@@ -84,9 +85,10 @@ const EntityForm: React.FC = () => {
   const { toast } = useToast();
   const isEditing = Boolean(id);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [parentEntities, setParentEntities] = useState<{ id: string; name: string }[]>(defaultParentEntities);
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -110,15 +112,68 @@ const EntityForm: React.FC = () => {
     notes: '',
   });
 
+  // Load parent entities for dropdown
+  useEffect(() => {
+    const loadParentEntities = async () => {
+      try {
+        const allEntities = await entityService.getAll();
+        if (allEntities && allEntities.length > 0) {
+          // Filter out current entity from parent selection
+          const available = allEntities
+            .filter((e: any) => e.id !== id)
+            .map((e: any) => ({ id: e.id, name: e.name }));
+          setParentEntities(available);
+        }
+      } catch (error) {
+        console.warn('Using default parent entities:', error);
+      }
+    };
+    loadParentEntities();
+  }, [id]);
+
+  // Load entity data when editing
   useEffect(() => {
     if (isEditing && id) {
-      setLoading(true);
-      // TODO: Fetch entity data
-      setTimeout(() => {
-        setLoading(false);
-      }, 500);
+      const loadEntity = async () => {
+        try {
+          const data = await entityService.getById(id);
+          if (data) {
+            setFormData({
+              name: data.name || '',
+              type: data.type || '',
+              parentEntityId: data.parent_entity_id || '',
+              legalStructure: data.legal_structure || '',
+              taxId: data.tax_id || '',
+              stateOfFormation: data.state_of_formation || 'SC',
+              formationDate: data.formation_date || '',
+              phone: data.phone || '',
+              email: data.email || '',
+              website: data.website || '',
+              addressLine1: data.address_line1 || '',
+              addressLine2: data.address_line2 || '',
+              city: data.city || '',
+              state: data.state || 'SC',
+              zipCode: data.zip_code || '',
+              bankName: data.bank_name || '',
+              accountNumber: '', // Don't load sensitive data
+              routingNumber: data.routing_number || '',
+              notes: data.notes || '',
+            });
+          }
+        } catch (error) {
+          console.warn('Error loading entity:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load entity data',
+            variant: 'destructive',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadEntity();
     }
-  }, [isEditing, id]);
+  }, [isEditing, id, toast]);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -188,8 +243,32 @@ const EntityForm: React.FC = () => {
     setSaving(true);
 
     try {
-      // TODO: Save to API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const entityData = {
+        name: formData.name,
+        type: formData.type,
+        parent_entity_id: formData.parentEntityId || null,
+        legal_structure: formData.legalStructure,
+        tax_id: formData.taxId,
+        state_of_formation: formData.stateOfFormation,
+        formation_date: formData.formationDate,
+        phone: formData.phone,
+        email: formData.email,
+        website: formData.website,
+        address_line1: formData.addressLine1,
+        address_line2: formData.addressLine2,
+        city: formData.city,
+        state: formData.state,
+        zip_code: formData.zipCode,
+        bank_name: formData.bankName,
+        routing_number: formData.routingNumber,
+        notes: formData.notes,
+      };
+
+      if (isEditing && id) {
+        await entityService.update(id, entityData);
+      } else {
+        await entityService.create(entityData);
+      }
 
       toast({
         title: isEditing ? 'Entity updated' : 'Entity created',
@@ -198,6 +277,7 @@ const EntityForm: React.FC = () => {
 
       navigate('/entities');
     } catch (error) {
+      console.error('Save error:', error);
       toast({
         title: 'Error',
         description: 'Failed to save entity',
@@ -308,7 +388,7 @@ const EntityForm: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">None (top-level)</SelectItem>
-                  {mockEntities.map(entity => (
+                  {parentEntities.map(entity => (
                     <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
                   ))}
                 </SelectContent>

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, User, Mail, Phone, MoreHorizontal, Edit, Trash2,
-  Download, Upload, Building2, ChevronRight
+  Download, Upload, Building2, ChevronRight, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { cn, formatDate } from '@/lib/utils';
+import { contactService, type Contact as ServiceContact } from '@/services/contactService';
 
 interface Contact {
   id: string;
@@ -44,7 +45,8 @@ interface Contact {
   avatar?: string;
 }
 
-const mockContacts: Contact[] = [
+// Default contacts for fallback
+const defaultContacts: Contact[] = [
   {
     id: '1',
     firstName: 'John',
@@ -126,8 +128,40 @@ const ContactsList: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [deleteContact, setDeleteContact] = useState<Contact | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [contacts, setContacts] = useState<Contact[]>(defaultContacts);
+  const [deleting, setDeleting] = useState(false);
 
-  const filteredContacts = mockContacts.filter((contact) => {
+  // Load contacts from service
+  useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        const data = await contactService.getAll();
+        if (data && data.length > 0) {
+          const mapped = data.map((c: ServiceContact): Contact => ({
+            id: c.id,
+            firstName: c.first_name,
+            lastName: c.last_name,
+            company: c.company,
+            type: [c.contact_type],
+            email: c.email || '',
+            phone: c.phone || '',
+            linkedProjects: 0,
+            linkedOpportunities: 0,
+            lastContactDate: c.updated_at,
+          }));
+          setContacts(mapped);
+        }
+      } catch (error) {
+        console.warn('Using default contacts data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadContacts();
+  }, []);
+
+  const filteredContacts = contacts.filter((contact) => {
     const fullName = `${contact.firstName} ${contact.lastName}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
       contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,11 +193,26 @@ const ContactsList: React.FC = () => {
 
   const handleDelete = async () => {
     if (!deleteContact) return;
-    toast({
-      title: 'Contact deleted',
-      description: `${deleteContact.firstName} ${deleteContact.lastName} has been deleted`,
-    });
-    setDeleteContact(null);
+    setDeleting(true);
+    try {
+      await contactService.delete(deleteContact.id);
+      // Remove from local state
+      setContacts(prev => prev.filter(c => c.id !== deleteContact.id));
+      toast({
+        title: 'Contact deleted',
+        description: `${deleteContact.firstName} ${deleteContact.lastName} has been deleted`,
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete contact',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteContact(null);
+    }
   };
 
   const handleBulkDelete = () => {
@@ -178,13 +227,21 @@ const ContactsList: React.FC = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
-          <p className="text-gray-500">{mockContacts.length} contacts</p>
+          <p className="text-gray-500">{contacts.length} contacts</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline">
@@ -404,8 +461,9 @@ const ContactsList: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
+              {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

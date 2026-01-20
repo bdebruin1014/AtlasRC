@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { entityService } from '@/services/entityService';
 
-const mockEntity = {
+// Default entity for fallback
+const defaultEntity = {
   id: '1',
   name: 'VanRock Holdings LLC',
   type: 'operating',
@@ -58,15 +60,66 @@ const EntityDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [entity, setEntity] = useState<typeof mockEntity | null>(null);
+  const [entity, setEntity] = useState<typeof defaultEntity | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    // TODO: Fetch entity from API
-    setTimeout(() => {
-      setEntity(mockEntity);
-      setLoading(false);
-    }, 500);
+    const loadEntity = async () => {
+      if (!id) return;
+      try {
+        const data = await entityService.getById(id);
+        if (data) {
+          // Get child entities
+          const children = await entityService.getChildren(id);
+          // Get parent entity if exists
+          let parentEntity = null;
+          if (data.parent_entity_id) {
+            const parent = await entityService.getById(data.parent_entity_id);
+            if (parent) {
+              parentEntity = { id: parent.id, name: parent.name };
+            }
+          }
+          // Map service data to component format
+          setEntity({
+            ...defaultEntity, // Use default as template
+            id: data.id,
+            name: data.name,
+            type: data.type || 'operating',
+            parentEntity: parentEntity,
+            taxId: data.tax_id,
+            legalStructure: data.legal_structure || 'LLC',
+            stateOfFormation: data.state_of_formation || 'SC',
+            formationDate: data.formation_date || data.created_at,
+            primaryContact: data.primary_contact || defaultEntity.primaryContact,
+            address: {
+              line1: data.address_line1 || '',
+              line2: data.address_line2 || '',
+              city: data.city || '',
+              state: data.state || '',
+              zipCode: data.zip_code || '',
+            },
+            notes: data.notes || '',
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+            childEntities: children?.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              type: c.type || 'operating',
+            })) || [],
+            projects: defaultEntity.projects, // Projects loaded separately if needed
+            financialSummary: defaultEntity.financialSummary, // Would come from transactions aggregation
+          });
+        } else {
+          setEntity(null);
+        }
+      } catch (error) {
+        console.warn('Using default entity data:', error);
+        setEntity(defaultEntity);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEntity();
   }, [id]);
 
   if (loading) {

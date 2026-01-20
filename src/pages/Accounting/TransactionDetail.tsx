@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { transactionServiceTs, type Transaction } from '@/services/transactionService.ts';
 
 // Mock transaction data
 const mockTransaction = {
@@ -66,24 +67,55 @@ const TransactionDetail: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch transaction from API
-    setTimeout(() => {
-      setTransaction(mockTransaction);
-      setLoading(false);
-    }, 500);
+    const loadTransaction = async () => {
+      if (!id) return;
+      try {
+        const txn = await transactionServiceTs.getById(id);
+        if (txn) {
+          // Map service data to component format
+          setTransaction({
+            ...mockTransaction, // Use mock as template for fields not in service
+            id: txn.id,
+            transactionNumber: txn.transaction_number || `TXN-${txn.id}`,
+            date: txn.date,
+            entity: { id: txn.entity_id || '', name: txn.entity_name || 'Unknown Entity' },
+            project: txn.project_id ? { id: txn.project_id, name: txn.project_name || 'Unknown Project' } : null,
+            type: txn.type,
+            category: txn.category || 'Uncategorized',
+            subcategory: txn.subcategory,
+            amount: txn.amount,
+            paymentMethod: txn.payment_method || 'Other',
+            referenceNumber: txn.reference_number,
+            description: txn.description || '',
+            notes: txn.notes,
+            memo: txn.memo,
+            status: txn.status || 'completed',
+          });
+        } else {
+          setTransaction(null);
+        }
+      } catch (error) {
+        console.warn('Using mock transaction data:', error);
+        setTransaction(mockTransaction);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTransaction();
   }, [id]);
 
   const handleDelete = async () => {
+    if (!id) return;
     setDeleting(true);
     try {
-      // TODO: Delete via API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await transactionServiceTs.delete(id);
       toast({
         title: 'Transaction deleted',
         description: 'The transaction has been deleted successfully',
       });
       navigate('/accounting/transactions');
     } catch (error) {
+      console.error('Delete error:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete transaction',

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
+import { contactService, type ContactType, type CreateContactData } from '@/services/contactService';
 
 const US_STATES = [
   { value: 'AL', label: 'Alabama' }, { value: 'AK', label: 'Alaska' }, { value: 'AZ', label: 'Arizona' },
@@ -118,35 +119,36 @@ export default function ContactForm() {
   }, [id]);
 
   const loadContact = async () => {
+    if (!id) return;
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Mock data for editing
-      setFormData({
-        first_name: 'John',
-        last_name: 'Smith',
-        email: 'john.smith@example.com',
-        phone: '(555) 123-4567',
-        mobile_phone: '(555) 987-6543',
-        contact_type: 'investor',
-        company_name: 'Smith Investments LLC',
-        job_title: 'Managing Partner',
-        department: 'Acquisitions',
-        address_line1: '123 Main Street',
-        address_line2: 'Suite 500',
-        city: 'New York',
-        state: 'NY',
-        zip_code: '10001',
-        country: 'USA',
-        website: 'https://smithinvestments.com',
-        linkedin_url: 'https://linkedin.com/in/johnsmith',
-        preferred_contact_method: 'email',
-        notes: 'High net worth investor interested in multifamily properties.',
-        tags: 'investor, multifamily, nyc'
-      });
+      const data = await contactService.getById(id);
+      if (data) {
+        setFormData({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          email: data.email || '',
+          phone: data.phone || '',
+          mobile_phone: data.mobile || '',
+          contact_type: data.contact_type,
+          company_name: data.company || '',
+          job_title: data.job_title || '',
+          department: '',
+          address_line1: data.address_line1 || '',
+          address_line2: data.address_line2 || '',
+          city: data.city || '',
+          state: data.state || '',
+          zip_code: data.zip || '',
+          country: 'USA',
+          website: '',
+          linkedin_url: '',
+          preferred_contact_method: 'email',
+          notes: data.notes || '',
+          tags: data.tags?.join(', ') || ''
+        });
+      }
     } catch (error) {
+      console.warn('Error loading contact:', error);
       toast({
         title: 'Error',
         description: 'Failed to load contact details.',
@@ -234,8 +236,29 @@ export default function ContactForm() {
     setIsSaving(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const contactData: CreateContactData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        phone: formData.phone,
+        mobile: formData.mobile_phone,
+        company: formData.company_name,
+        job_title: formData.job_title,
+        contact_type: formData.contact_type as ContactType,
+        address_line1: formData.address_line1,
+        address_line2: formData.address_line2,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip_code,
+        notes: formData.notes,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+      };
+
+      if (isEditing && id) {
+        await contactService.update(id, contactData);
+      } else {
+        await contactService.create(contactData);
+      }
 
       toast({
         title: 'Success',
@@ -244,6 +267,7 @@ export default function ContactForm() {
 
       navigate('/contacts');
     } catch (error) {
+      console.error('Save error:', error);
       toast({
         title: 'Error',
         description: 'Failed to save contact.',

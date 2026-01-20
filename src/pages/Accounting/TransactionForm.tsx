@@ -13,6 +13,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import { transactionServiceTs, type CreateTransactionData, type PaymentMethod } from '@/services/transactionService.ts';
+import { entityService } from '@/services/entityService';
+import { projectService } from '@/services/projectService';
 
 const INCOME_CATEGORIES = [
   { value: 'capital-raise', label: 'Capital Raise' },
@@ -60,19 +63,30 @@ const RECURRING_FREQUENCIES = [
   { value: 'annually', label: 'Annually' }
 ];
 
-// Mock data for entities and projects
-const mockEntities = [
+// Default data for fallback
+const defaultEntities = [
   { id: '1', name: 'VanRock Holdings LLC' },
   { id: '2', name: 'Watson House LLC' },
   { id: '3', name: 'Oslo Development LLC' },
   { id: '4', name: 'Cedar Mill Partners' }
 ];
 
-const mockProjects = [
+const defaultProjects = [
   { id: '1', name: 'Watson House Development', entityId: '2' },
   { id: '2', name: 'Oslo Townhomes', entityId: '3' },
   { id: '3', name: 'Cedar Mill Mixed Use', entityId: '4' }
 ];
+
+interface EntityData {
+  id: string;
+  name: string;
+}
+
+interface ProjectData {
+  id: string;
+  name: string;
+  entityId: string;
+}
 
 interface FormData {
   transactionDate: string;
@@ -115,6 +129,8 @@ const TransactionForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [entities, setEntities] = useState<EntityData[]>(defaultEntities);
+  const [projects, setProjects] = useState<ProjectData[]>(defaultProjects);
 
   const [formData, setFormData] = useState<FormData>({
     transactionDate: new Date().toISOString().split('T')[0],
@@ -144,22 +160,85 @@ const TransactionForm: React.FC = () => {
 
   // Get projects filtered by selected entity
   const filteredProjects = formData.entityId
-    ? mockProjects.filter(p => p.entityId === formData.entityId)
+    ? projects.filter(p => p.entityId === formData.entityId)
     : [];
 
   // Get categories based on transaction type
   const categories = formData.transactionType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
+  // Load entities and projects on mount
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        const [entitiesData, projectsData] = await Promise.all([
+          entityService.getAll(),
+          projectService.getAll()
+        ]);
+        if (entitiesData?.length) {
+          setEntities(entitiesData.map((e: { id: string; name: string }) => ({ id: e.id, name: e.name })));
+        }
+        if (projectsData?.length) {
+          setProjects(projectsData.map((p: { id: string; name: string; entity_id?: string }) => ({
+            id: p.id,
+            name: p.name,
+            entityId: p.entity_id || ''
+          })));
+        }
+      } catch (error) {
+        console.warn('Using default entity/project data:', error);
+      }
+    };
+    loadReferenceData();
+  }, []);
+
   // Load existing transaction for editing
   useEffect(() => {
     if (isEditing && id) {
       setLoading(true);
-      // TODO: Fetch transaction data from API
-      setTimeout(() => {
-        setLoading(false);
-      }, 500);
+      const loadTransaction = async () => {
+        try {
+          const txn = await transactionServiceTs.getById(id);
+          if (txn) {
+            setFormData({
+              transactionDate: txn.transaction_date,
+              entityId: txn.entity_id || '',
+              projectId: txn.project_id || '',
+              transactionType: txn.transaction_type as 'income' | 'expense',
+              category: txn.category || '',
+              subcategory: '',
+              amount: String(txn.amount),
+              paymentMethod: txn.payment_method || '',
+              checkNumber: '',
+              referenceNumber: txn.reference_number || '',
+              description: txn.description || '',
+              notes: txn.notes || '',
+              memo: '',
+              vendorId: txn.vendor_id || '',
+              vendorName: '',
+              payerId: '',
+              payerName: '',
+              taxable: false,
+              taxAmount: '',
+              accountCode: txn.account_id || '',
+              isRecurring: false,
+              recurringFrequency: '',
+              recurringEndDate: '',
+            });
+          }
+        } catch (error) {
+          console.warn('Error loading transaction:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load transaction data',
+            variant: 'destructive',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadTransaction();
     }
-  }, [isEditing, id]);
+  }, [isEditing, id, toast]);
 
   const handleInputChange = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => {
@@ -276,7 +355,7 @@ const TransactionForm: React.FC = () => {
 
     // Validate project entity match
     if (formData.projectId && formData.entityId) {
-      const project = mockProjects.find(p => p.id === formData.projectId);
+      const project = projects.find(p => p.id === formData.projectId);
       if (project && project.entityId !== formData.entityId) {
         newErrors.projectId = 'Selected project does not belong to the selected entity';
       }
@@ -299,8 +378,27 @@ const TransactionForm: React.FC = () => {
     setSaving(true);
 
     try {
-      // TODO: Save to API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const transactionData: CreateTransactionData = {
+        transaction_date: formData.transactionDate,
+        transaction_type: formData.transactionType,
+        category: formData.category,
+        description: formData.description,
+        amount: parseFloat(formData.amount) || 0,
+        entity_id: formData.entityId || undefined,
+        project_id: formData.projectId || undefined,
+        vendor_id: formData.vendorId || undefined,
+        account_id: formData.accountCode || undefined,
+        reference_number: formData.referenceNumber || undefined,
+        payment_method: formData.paymentMethod as PaymentMethod || undefined,
+        status: action === 'save-draft' ? 'pending' : 'posted',
+        notes: formData.notes || undefined,
+      };
+
+      if (isEditing && id) {
+        await transactionServiceTs.update(id, transactionData);
+      } else {
+        await transactionServiceTs.create(transactionData);
+      }
 
       toast({
         title: action === 'save-draft' ? 'Draft saved' : (isEditing ? 'Transaction updated' : 'Transaction created'),
@@ -432,7 +530,7 @@ const TransactionForm: React.FC = () => {
                   <SelectValue placeholder="Select entity" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockEntities.map(entity => (
+                  {entities.map(entity => (
                     <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
                   ))}
                 </SelectContent>

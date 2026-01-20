@@ -1,17 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, TrendingDown, Wallet, Plus, FileText,
-  Download, RefreshCw, PieChart, BarChart3, ArrowUpRight, ArrowDownRight
+  Download, RefreshCw, PieChart, BarChart3, ArrowUpRight, ArrowDownRight, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { cn, formatCurrency } from '@/lib/utils';
+import { transactionServiceTs, type Transaction } from '@/services/transactionService.ts';
+import { entityService } from '@/services/entityService';
 
-// Mock data
-const mockSummary = {
+interface DashboardSummary {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  operatingCash: number;
+  revenueChange: number;
+  expensesChange: number;
+  profitChange: number;
+  cashChange: number;
+}
+
+interface MonthlyData {
+  month: string;
+  income: number;
+  expenses: number;
+}
+
+interface ExpenseCategory {
+  category: string;
+  amount: number;
+  percentage: number;
+}
+
+interface Entity {
+  id: string;
+  name: string;
+}
+
+// Default values for fallback
+const defaultSummary: DashboardSummary = {
   totalRevenue: 1245000,
   totalExpenses: 892000,
   netProfit: 353000,
@@ -22,7 +52,7 @@ const mockSummary = {
   cashChange: 5.1,
 };
 
-const mockMonthlyData = [
+const defaultMonthlyData: MonthlyData[] = [
   { month: 'Jan', income: 95000, expenses: 72000 },
   { month: 'Feb', income: 88000, expenses: 65000 },
   { month: 'Mar', income: 112000, expenses: 78000 },
@@ -37,20 +67,13 @@ const mockMonthlyData = [
   { month: 'Dec', income: 150000, expenses: 83000 },
 ];
 
-const mockExpensesByCategory = [
+const defaultExpensesByCategory: ExpenseCategory[] = [
   { category: 'Construction', amount: 425000, percentage: 47.6 },
   { category: 'Land Acquisition', amount: 185000, percentage: 20.7 },
   { category: 'Professional Fees', amount: 95000, percentage: 10.6 },
   { category: 'Marketing', amount: 65000, percentage: 7.3 },
   { category: 'Debt Service', amount: 55000, percentage: 6.2 },
   { category: 'Other', amount: 67000, percentage: 7.5 },
-];
-
-const mockEntities = [
-  { id: 'all', name: 'All Entities' },
-  { id: '1', name: 'VanRock Holdings LLC' },
-  { id: '2', name: 'Watson House LLC' },
-  { id: '3', name: 'Oslo Development LLC' },
 ];
 
 const PERIODS = [
@@ -67,10 +90,105 @@ const AccountingDashboard: React.FC = () => {
   const [entityId, setEntityId] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [entities, setEntities] = useState<Entity[]>([{ id: 'all', name: 'All Entities' }]);
+  const [summary, setSummary] = useState<DashboardSummary>(defaultSummary);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>(defaultMonthlyData);
+  const [expensesByCategory, setExpensesByCategory] = useState<ExpenseCategory[]>(defaultExpensesByCategory);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  const maxIncome = Math.max(...mockMonthlyData.map(d => d.income));
-  const maxExpense = Math.max(...mockMonthlyData.map(d => d.expenses));
+  // Load data on mount and when filters change
+  useEffect(() => {
+    loadData();
+  }, [entityId, period, customStartDate, customEndDate]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Load entities
+      const entitiesData = await entityService.getAll();
+      setEntities([{ id: 'all', name: 'All Entities' }, ...entitiesData.map((e: { id: string; name: string }) => ({ id: e.id, name: e.name }))]);
+
+      // Build date filters based on period
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      const now = new Date();
+
+      if (period === 'this-month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        endDate = now.toISOString().split('T')[0];
+      } else if (period === 'last-month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+      } else if (period === 'quarter') {
+        const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+        startDate = quarterStart.toISOString().split('T')[0];
+        endDate = now.toISOString().split('T')[0];
+      } else if (period === 'ytd') {
+        startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+        endDate = now.toISOString().split('T')[0];
+      } else if (period === 'custom' && customStartDate && customEndDate) {
+        startDate = customStartDate;
+        endDate = customEndDate;
+      }
+
+      // Load transactions with filters
+      const txnData = await transactionServiceTs.getAll({
+        entity_id: entityId !== 'all' ? entityId : undefined,
+        start_date: startDate,
+        end_date: endDate,
+      });
+      setTransactions(txnData);
+
+      // Calculate summary from transactions
+      const totalRevenue = txnData.filter(t => t.transaction_type === 'income').reduce((sum, t) => sum + t.amount, 0);
+      const totalExpenses = txnData.filter(t => t.transaction_type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+      setSummary({
+        ...defaultSummary,
+        totalRevenue: totalRevenue || defaultSummary.totalRevenue,
+        totalExpenses: totalExpenses || defaultSummary.totalExpenses,
+        netProfit: (totalRevenue - totalExpenses) || defaultSummary.netProfit,
+      });
+
+      // Calculate expenses by category
+      const categoryMap: Record<string, number> = {};
+      txnData.filter(t => t.transaction_type === 'expense').forEach(t => {
+        const cat = t.category || 'Other';
+        categoryMap[cat] = (categoryMap[cat] || 0) + t.amount;
+      });
+
+      const totalCatExpenses = Object.values(categoryMap).reduce((sum, val) => sum + val, 0) || 1;
+      const categoryList = Object.entries(categoryMap)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 6)
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: Math.round((amount / totalCatExpenses) * 1000) / 10
+        }));
+
+      if (categoryList.length > 0) {
+        setExpensesByCategory(categoryList);
+      }
+
+    } catch (error) {
+      console.warn('Using default dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const maxIncome = Math.max(...monthlyData.map(d => d.income));
+  const maxExpense = Math.max(...monthlyData.map(d => d.expenses));
   const maxValue = Math.max(maxIncome, maxExpense);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -96,7 +214,7 @@ const AccountingDashboard: React.FC = () => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {mockEntities.map(e => (
+              {entities.map(e => (
                 <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
               ))}
             </SelectContent>
@@ -155,20 +273,20 @@ const AccountingDashboard: React.FC = () => {
               </div>
               <div className={cn(
                 'flex items-center text-sm font-medium',
-                mockSummary.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'
+                summary.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'
               )}>
-                {mockSummary.revenueChange >= 0 ? (
+                {summary.revenueChange >= 0 ? (
                   <ArrowUpRight className="w-4 h-4 mr-1" />
                 ) : (
                   <ArrowDownRight className="w-4 h-4 mr-1" />
                 )}
-                {Math.abs(mockSummary.revenueChange)}%
+                {Math.abs(summary.revenueChange)}%
               </div>
             </div>
             <div className="mt-4">
               <p className="text-sm text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(mockSummary.totalRevenue, { compact: true })}
+                {formatCurrency(summary.totalRevenue, { compact: true })}
               </p>
             </div>
           </CardContent>
@@ -183,20 +301,20 @@ const AccountingDashboard: React.FC = () => {
               </div>
               <div className={cn(
                 'flex items-center text-sm font-medium',
-                mockSummary.expensesChange <= 0 ? 'text-green-600' : 'text-red-600'
+                summary.expensesChange <= 0 ? 'text-green-600' : 'text-red-600'
               )}>
-                {mockSummary.expensesChange <= 0 ? (
+                {summary.expensesChange <= 0 ? (
                   <ArrowDownRight className="w-4 h-4 mr-1" />
                 ) : (
                   <ArrowUpRight className="w-4 h-4 mr-1" />
                 )}
-                {Math.abs(mockSummary.expensesChange)}%
+                {Math.abs(summary.expensesChange)}%
               </div>
             </div>
             <div className="mt-4">
               <p className="text-sm text-gray-500">Total Expenses</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(mockSummary.totalExpenses, { compact: true })}
+                {formatCurrency(summary.totalExpenses, { compact: true })}
               </p>
             </div>
           </CardContent>
@@ -208,32 +326,32 @@ const AccountingDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className={cn(
                 'w-12 h-12 rounded-lg flex items-center justify-center',
-                mockSummary.netProfit >= 0 ? 'bg-emerald-100' : 'bg-red-100'
+                summary.netProfit >= 0 ? 'bg-emerald-100' : 'bg-red-100'
               )}>
                 <TrendingUp className={cn(
                   'w-6 h-6',
-                  mockSummary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
+                  summary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
                 )} />
               </div>
               <div className={cn(
                 'flex items-center text-sm font-medium',
-                mockSummary.profitChange >= 0 ? 'text-green-600' : 'text-red-600'
+                summary.profitChange >= 0 ? 'text-green-600' : 'text-red-600'
               )}>
-                {mockSummary.profitChange >= 0 ? (
+                {summary.profitChange >= 0 ? (
                   <ArrowUpRight className="w-4 h-4 mr-1" />
                 ) : (
                   <ArrowDownRight className="w-4 h-4 mr-1" />
                 )}
-                {Math.abs(mockSummary.profitChange)}%
+                {Math.abs(summary.profitChange)}%
               </div>
             </div>
             <div className="mt-4">
               <p className="text-sm text-gray-500">Net Profit</p>
               <p className={cn(
                 'text-2xl font-bold',
-                mockSummary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
+                summary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
               )}>
-                {formatCurrency(mockSummary.netProfit, { compact: true })}
+                {formatCurrency(summary.netProfit, { compact: true })}
               </p>
             </div>
           </CardContent>
@@ -248,20 +366,20 @@ const AccountingDashboard: React.FC = () => {
               </div>
               <div className={cn(
                 'flex items-center text-sm font-medium',
-                mockSummary.cashChange >= 0 ? 'text-green-600' : 'text-red-600'
+                summary.cashChange >= 0 ? 'text-green-600' : 'text-red-600'
               )}>
-                {mockSummary.cashChange >= 0 ? (
+                {summary.cashChange >= 0 ? (
                   <ArrowUpRight className="w-4 h-4 mr-1" />
                 ) : (
                   <ArrowDownRight className="w-4 h-4 mr-1" />
                 )}
-                {Math.abs(mockSummary.cashChange)}%
+                {Math.abs(summary.cashChange)}%
               </div>
             </div>
             <div className="mt-4">
               <p className="text-sm text-gray-500">Operating Cash</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(mockSummary.operatingCash, { compact: true })}
+                {formatCurrency(summary.operatingCash, { compact: true })}
               </p>
             </div>
           </CardContent>
@@ -281,7 +399,7 @@ const AccountingDashboard: React.FC = () => {
           <CardContent>
             <div className="h-64">
               <div className="flex items-end justify-between h-48 gap-1">
-                {mockMonthlyData.map((data, index) => (
+                {monthlyData.map((data, index) => (
                   <div key={index} className="flex-1 flex flex-col items-center gap-1">
                     <div className="w-full flex flex-col items-center gap-0.5">
                       {/* Income bar */}
@@ -301,7 +419,7 @@ const AccountingDashboard: React.FC = () => {
                 ))}
               </div>
               <div className="flex justify-between mt-2">
-                {mockMonthlyData.map((data, index) => (
+                {monthlyData.map((data, index) => (
                   <div key={index} className="flex-1 text-center">
                     <span className="text-xs text-gray-500">{data.month}</span>
                   </div>
@@ -331,7 +449,7 @@ const AccountingDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockExpensesByCategory.map((item, index) => {
+              {expensesByCategory.map((item, index) => {
                 const colors = [
                   'bg-blue-500', 'bg-emerald-500', 'bg-purple-500',
                   'bg-amber-500', 'bg-pink-500', 'bg-gray-500'
@@ -358,7 +476,7 @@ const AccountingDashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Total Expenses</span>
                 <span className="text-lg font-bold text-gray-900">
-                  {formatCurrency(mockSummary.totalExpenses)}
+                  {formatCurrency(summary.totalExpenses)}
                 </span>
               </div>
             </div>

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Building2, ChevronRight, ChevronDown, MoreHorizontal,
-  Edit, Trash2, FileText, List, GitBranch, Download
+  Edit, Trash2, FileText, List, GitBranch, Download, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { cn, formatCurrency } from '@/lib/utils';
+import { entityService } from '@/services/entityService';
 
 interface Entity {
   id: string;
@@ -40,7 +41,8 @@ interface Entity {
   children?: Entity[];
 }
 
-const mockEntities: Entity[] = [
+// Default mock data for fallback
+const defaultEntities: Entity[] = [
   {
     id: '1',
     name: 'Olive Brynn LLC',
@@ -111,6 +113,39 @@ const EntitiesList: React.FC = () => {
   const [viewMode, setViewMode] = useState<'tree' | 'table'>('tree');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['1', '2']));
   const [deleteEntity, setDeleteEntity] = useState<Entity | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [entities, setEntities] = useState<Entity[]>(defaultEntities);
+  const [deleting, setDeleting] = useState(false);
+
+  // Load entities from service
+  useEffect(() => {
+    const loadEntities = async () => {
+      try {
+        // Load hierarchy to get tree structure
+        const hierarchyData = await entityService.getHierarchy();
+        if (hierarchyData && hierarchyData.length > 0) {
+          // Map service data to component format
+          const mapEntity = (e: any): Entity => ({
+            id: e.id,
+            name: e.name,
+            type: e.type || 'operating',
+            parentId: e.parent_entity_id || null,
+            taxId: e.tax_id,
+            projectCount: e.project_count || 0,
+            totalAssets: e.total_assets || 0,
+            createdAt: e.created_at,
+            children: e.children?.map(mapEntity),
+          });
+          setEntities(hierarchyData.map(mapEntity));
+        }
+      } catch (error) {
+        console.warn('Using default entities data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEntities();
+  }, []);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -138,7 +173,7 @@ const EntitiesList: React.FC = () => {
     return result;
   };
 
-  const allEntities = flattenEntities(mockEntities);
+  const allEntities = flattenEntities(entities);
 
   const filteredEntities = allEntities.filter((entity) => {
     const matchesSearch = entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -149,12 +184,40 @@ const EntitiesList: React.FC = () => {
 
   const handleDelete = async () => {
     if (!deleteEntity) return;
-    // TODO: Delete via API
-    toast({
-      title: 'Entity deleted',
-      description: `${deleteEntity.name} has been deleted`,
-    });
-    setDeleteEntity(null);
+    setDeleting(true);
+    try {
+      await entityService.delete(deleteEntity.id);
+      // Reload entities after deletion
+      const hierarchyData = await entityService.getHierarchy();
+      if (hierarchyData && hierarchyData.length > 0) {
+        const mapEntity = (e: any): Entity => ({
+          id: e.id,
+          name: e.name,
+          type: e.type || 'operating',
+          parentId: e.parent_entity_id || null,
+          taxId: e.tax_id,
+          projectCount: e.project_count || 0,
+          totalAssets: e.total_assets || 0,
+          createdAt: e.created_at,
+          children: e.children?.map(mapEntity),
+        });
+        setEntities(hierarchyData.map(mapEntity));
+      }
+      toast({
+        title: 'Entity deleted',
+        description: `${deleteEntity.name} has been deleted`,
+      });
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to delete entity',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteEntity(null);
+    }
   };
 
   const renderTreeNode = (entity: Entity, depth: number = 0) => {
@@ -250,6 +313,14 @@ const EntitiesList: React.FC = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -393,7 +464,7 @@ const EntitiesList: React.FC = () => {
               )
             ) : (
               // Tree view
-              mockEntities.map((entity) => renderTreeNode(entity))
+              entities.map((entity) => renderTreeNode(entity))
             )}
           </div>
         ) : (
@@ -487,8 +558,9 @@ const EntitiesList: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700">
+              {deleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

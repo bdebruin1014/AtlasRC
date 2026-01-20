@@ -12,8 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
+import { contactService, type Contact as ServiceContact } from '@/services/contactService';
 
-const mockContact = {
+// Default contact for fallback
+const defaultContact = {
   id: '1',
   contactType: 'individual',
   firstName: 'John',
@@ -83,15 +85,52 @@ const ContactDetail: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [contact, setContact] = useState<typeof mockContact | null>(null);
+  const [contact, setContact] = useState<typeof defaultContact | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [newNote, setNewNote] = useState('');
 
   useEffect(() => {
-    setTimeout(() => {
-      setContact(mockContact);
-      setLoading(false);
-    }, 500);
+    const loadContact = async () => {
+      if (!id) return;
+      try {
+        const data = await contactService.getById(id);
+        if (data) {
+          // Map service data to component format
+          setContact({
+            ...defaultContact, // Use default as template
+            id: data.id,
+            contactType: 'individual',
+            firstName: data.first_name,
+            lastName: data.last_name,
+            company: data.company || '',
+            jobTitle: data.job_title || '',
+            roles: [data.contact_type],
+            emails: data.email ? [{ email: data.email, type: 'Work', isPrimary: true }] : [],
+            phones: data.phone ? [{ number: data.phone, type: 'Work', isPrimary: true }] : [],
+            preferredContact: 'Phone',
+            address: {
+              line1: data.address_line1 || '',
+              line2: data.address_line2 || '',
+              city: data.city || '',
+              state: data.state || '',
+              zipCode: data.zip || '',
+            },
+            notes: data.notes || '',
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+            tags: data.tags || [],
+          });
+        } else {
+          setContact(null);
+        }
+      } catch (error) {
+        console.warn('Using default contact data:', error);
+        setContact(defaultContact);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadContact();
   }, [id]);
 
   const handleAddNote = () => {
