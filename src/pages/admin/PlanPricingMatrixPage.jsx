@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  DollarSign, Download, Upload, Save, Plus, ChevronLeft, 
-  TrendingUp, AlertCircle, Building2
+  DollarSign, Download, Upload, Save, Plus, ChevronLeft,
+  TrendingUp, AlertCircle, Building2, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import {
 const PlanPricingMatrixPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const fileInputRef = useRef(null);
   const [plans, setPlans] = useState([]);
   const [lineItems, setLineItems] = useState([]);
   const [pricingData, setPricingData] = useState({});
@@ -28,6 +29,8 @@ const PlanPricingMatrixPage = () => {
   const [editingCell, setEditingCell] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -128,20 +131,174 @@ const PlanPricingMatrixPage = () => {
     });
   };
 
-  const handleExportExcel = () => {
-    // TODO: Implement Excel export
-    toast({
-      title: 'Export Started',
-      description: 'Generating Excel file...'
-    });
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      toast({
+        title: 'Export Started',
+        description: 'Generating Excel-compatible CSV file...'
+      });
+
+      // Build CSV header row with plan codes
+      const headers = ['Line Item Code', 'Line Item Name', 'Category', 'Scale Type'];
+      plans.forEach(plan => {
+        headers.push(`${plan.plan_code} (${plan.square_footage} sqft)`);
+      });
+
+      // Build data rows
+      const rows = [];
+      categories.forEach(category => {
+        // Add category header row
+        rows.push([`--- ${category.toUpperCase().replace('_', ' ')} ---`, '', '', '', ...plans.map(() => '')]);
+
+        itemsByCategory[category].forEach(item => {
+          const row = [
+            item.item_code,
+            item.item_name,
+            item.category.replace('_', ' '),
+            item.scaling_type.replace('_', ' '),
+          ];
+          plans.forEach(plan => {
+            row.push(pricingData[plan.id]?.[item.id]?.toFixed(2) || '0.00');
+          });
+          rows.push(row);
+        });
+      });
+
+      // Add totals row
+      const totalsRow = ['TOTAL', '', '', ''];
+      plans.forEach(plan => {
+        totalsRow.push(calculateColumnTotal(plan.id).toFixed(2));
+      });
+      rows.push(totalsRow);
+
+      // Convert to CSV
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pricing-matrix-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Export Complete',
+        description: 'Pricing matrix has been exported successfully. Open in Excel for editing.'
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export pricing matrix',
+        variant: 'destructive'
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleImportExcel = () => {
-    // TODO: Implement Excel import
-    toast({
-      title: 'Import',
-      description: 'Excel import coming soon'
-    });
+    // Trigger file input click
+    fileInputRef.current?.click();
+  };
+
+  const handleFileImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setImporting(true);
+      toast({
+        title: 'Import Started',
+        description: `Processing ${file.name}...`
+      });
+
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+
+      if (lines.length < 2) {
+        throw new Error('File is empty or invalid');
+      }
+
+      // Parse header row to get plan column indices
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const planColumns = {};
+
+      // Map header columns to plan IDs
+      headers.forEach((header, idx) => {
+        if (idx < 4) return; // Skip first 4 columns (item info)
+
+        // Try to match plan by code from header (e.g., "PLAN-A (1500 sqft)")
+        const planCodeMatch = header.match(/^([A-Z0-9-]+)/);
+        if (planCodeMatch) {
+          const matchedPlan = plans.find(p =>
+            p.plan_code.toLowerCase() === planCodeMatch[1].toLowerCase()
+          );
+          if (matchedPlan) {
+            planColumns[idx] = matchedPlan.id;
+          }
+        }
+      });
+
+      if (Object.keys(planColumns).length === 0) {
+        throw new Error('Could not match any plan columns. Ensure header contains plan codes.');
+      }
+
+      // Parse data rows and update pricing
+      const newPricing = { ...pricingData };
+      let updatedCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const itemCode = values[0];
+
+        // Skip category header rows and totals
+        if (!itemCode || itemCode.startsWith('---') || itemCode === 'TOTAL') {
+          continue;
+        }
+
+        // Find matching line item by code
+        const matchedItem = lineItems.find(item =>
+          item.item_code.toLowerCase() === itemCode.toLowerCase()
+        );
+
+        if (matchedItem) {
+          Object.entries(planColumns).forEach(([colIdx, planId]) => {
+            const priceValue = parseFloat(values[colIdx]) || 0;
+            if (!newPricing[planId]) newPricing[planId] = {};
+            if (newPricing[planId][matchedItem.id] !== priceValue) {
+              newPricing[planId][matchedItem.id] = priceValue;
+              updatedCount++;
+            }
+          });
+        }
+      }
+
+      setPricingData(newPricing);
+      setHasChanges(true);
+
+      toast({
+        title: 'Import Complete',
+        description: `${updatedCount} price(s) updated from import. Review changes and save to confirm.`
+      });
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: 'Import Failed',
+        description: error.message || 'Failed to import file. Check format and try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setImporting(false);
+      // Reset file input
+      event.target.value = '';
+    }
   };
 
   // Group line items by category
@@ -181,14 +338,29 @@ const PlanPricingMatrixPage = () => {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportExcel}>
-            <Download className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={exporting}>
+            {exporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
             Export Excel
           </Button>
-          <Button variant="outline" size="sm" onClick={handleImportExcel}>
-            <Upload className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleImportExcel} disabled={importing}>
+            {importing ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 mr-2" />
+            )}
             Import Excel
           </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFileImport}
+            className="hidden"
+          />
         </div>
       </div>
 

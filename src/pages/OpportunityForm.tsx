@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Save, Plus, Loader2, Info, MapPin, DollarSign,
@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import { opportunityService } from '@/services/opportunityService';
 
 // US States for dropdown
 const US_STATES = [
@@ -187,29 +188,117 @@ const OpportunityForm: React.FC = () => {
   useEffect(() => {
     if (isEditing && id) {
       setLoading(true);
-      // TODO: Fetch opportunity data from API
-      // For now, simulating loading
-      setTimeout(() => {
-        setLoading(false);
-      }, 500);
+      const loadOpportunity = async () => {
+        try {
+          const data = await opportunityService.getById(id);
+          if (data) {
+            setFormData({
+              address: data.address || '',
+              city: data.city || 'Greenville',
+              state: data.state || 'SC',
+              zipCode: data.zip_code || '',
+              propertyType: data.property_type || '',
+              dealNumber: data.deal_number || '',
+              stage: data.stage || 'Prospecting',
+              assignedTo: data.assigned_to || '',
+              source: data.source || '',
+              estimatedValue: data.estimated_value?.toString() || '',
+              assignmentFee: data.assignment_fee?.toString() || '',
+              offerAmount: data.offer_amount?.toString() || '',
+              arv: data.arv?.toString() || '',
+              sellerName: data.seller_name || '',
+              sellerPhone: data.seller_phone || '',
+              sellerEmail: data.seller_email || '',
+              motivationType: data.motivation_type || [],
+              lotSize: data.lot_size?.toString() || '',
+              squareFootage: data.square_footage?.toString() || '',
+              bedrooms: data.bedrooms?.toString() || '',
+              bathrooms: data.bathrooms?.toString() || '',
+              yearBuilt: data.year_built?.toString() || '',
+              propertyCondition: data.property_condition || '',
+              firstContactDate: data.first_contact_date || new Date().toISOString().split('T')[0],
+              expectedCloseDate: data.expected_close_date || '',
+              contractDate: data.contract_date || '',
+              inspectionDate: data.inspection_date || '',
+              notes: data.notes || '',
+              privateNotes: data.private_notes || '',
+              tags: data.tags || [],
+              probability: data.probability || 50,
+              competingOffers: data.competing_offers?.toString() || '0',
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load opportunity:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load opportunity data',
+            variant: 'destructive',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadOpportunity();
     }
-  }, [isEditing, id]);
+  }, [isEditing, id, toast]);
 
-  // Auto-save every 30 seconds
+  // Auto-save every 30 seconds (only when editing an existing opportunity)
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (!isEditing || !id) return;
+
+    const timer = setInterval(async () => {
       if (formData.address) {
         setAutoSaveStatus('saving');
-        // TODO: Implement actual auto-save
-        setTimeout(() => {
+        try {
+          const opportunityData = buildOpportunityData();
+          await opportunityService.update(id, opportunityData);
           setAutoSaveStatus('saved');
           setTimeout(() => setAutoSaveStatus('idle'), 2000);
-        }, 500);
+        } catch (error) {
+          console.warn('Auto-save failed:', error);
+          setAutoSaveStatus('idle');
+        }
       }
     }, 30000);
 
     return () => clearInterval(timer);
-  }, [formData]);
+  }, [formData, isEditing, id]);
+
+  // Helper to build opportunity data for API
+  const buildOpportunityData = () => ({
+    address: formData.address,
+    city: formData.city,
+    state: formData.state,
+    zip_code: formData.zipCode,
+    property_type: formData.propertyType,
+    deal_number: formData.dealNumber,
+    stage: formData.stage,
+    assigned_to: formData.assignedTo,
+    source: formData.source,
+    estimated_value: formData.estimatedValue ? parseFloat(formData.estimatedValue) : null,
+    assignment_fee: formData.assignmentFee ? parseFloat(formData.assignmentFee) : null,
+    offer_amount: formData.offerAmount ? parseFloat(formData.offerAmount) : null,
+    arv: formData.arv ? parseFloat(formData.arv) : null,
+    seller_name: formData.sellerName,
+    seller_phone: formData.sellerPhone,
+    seller_email: formData.sellerEmail,
+    motivation_type: formData.motivationType,
+    lot_size: formData.lotSize ? parseFloat(formData.lotSize) : null,
+    square_footage: formData.squareFootage ? parseInt(formData.squareFootage) : null,
+    bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+    bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
+    year_built: formData.yearBuilt ? parseInt(formData.yearBuilt) : null,
+    property_condition: formData.propertyCondition,
+    first_contact_date: formData.firstContactDate || null,
+    expected_close_date: formData.expectedCloseDate || null,
+    contract_date: formData.contractDate || null,
+    inspection_date: formData.inspectionDate || null,
+    notes: formData.notes,
+    private_notes: formData.privateNotes,
+    tags: formData.tags,
+    probability: formData.probability,
+    competing_offers: formData.competingOffers ? parseInt(formData.competingOffers) : 0,
+  });
 
   const handleInputChange = (field: keyof FormData, value: string | string[] | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -348,8 +437,13 @@ const OpportunityForm: React.FC = () => {
     setSaving(true);
 
     try {
-      // TODO: Save to API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const opportunityData = buildOpportunityData();
+
+      if (isEditing && id) {
+        await opportunityService.update(id, opportunityData);
+      } else {
+        await opportunityService.create(opportunityData);
+      }
 
       toast({
         title: isEditing ? 'Opportunity updated' : 'Opportunity created',

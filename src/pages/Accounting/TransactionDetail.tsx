@@ -128,12 +128,27 @@ const TransactionDetail: React.FC = () => {
   };
 
   const handleDuplicate = () => {
-    // TODO: Implement duplicate functionality
+    if (!transaction) return;
+    // Navigate to new transaction form with prefilled data
+    const duplicateData = {
+      type: transaction.type,
+      category: transaction.category,
+      subcategory: transaction.subcategory,
+      amount: transaction.amount,
+      entity: transaction.entity,
+      project: transaction.project,
+      description: transaction.description,
+      notes: transaction.notes,
+      paymentMethod: transaction.paymentMethod,
+      // Reset date to today and clear reference number
+      date: new Date().toISOString().split('T')[0],
+      status: 'pending',
+    };
     toast({
       title: 'Transaction duplicated',
-      description: 'A new draft has been created',
+      description: 'A new draft has been created from this transaction',
     });
-    navigate('/accounting/transactions/new');
+    navigate('/accounting/transactions/new', { state: { prefillData: duplicateData } });
   };
 
   const formatFileSize = (bytes: number) => {

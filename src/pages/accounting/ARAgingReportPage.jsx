@@ -1,17 +1,24 @@
 // src/pages/accounting/ARAgingReportPage.jsx
 // Accounts Receivable Aging Report with enhanced features
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   FileText, Download, Calendar, DollarSign, Clock, AlertTriangle,
-  TrendingUp, Users, Mail, ChevronDown, ChevronRight, Printer
+  TrendingUp, Users, Mail, ChevronDown, ChevronRight, Printer, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   getARAgingReport,
   generateStatement,
@@ -27,6 +34,8 @@ const ARAgingReportPage = () => {
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
   const [expandedCustomers, setExpandedCustomers] = useState({});
   const [processingLateFees, setProcessingLateFees] = useState(false);
+  const [statementModal, setStatementModal] = useState({ open: false, statement: null, customerId: null });
+  const statementRef = useRef(null);
 
   useEffect(() => {
     loadReport();
@@ -64,11 +73,84 @@ const ARAgingReportPage = () => {
   const handleGenerateStatement = async (customerId) => {
     try {
       const statement = await generateStatement(customerId, entityId, new Date(asOfDate));
-      console.log('Statement generated:', statement);
-      // TODO: Open statement preview/print modal
+      // Open statement preview modal with generated data
+      setStatementModal({
+        open: true,
+        statement,
+        customerId,
+      });
     } catch (error) {
       console.error('Error generating statement:', error);
     }
+  };
+
+  const handlePrintStatement = () => {
+    if (statementRef.current) {
+      const printContent = statementRef.current.innerHTML;
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Customer Statement</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f5f5f5; }
+              .header { margin-bottom: 20px; }
+              .header h1 { margin: 0; }
+              .totals { margin-top: 20px; font-weight: bold; }
+              .overdue { color: #dc2626; }
+              .text-right { text-align: right; }
+              @media print { body { padding: 0; } }
+            </style>
+          </head>
+          <body>${printContent}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  };
+
+  const handleDownloadStatement = () => {
+    if (!statementModal.statement) return;
+    const { statement } = statementModal;
+
+    // Build CSV content
+    const rows = [
+      ['Customer Statement'],
+      ['Customer:', statement.customer?.name || 'Unknown'],
+      ['Statement Date:', formatDate(statement.statement_date)],
+      [''],
+      ['Invoice #', 'Date', 'Due Date', 'Original Amount', 'Paid', 'Balance Due', 'Days Overdue'],
+    ];
+
+    statement.invoices?.forEach(inv => {
+      rows.push([
+        inv.invoice_number,
+        formatDate(inv.invoice_date),
+        formatDate(inv.due_date),
+        inv.total_amount?.toFixed(2) || '0.00',
+        inv.amount_paid?.toFixed(2) || '0.00',
+        inv.balance_due?.toFixed(2) || '0.00',
+        inv.days_overdue?.toString() || '0',
+      ]);
+    });
+
+    rows.push(['']);
+    rows.push(['', '', '', '', 'Total Balance Due:', statement.total_balance?.toFixed(2) || '0.00', '']);
+
+    const csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `statement-${statement.customer?.name || 'customer'}-${asOfDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const toggleCustomer = (customerId) => {
@@ -382,6 +464,135 @@ const ARAgingReportPage = () => {
           </table>
         </CardContent>
       </Card>
+
+      {/* Statement Preview Modal */}
+      <Dialog open={statementModal.open} onOpenChange={(open) => setStatementModal(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Customer Statement
+            </DialogTitle>
+          </DialogHeader>
+
+          <div ref={statementRef} className="statement-content">
+            {statementModal.statement && (
+              <div className="space-y-4">
+                {/* Statement Header */}
+                <div className="header border-b pb-4">
+                  <h1 className="text-xl font-bold">Statement of Account</h1>
+                  <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Bill To:</p>
+                      <p className="font-semibold">{statementModal.statement.customer?.name || 'Customer'}</p>
+                      {statementModal.statement.customer?.address && (
+                        <p>{statementModal.statement.customer.address}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-500">Statement Date:</p>
+                      <p className="font-semibold">{formatDate(statementModal.statement.statement_date || asOfDate)}</p>
+                      <p className="text-gray-500 mt-2">Account Balance:</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {formatCurrency(statementModal.statement.total_balance || 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Invoices Table */}
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Invoice #</th>
+                      <th className="px-3 py-2 text-left font-medium">Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Due Date</th>
+                      <th className="px-3 py-2 text-right font-medium">Amount</th>
+                      <th className="px-3 py-2 text-right font-medium">Paid</th>
+                      <th className="px-3 py-2 text-right font-medium">Balance</th>
+                      <th className="px-3 py-2 text-right font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(statementModal.statement.invoices || []).map((inv, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-3 py-2">{inv.invoice_number}</td>
+                        <td className="px-3 py-2">{formatDate(inv.invoice_date)}</td>
+                        <td className="px-3 py-2">{formatDate(inv.due_date)}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(inv.total_amount)}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(inv.amount_paid)}</td>
+                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(inv.balance_due)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {inv.days_overdue > 0 ? (
+                            <span className="overdue text-red-600">{inv.days_overdue} days overdue</span>
+                          ) : (
+                            <span className="text-green-600">Current</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100 font-bold">
+                    <tr>
+                      <td colSpan={5} className="px-3 py-2 text-right">Total Balance Due:</td>
+                      <td className="px-3 py-2 text-right text-lg">{formatCurrency(statementModal.statement.total_balance)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {/* Aging Summary */}
+                {statementModal.statement.aging_summary && (
+                  <div className="totals bg-gray-50 p-4 rounded-lg">
+                    <p className="font-semibold mb-2">Aging Summary</p>
+                    <div className="grid grid-cols-5 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Current</p>
+                        <p>{formatCurrency(statementModal.statement.aging_summary.current)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">1-30 Days</p>
+                        <p>{formatCurrency(statementModal.statement.aging_summary.days_1_30)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">31-60 Days</p>
+                        <p>{formatCurrency(statementModal.statement.aging_summary.days_31_60)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">61-90 Days</p>
+                        <p>{formatCurrency(statementModal.statement.aging_summary.days_61_90)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Over 90 Days</p>
+                        <p className="text-red-600 font-bold">{formatCurrency(statementModal.statement.aging_summary.over_90)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Terms */}
+                <div className="text-sm text-gray-600 pt-4 border-t">
+                  <p>Please remit payment to the address above. For questions regarding this statement, please contact our accounts receivable department.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={handleDownloadStatement}>
+              <Download className="w-4 h-4 mr-2" />
+              Download CSV
+            </Button>
+            <Button variant="outline" onClick={handlePrintStatement}>
+              <Printer className="w-4 h-4 mr-2" />
+              Print
+            </Button>
+            <Button onClick={() => setStatementModal({ open: false, statement: null, customerId: null })}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

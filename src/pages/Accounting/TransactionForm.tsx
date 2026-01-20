@@ -276,7 +276,27 @@ const TransactionForm: React.FC = () => {
           description: `This transaction of $${amount.toLocaleString()} is over $10,000. Please verify the amount.`,
         });
       }
-      // TODO: Check for duplicates via API
+      // Check for potential duplicates via API
+      if (!isEditing && formData.date && formData.entityId) {
+        transactionServiceTs.getAll({
+          entity_id: formData.entityId,
+          start_date: formData.date,
+          end_date: formData.date,
+        }).then(transactions => {
+          const duplicates = transactions.filter(t =>
+            Math.abs(t.amount - amount) < 0.01 &&
+            t.type === formData.transactionType
+          );
+          if (duplicates.length > 0) {
+            toast({
+              title: 'Potential Duplicate',
+              description: `Found ${duplicates.length} similar transaction(s) on this date with the same amount.`,
+            });
+          }
+        }).catch(() => {
+          // Silently fail duplicate check
+        });
+      }
     }
   };
 
