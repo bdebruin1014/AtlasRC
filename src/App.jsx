@@ -60,6 +60,14 @@ const PayrollPage = lazy(() => import('@/pages/accounting/PayrollPage'));
 const ExpenseManagementPage = lazy(() => import('@/pages/accounting/ExpenseManagementPage'));
 const JobCostingReportPage = lazy(() => import('@/pages/accounting/JobCostingReportPage'));
 
+// New Accounting Pages (TypeScript)
+const AccountingDashboardPage = lazy(() => import('@/pages/Accounting/AccountingDashboard'));
+const TransactionFormPage = lazy(() => import('@/pages/Accounting/TransactionForm'));
+const TransactionDetailPage = lazy(() => import('@/pages/Accounting/TransactionDetail'));
+const EntityLedgerPage = lazy(() => import('@/pages/Accounting/EntityLedger'));
+const ProjectLedgerPage = lazy(() => import('@/pages/Accounting/ProjectLedger'));
+const ChartOfAccountsPage = lazy(() => import('@/pages/Accounting/ChartOfAccounts'));
+
 // ============================================
 // ADMIN MODULE
 // ============================================
@@ -83,6 +91,11 @@ const AdminProjectTemplatesPage = lazy(() => import('@/pages/admin/ProjectTempla
 const COATemplatesPage = lazy(() => import('@/pages/admin/COATemplatesPage'));
 const UsersManagementPage = lazy(() => import('@/pages/admin/UsersManagementPage'));
 
+// New Admin Pages (TypeScript)
+const AdminSettingsPage = lazy(() => import('@/pages/Admin/Settings'));
+const TeamManagementPage = lazy(() => import('@/pages/Admin/TeamManagement'));
+const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
+
 // ============================================
 // OPERATIONS & REPORTS
 // ============================================
@@ -91,6 +104,15 @@ const GlobalTasksPage = lazy(() => import('@/pages/GlobalTasksPage'));
 const TeamsPage = lazy(() => import('@/pages/operations/TeamsPage'));
 const ESignPage = lazy(() => import('@/pages/operations/ESignPage'));
 const DocumentLibraryPage = lazy(() => import('@/pages/operations/DocumentLibraryPage'));
+
+// New Operations Pages (TypeScript)
+const ContactsListPage = lazy(() => import('@/pages/Operations/ContactsList'));
+const ContactDetailPage = lazy(() => import('@/pages/Operations/ContactDetail'));
+const ContactFormPage = lazy(() => import('@/pages/Operations/ContactForm'));
+const EntitiesListPage = lazy(() => import('@/pages/Operations/EntitiesList'));
+const EntityDetailPage = lazy(() => import('@/pages/Operations/EntityDetail'));
+const EntityFormPage = lazy(() => import('@/pages/Operations/EntityForm'));
+const OpportunityFormPage = lazy(() => import('@/pages/OpportunityForm'));
 
 // ============================================
 // ACQUISITION PIPELINE MODULE
@@ -279,12 +301,30 @@ const AppContent = () => (
     {/* OPPORTUNITIES MODULE */}
     {/* ============================================ */}
     <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/new" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/*" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
 
-    {/* Entities & Contacts */}
+    {/* ============================================ */}
+    {/* ENTITIES MODULE */}
+    {/* ============================================ */}
     <Route path="/entities" element={<ProtectedRoute><AppLayout><EntitiesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/entities/list" element={<ProtectedRoute><AppLayout><EntitiesListPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/entities/new" element={<ProtectedRoute><AppLayout><EntityFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/entity/:entityId" element={<ProtectedRoute><AppLayout><EntityDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/entity/:entityId/edit" element={<ProtectedRoute><AppLayout><EntityFormPage /></AppLayout></ProtectedRoute>} />
+
+    {/* ============================================ */}
+    {/* CONTACTS MODULE */}
+    {/* ============================================ */}
     <Route path="/contacts" element={<ProtectedRoute><AppLayout><ContactsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/list" element={<ProtectedRoute><AppLayout><ContactsListPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/new" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contact/:contactId" element={<ProtectedRoute><AppLayout><ContactDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contact/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Calendar & Settings */}
     <Route path="/calendar" element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
 
@@ -292,7 +332,19 @@ const AppContent = () => (
     {/* ACCOUNTING MODULE */}
     {/* ============================================ */}
     <Route path="/accounting" element={<ProtectedRoute><AppLayout><AccountingEntitiesListPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/dashboard" element={<ProtectedRoute><AppLayout><AccountingDashboardPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/chart-of-accounts" element={<ProtectedRoute><AppLayout><ChartOfAccountsPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Transaction Routes */}
+    <Route path="/accounting/transactions" element={<ProtectedRoute><AppLayout><AccountingDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/transactions/new" element={<ProtectedRoute><AppLayout><TransactionFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/transactions/:transactionId" element={<ProtectedRoute><AppLayout><TransactionDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/transactions/:transactionId/edit" element={<ProtectedRoute><AppLayout><TransactionFormPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Ledger Routes */}
+    <Route path="/accounting/entity-ledger/:entityId" element={<ProtectedRoute><AppLayout><EntityLedgerPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/project-ledger/:projectId" element={<ProtectedRoute><AppLayout><ProjectLedgerPage /></AppLayout></ProtectedRoute>} />
     
     {/* Entity-Specific Accounting Routes */}
     <Route path="/accounting/:entityId" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
@@ -343,6 +395,9 @@ const AppContent = () => (
     {/* Admin Routes with Sidebar */}
     <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminLayout><AdminOverviewPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/users" element={<ProtectedRoute><AppLayout><AdminLayout><UsersManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/team" element={<ProtectedRoute><AppLayout><AdminLayout><TeamManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/settings" element={<ProtectedRoute><AppLayout><AdminLayout><AdminSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/activity-log" element={<ProtectedRoute><AppLayout><AdminLayout><ActivityLogPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/plans" element={<ProtectedRoute><AppLayout><AdminLayout><FloorPlansPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     
     {/* Pricing Library Routes */}
