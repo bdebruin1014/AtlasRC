@@ -1,0 +1,165 @@
+.
+├── Atlas_Module_Documentation.docx
+├── CHANGELOG.md
+├── README.md
+├── SETUP_REPORT.md
+├── SUPABASE_SETUP.md
+├── codebase_structure.txt
+├── index.html
+├── jsconfig.json
+├── netlify.toml
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── public
+│   └── favicon.svg
+├── scripts
+│   ├── analyze_supabase_usage.sh
+│   └── download_all_supabase_data.sh
+├── src
+│   ├── App.jsx
+│   ├── archive
+│   │   ├── assets
+│   │   ├── cahp
+│   │   ├── components
+│   │   ├── construction
+│   │   ├── family-office
+│   │   ├── investments
+│   │   ├── investors
+│   │   ├── property-management
+│   │   └── services
+│   ├── components
+│   │   ├── AccountingSidebar.jsx
+│   │   ├── AdminSidebar.jsx
+│   │   ├── CreateProjectModal.jsx
+│   │   ├── EditableField.jsx
+│   │   ├── ErrorBoundary.jsx
+│   │   ├── LoadingState.jsx
+│   │   ├── ProjectContent.jsx
+│   │   ├── ProjectSidebar.jsx
+│   │   ├── ReportsLayout.jsx
+│   │   ├── TopNavigation.jsx
+│   │   ├── accounting
+│   │   ├── admin
+│   │   ├── docs
+│   │   ├── documents
+│   │   ├── esign
+│   │   ├── inspections
+│   │   ├── layouts
+│   │   ├── pipeline
+│   │   ├── shared
+│   │   └── ui
+│   ├── contexts
+│   │   ├── AuthContext.jsx
+│   │   ├── PermissionContext.jsx
+│   │   └── TransactionEntryContext.jsx
+│   ├── features
+│   │   └── budgets
+│   ├── hooks
+│   │   └── usePipeline.js
+│   ├── index.css
+│   ├── lib
+│   │   ├── constants.js
+│   │   ├── customSupabaseClient.js
+│   │   ├── excelUtils.js
+│   │   ├── supabase.js
+│   │   └── utils.js
+│   ├── main.jsx
+│   ├── pages
+│   │   ├── APAgingReport.jsx
+│   │   ├── AccountingBillsPage.jsx
+│   │   ├── AccountingChartOfAccountsPage.jsx
+│   │   ├── AccountingPage.jsx
+│   │   ├── AccountingReportsPage.jsx
+│   │   ├── AccountingVendorsPage.jsx
+│   │   ├── AssetManagementDashboard.jsx
+│   │   ├── AssetManagementPage.jsx
+│   │   ├── BalanceSheetReport.jsx
+│   │   ├── BankAccountsPage.jsx
+│   │   ├── CalendarPage.jsx
+│   │   ├── CapitalCallsPage.jsx
+│   │   ├── ContactsPage.jsx
+│   │   ├── EntitiesListPage.jsx
+│   │   ├── EntitiesPage.jsx
+│   │   ├── EntityAccountingDashboard.jsx
+│   │   ├── EntityAccountingMainPage.jsx
+│   │   ├── EntityAccountingPage.jsx
+│   │   ├── EntityCapitalPage.jsx
+│   │   ├── EntityProjectsPage.jsx
+│   │   ├── EntitySettingsPage.jsx
+│   │   ├── FamilyOfficeDashboard.jsx
+│   │   ├── FinanceBillsPage.jsx
+│   │   ├── FinanceChartOfAccountsPage.jsx
+│   │   ├── FinanceVendorsPage.jsx
+│   │   ├── FinancialDashboardPage.jsx
+│   │   ├── ForgotPasswordPage.jsx
+│   │   ├── GeneralLedgerReport.jsx
+│   │   ├── GlobalTasksPage.jsx
+│   │   ├── HomePage.jsx
+│   │   ├── InvestorDashboardPage.jsx
+│   │   ├── InvestorDistributionsOverview.jsx
+│   │   ├── InvestorsPage.jsx
+│   │   ├── InvoicesPage.jsx
+│   │   ├── JournalEntriesPage.jsx
+│   │   ├── LoginPage.jsx
+│   │   ├── OperationsDashboard.jsx
+│   │   ├── OperationsReportsPage.jsx
+│   │   ├── OpportunitiesPage.jsx
+│   │   ├── OpportunityDetailPage.jsx
+│   │   ├── PayablesPage.jsx
+│   │   ├── PaymentsPage.jsx
+│   │   ├── PipelineListPage.jsx
+│   │   ├── ProfitLossReport.jsx
+│   │   ├── ProjectDetailPage.jsx
+│   │   ├── ProjectsListPage.jsx
+│   │   ├── ProjectsPage.jsx
+│   │   ├── ReceivablesPage.jsx
+│   │   ├── ReconciliationPage.jsx
+│   │   ├── ReportsPage.jsx
+│   │   ├── SettingsPage.jsx
+│   │   ├── SignUpPage.jsx
+│   │   ├── TransactionsPage.jsx
+│   │   ├── TrialBalanceReport.jsx
+│   │   ├── Unauthorized.jsx
+│   │   ├── accounting
+│   │   ├── admin
+│   │   ├── eos
+│   │   ├── operations
+│   │   ├── pipeline
+│   │   ├── projects
+│   │   ├── reports
+│   │   └── user-settings
+│   ├── services
+│   │   ├── accountingEnhancedService.js
+│   │   ├── bankAccountService.js
+│   │   ├── billService.js
+│   │   ├── capitalService.js
+│   │   ├── contactsService.js
+│   │   ├── documentService.js
+│   │   ├── entityService.js
+│   │   ├── esignService.js
+│   │   ├── expenseService.js
+│   │   ├── floorPlanService.js
+│   │   ├── index.js
+│   │   ├── journalEntryService.js
+│   │   ├── payrollService.js
+│   │   ├── permissionService.js
+│   │   ├── plaidService.js
+│   │   ├── pricingService.js
+│   │   ├── projectService.js
+│   │   ├── projectTemplateService.js
+│   │   ├── reportService.js
+│   │   └── vendorService.js
+│   └── src
+│       └── contexts
+├── supabase
+│   └── functions
+│       ├── esign
+│       ├── esign-webhook
+│       └── sharepoint-documents
+├── supabase_schema_analysis.md
+├── tailwind.config.js
+├── vercel.json
+└── vite.config.js
+
+47 directories, 116 files

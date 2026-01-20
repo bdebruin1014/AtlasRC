@@ -1,0 +1,405 @@
+import React, { Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { PermissionProvider } from '@/contexts/PermissionContext';
+import { TransactionEntryProvider } from '@/contexts/TransactionEntryContext';
+import TopNavigation from '@/components/TopNavigation';
+import LoadingState from '@/components/LoadingState';
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
+
+// ============================================
+// CORE PAGE IMPORTS
+// ============================================
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const SignUpPage = lazy(() => import('@/pages/SignUpPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const HomePage = lazy(() => import('@/pages/HomePage'));
+const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
+const EntitiesPage = lazy(() => import('@/pages/EntitiesPage'));
+const OpportunitiesPage = lazy(() => import('@/pages/OpportunitiesPage'));
+const OpportunityDetailPage = lazy(() => import('@/pages/OpportunityDetailPage'));
+const ContactsPage = lazy(() => import('@/pages/ContactsPage'));
+const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+
+// ============================================
+// ACCOUNTING MODULE
+// ============================================
+const AccountingSidebar = lazy(() => import('@/components/AccountingSidebar'));
+const AccountingEntitiesListPage = lazy(() => import('@/pages/accounting/AccountingEntitiesListPage'));
+const EntityOwnershipHierarchyPage = lazy(() => import('@/pages/accounting/EntityOwnershipHierarchyPage'));
+const EntityDashboardPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityChartOfAccountsPage = lazy(() => import('@/pages/accounting/EntityChartOfAccountsPage'));
+const EntityTransactionsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityBankingPage = lazy(() => import('@/pages/accounting/BankingPage'));
+const EntityReconciliationPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityInvoicesPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityBillsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityReportsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityOwnershipPage = lazy(() => import('@/pages/accounting/EntityOwnershipPage'));
+const EntityTasksPage = lazy(() => import('@/pages/accounting/EntityTasksPage'));
+
+// Accounting Enhancements (Phase 7)
+const Vendors1099Page = lazy(() => import('@/pages/accounting/Vendors1099Page'));
+const BatchPaymentsPage = lazy(() => import('@/pages/accounting/BatchPaymentsPage'));
+const ARAgingReportPage = lazy(() => import('@/pages/accounting/ARAgingReportPage'));
+const EntityAccountingSettingsPage = lazy(() => import('@/pages/accounting/EntityAccountingSettingsPage'));
+const ChartOfAccountsSettingsPage = lazy(() => import('@/pages/accounting/ChartOfAccountsSettingsPage'));
+const BankAccountsSetupPage = lazy(() => import('@/pages/accounting/BankAccountsSetupPage'));
+
+// Accounting Priority 2 (Phase 8)
+const BankFeedsPage = lazy(() => import('@/pages/accounting/BankFeedsPage'));
+const PayrollPage = lazy(() => import('@/pages/accounting/PayrollPage'));
+const ExpenseManagementPage = lazy(() => import('@/pages/accounting/ExpenseManagementPage'));
+const JobCostingReportPage = lazy(() => import('@/pages/accounting/JobCostingReportPage'));
+
+// ============================================
+// ADMIN MODULE
+// ============================================
+const AdminSidebar = lazy(() => import('@/components/AdminSidebar'));
+const AdminOverviewPage = lazy(() => import('@/pages/admin/AdminOverviewPage'));
+const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
+const FloorPlansPage = lazy(() => import('@/pages/admin/FloorPlansPage'));
+const PricingLibraryPage = lazy(() => import('@/pages/admin/PricingLibraryPage'));
+const PlanPricingMatrixPage = lazy(() => import('@/pages/admin/PlanPricingMatrixPage'));
+const MunicipalityFeesPage = lazy(() => import('@/pages/admin/MunicipalityFeesPage'));
+const UpgradePricingPage = lazy(() => import('@/pages/admin/UpgradePricingPage'));
+const SoftCostTemplatesPage = lazy(() => import('@/pages/admin/SoftCostTemplatesPage'));
+const LotPrepTemplatesPage = lazy(() => import('@/pages/admin/LotPrepTemplatesPage'));
+const BudgetTemplatesPage = lazy(() => import('@/pages/admin/BudgetTemplatesPage'));
+const ProformaTemplatesPage = lazy(() => import('@/pages/admin/ProformaTemplatesPage'));
+const ScheduleTemplatesPage = lazy(() => import('@/pages/admin/ScheduleTemplatesPage'));
+const DealTemplatesPage = lazy(() => import('@/pages/admin/DealTemplatesPage'));
+const AdminTaskTemplatesPage = lazy(() => import('@/pages/admin/TaskTemplatesPage'));
+const MilestoneTemplatesPage = lazy(() => import('@/pages/admin/MilestoneTemplatesPage'));
+const AdminProjectTemplatesPage = lazy(() => import('@/pages/admin/ProjectTemplatesPage'));
+const COATemplatesPage = lazy(() => import('@/pages/admin/COATemplatesPage'));
+const UsersManagementPage = lazy(() => import('@/pages/admin/UsersManagementPage'));
+
+// ============================================
+// OPERATIONS & REPORTS
+// ============================================
+const OperationsDashboard = lazy(() => import('@/pages/OperationsDashboard'));
+const GlobalTasksPage = lazy(() => import('@/pages/GlobalTasksPage'));
+const TeamsPage = lazy(() => import('@/pages/operations/TeamsPage'));
+const ESignPage = lazy(() => import('@/pages/operations/ESignPage'));
+const DocumentLibraryPage = lazy(() => import('@/pages/operations/DocumentLibraryPage'));
+
+// ============================================
+// ACQUISITION PIPELINE MODULE
+// ============================================
+const AcquisitionPage = lazy(() => import('@/pages/pipeline/AcquisitionPage'));
+const AcquisitionPropertyPage = lazy(() => import('@/pages/pipeline/AcquisitionPropertyPage'));
+const DealAnalyzerPage = lazy(() => import('@/pages/pipeline/DealAnalyzerPage'));
+
+const ReportsLayout = lazy(() => import('@/components/ReportsLayout'));
+const PresetReportsPage = lazy(() => import('@/pages/reports/PresetReportsPage'));
+const CustomReportsPage = lazy(() => import('@/pages/reports/CustomReportsPage'));
+const SubscribedReportsPage = lazy(() => import('@/pages/reports/SubscribedReportsPage'));
+const ReportPackagesPage = lazy(() => import('@/pages/reports/ReportPackagesPage'));
+const TrendsPage = lazy(() => import('@/pages/reports/TrendsPage'));
+
+// ============================================
+// EOS MODULE
+// ============================================
+const EOSMainPage = lazy(() => import('@/pages/eos/EOSMainPage'));
+const EOSDetailPage = lazy(() => import('@/pages/eos/EOSDetailPage'));
+
+// ============================================
+// PROJECT MODULE - Focused Pages
+// ============================================
+// Overview Section
+const ProjectOverviewPage = lazy(() => import('@/pages/projects/ProjectOverviewPage'));
+const PropertyDetailsPage = lazy(() => import('@/pages/projects/PropertyDetailsPage'));
+const ProjectContactsPage = lazy(() => import('@/pages/projects/ContactsPage'));
+
+// Acquisition Section
+const ClosingChecklistPage = lazy(() => import('@/pages/projects/ClosingChecklistPage'));
+
+// Construction Section
+const BudgetPage = lazy(() => import('@/pages/projects/BudgetPage'));
+const SchedulePage = lazy(() => import('@/pages/projects/SchedulePage'));
+const ActualsVsBudgetPage = lazy(() => import('@/pages/projects/ActualsVsBudgetPage'));
+const InsurancePage = lazy(() => import('@/pages/projects/InsurancePage'));
+
+// Finance Section
+const CashFlowPage = lazy(() => import('@/pages/projects/CashFlowPage'));
+const VendorsPage = lazy(() => import('@/pages/projects/VendorsPage'));
+const SalesPage = lazy(() => import('@/pages/projects/SalesPage'));
+const ProjectLoansPage = lazy(() => import('@/pages/projects/ProjectLoansPage'));
+const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequestsPage'));
+const ProformaPage = lazy(() => import('@/pages/projects/ProformaPage'));
+
+// Documents Section
+const DocumentsPage = lazy(() => import('@/pages/projects/DocumentsPage'));
+const TasksPage = lazy(() => import('@/pages/projects/TasksPage'));
+
+// Additional Project Pages (for legacy support)
+const DealAnalysisPage = lazy(() => import('@/pages/projects/DealAnalysisPage'));
+const ProjectSettingsPage = lazy(() => import('@/pages/projects/SettingsPage'));
+const UnitsManagementPage = lazy(() => import('@/pages/projects/UnitsManagementPage'));
+const TakedownSchedulePage = lazy(() => import('@/pages/projects/TakedownSchedulePage'));
+const LeaseUpPage = lazy(() => import('@/pages/projects/LeaseUpPage'));
+
+// Disposition Module
+const DispositionPage = lazy(() => import('@/pages/projects/DispositionPage'));
+const ContractRecordPage = lazy(() => import('@/pages/projects/ContractRecordPage'));
+const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementStatementPage'));
+
+const BudgetModuleRouter = lazy(() => import('@/features/budgets/components/BudgetModuleRouter'));
+
+// ============================================
+// PROTECTED ROUTE & LAYOUTS
+// ============================================
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingState />;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
+
+const AppLayout = ({ children }) => (
+  <div className="min-h-screen bg-gray-50 flex flex-col">
+    <TopNavigation />
+    <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
+  </div>
+);
+
+const AdminLayout = ({ children }) => (
+  <div className="flex h-[calc(100vh-40px)]">
+    <Suspense fallback={<LoadingState />}><AdminSidebar /></Suspense>
+    <div className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></div>
+  </div>
+);
+
+const AccountingEntityLayout = ({ children }) => {
+  const entity = { name: 'Highland Park Development LLC', type: 'project', cashBalance: 485000, ytdRevenue: 3200000, ytdExpenses: 2485000 };
+  return (
+    <TransactionEntryProvider>
+      <div className="flex h-[calc(100vh-40px)]">
+        <Suspense fallback={<LoadingState />}><AccountingSidebar entity={entity} /></Suspense>
+        <div className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></div>
+      </div>
+    </TransactionEntryProvider>
+  );
+};
+
+// ============================================
+// APP ROUTES
+// ============================================
+const AppContent = () => (
+  <Routes>
+    {/* Auth Routes */}
+    <Route path="/login" element={<Suspense fallback={<LoadingState />}><LoginPage /></Suspense>} />
+    <Route path="/signup" element={<Suspense fallback={<LoadingState />}><SignUpPage /></Suspense>} />
+    <Route path="/forgot-password" element={<Suspense fallback={<LoadingState />}><ForgotPasswordPage /></Suspense>} />
+
+    {/* Core Routes */}
+    <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* ============================================ */}
+    {/* PROJECT DETAIL ROUTES - Streamlined */}
+    {/* ============================================ */}
+    <Route path="/project/:projectId" element={<ProtectedRoute><AppLayout><ProjectDetailPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Overview Section */}
+    <Route path="/project/:projectId/overview" element={<ProtectedRoute><AppLayout><ProjectOverviewPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/property-details" element={<ProtectedRoute><AppLayout><PropertyDetailsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/contacts" element={<ProtectedRoute><AppLayout><ProjectContactsPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Acquisition Section */}
+    <Route path="/project/:projectId/acquisition" element={<ProtectedRoute><AppLayout><DealAnalysisPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/acquisition/contract" element={<ProtectedRoute><AppLayout><DealAnalysisPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/acquisition/due-diligence" element={<ProtectedRoute><AppLayout><DealAnalysisPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/acquisition/closing" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Construction Section */}
+    <Route path="/project/:projectId/construction" element={<ProtectedRoute><AppLayout><BudgetPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/budget" element={<ProtectedRoute><AppLayout><BudgetPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/schedule" element={<ProtectedRoute><AppLayout><SchedulePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/budget-vs-actual" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Finance Section */}
+    <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/summary" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/revenue" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/draws" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/proforma" element={<ProtectedRoute><AppLayout><ProformaPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Documents Section */}
+    <Route path="/project/:projectId/documents" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/documents/files" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/documents/mailing" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/documents/communications" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/documents/esigned" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Additional Project Routes */}
+    <Route path="/project/:projectId/tasks" element={<ProtectedRoute><AppLayout><TasksPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/units" element={<ProtectedRoute><AppLayout><UnitsManagementPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/takedown" element={<ProtectedRoute><AppLayout><TakedownSchedulePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/lease-up" element={<ProtectedRoute><AppLayout><LeaseUpPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/settings" element={<ProtectedRoute><AppLayout><ProjectSettingsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/deal-analysis" element={<ProtectedRoute><AppLayout><DealAnalysisPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Disposition Module Routes */}
+    <Route path="/project/:projectId/disposition" element={<ProtectedRoute><AppLayout><DispositionPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/disposition/contracts" element={<ProtectedRoute><AppLayout><DispositionPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/disposition/contracts/new" element={<ProtectedRoute><AppLayout><ContractRecordPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/disposition/contracts/:contractId" element={<ProtectedRoute><AppLayout><ContractRecordPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/disposition/settlements" element={<ProtectedRoute><AppLayout><DispositionPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/disposition/settlements/new" element={<ProtectedRoute><AppLayout><SettlementStatementPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/disposition/settlements/:settlementId" element={<ProtectedRoute><AppLayout><SettlementStatementPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Legacy Project Routes - Redirect to new structure */}
+    <Route path="/project/:projectId/schedule" element={<ProtectedRoute><AppLayout><SchedulePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/budget" element={<ProtectedRoute><AppLayout><BudgetPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/actuals-vs-budget" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/proforma" element={<ProtectedRoute><AppLayout><ProformaPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/vendors" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/draw-requests" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/sales" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/cash-flow" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
+
+    {/* ============================================ */}
+    {/* OPPORTUNITIES MODULE */}
+    {/* ============================================ */}
+    <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunity/:opportunityId/*" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Entities & Contacts */}
+    <Route path="/entities" element={<ProtectedRoute><AppLayout><EntitiesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts" element={<ProtectedRoute><AppLayout><ContactsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/calendar" element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
+
+    {/* ============================================ */}
+    {/* ACCOUNTING MODULE */}
+    {/* ============================================ */}
+    <Route path="/accounting" element={<ProtectedRoute><AppLayout><AccountingEntitiesListPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} />
+    
+    {/* Entity-Specific Accounting Routes */}
+    <Route path="/accounting/:entityId" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/dashboard" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/chart-of-accounts" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityChartOfAccountsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/banking" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityBankingPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/transactions" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityTransactionsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/ownership" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityOwnershipPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/tasks" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityTasksPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/journal-entries" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityTransactionsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/reconciliation" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReconciliationPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/invoices" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityInvoicesPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/bills" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityBillsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/payments" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/intercompany" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/due-to-from" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/reports" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReportsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/trial-balance" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReportsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/cash-flow" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReportsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    
+    {/* Accounting Enhancements - Phase 7 */}
+    <Route path="/accounting/:entityId/vendors-1099" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><Vendors1099Page /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/batch-payments" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><BatchPaymentsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/ar-aging" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ARAgingReportPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/settings" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityAccountingSettingsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/settings/chart-of-accounts" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ChartOfAccountsSettingsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/settings/bank-accounts" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><BankAccountsSetupPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    
+    {/* Accounting Priority 2 - Phase 8 */}
+    <Route path="/accounting/:entityId/bank-feeds" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><BankFeedsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/payroll" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><PayrollPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/expenses" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ExpenseManagementPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/:entityId/job-costing" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><JobCostingReportPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+    
+    <Route path="/accounting/:entityId/*" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
+
+    {/* Reports */}
+    <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsLayout /></AppLayout></ProtectedRoute>}>
+      <Route index element={<Navigate to="/reports/preset" replace />} />
+      <Route path="preset" element={<PresetReportsPage />} />
+      <Route path="preset/:category" element={<PresetReportsPage />} />
+      <Route path="custom" element={<CustomReportsPage />} />
+      <Route path="subscribed" element={<SubscribedReportsPage />} />
+      <Route path="packages" element={<ReportPackagesPage />} />
+      <Route path="trends" element={<TrendsPage />} />
+    </Route>
+
+    {/* Admin Routes with Sidebar */}
+    <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminLayout><AdminOverviewPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/users" element={<ProtectedRoute><AppLayout><AdminLayout><UsersManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/plans" element={<ProtectedRoute><AppLayout><AdminLayout><FloorPlansPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    
+    {/* Pricing Library Routes */}
+    <Route path="/admin/pricing" element={<ProtectedRoute><AppLayout><AdminLayout><PricingLibraryPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/pricing/plans" element={<ProtectedRoute><AppLayout><AdminLayout><PlanPricingMatrixPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/pricing/municipalities" element={<ProtectedRoute><AppLayout><AdminLayout><MunicipalityFeesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/pricing/upgrades" element={<ProtectedRoute><AppLayout><AdminLayout><UpgradePricingPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/pricing/soft-costs" element={<ProtectedRoute><AppLayout><AdminLayout><SoftCostTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/pricing/lot-prep" element={<ProtectedRoute><AppLayout><AdminLayout><LotPrepTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    
+    {/* Other Admin Templates */}
+    <Route path="/admin/budget-templates" element={<ProtectedRoute><AppLayout><AdminLayout><BudgetTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/proforma-templates" element={<ProtectedRoute><AppLayout><AdminLayout><ProformaTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/schedule-templates" element={<ProtectedRoute><AppLayout><AdminLayout><ScheduleTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/deal-templates" element={<ProtectedRoute><AppLayout><AdminLayout><DealTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/task-templates" element={<ProtectedRoute><AppLayout><AdminLayout><AdminTaskTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/milestone-templates" element={<ProtectedRoute><AppLayout><AdminLayout><MilestoneTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/project-templates" element={<ProtectedRoute><AppLayout><AdminLayout><AdminProjectTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/coa-templates" element={<ProtectedRoute><AppLayout><AdminLayout><COATemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+
+    {/* Operations */}
+    <Route path="/operations" element={<ProtectedRoute><AppLayout><OperationsDashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/tasks" element={<ProtectedRoute><AppLayout><GlobalTasksPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/teams" element={<ProtectedRoute><AppLayout><TeamsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/esign" element={<ProtectedRoute><AppLayout><ESignPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/documents" element={<ProtectedRoute><AppLayout><DocumentLibraryPage /></AppLayout></ProtectedRoute>} />
+
+    {/* ============================================ */}
+    {/* ACQUISITION PIPELINE MODULE */}
+    {/* ============================================ */}
+    <Route path="/acquisition" element={<ProtectedRoute><AppLayout><AcquisitionPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/acquisition/:propertyId" element={<ProtectedRoute><AppLayout><AcquisitionPropertyPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/deal-analyzer" element={<ProtectedRoute><AppLayout><DealAnalyzerPage /></AppLayout></ProtectedRoute>} />
+
+    {/* EOS Module */}
+    <Route path="/eos" element={<ProtectedRoute><AppLayout><EOSMainPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/eos/:programId/*" element={<ProtectedRoute><AppLayout><EOSDetailPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Budget Tools */}
+    <Route path="/budgets/*" element={<ProtectedRoute><AppLayout><BudgetModuleRouter /></AppLayout></ProtectedRoute>} />
+
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>
+);
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <Helmet><title>Atlas | Real Estate Development Platform</title></Helmet>
+        <AuthProvider><PermissionProvider><AppContent /><Toaster /></PermissionProvider></AuthProvider>
+        </Router>
+      </QueryClientProvider>
+  );
+}
+
+export default App;
