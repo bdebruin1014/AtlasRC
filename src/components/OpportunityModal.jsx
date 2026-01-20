@@ -50,24 +50,10 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
         notes: opportunity.notes || '',
       });
     } else {
-      // Generate next deal number (YY-NNN format)
       const year = new Date().getFullYear().toString().slice(-2);
       setFormData(prev => ({
         ...prev,
-        deal_number: \`\${year}-001\`,
-        address: '',
-        city: 'Greenville',
-        state: 'SC',
-        zip_code: '',
-        stage: 'Prospecting',
-        property_type: 'vacant-lot',
-        estimated_value: '',
-        asking_price: '',
-        assignment_fee: '',
-        seller_name: '',
-        seller_phone: '',
-        seller_email: '',
-        notes: '',
+        deal_number: year + '-001',
       }));
     }
   }, [opportunity, open]);
@@ -78,7 +64,6 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Convert currency fields to numbers
     const dataToSave = {
       ...formData,
       estimated_value: formData.estimated_value ? parseFloat(formData.estimated_value) : null,
