@@ -14,9 +14,11 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 
 // ============================================
 // CORE PAGE IMPORTS
 // ============================================
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
+// Auth Pages (new TypeScript implementations)
+const LoginPage = lazy(() => import('@/pages/Auth/Login'));
 const SignUpPage = lazy(() => import('@/pages/SignUpPage'));
-const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/Auth/ForgotPassword'));
+const ResetPasswordPage = lazy(() => import('@/pages/Auth/ResetPassword'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
@@ -198,6 +200,7 @@ const AppContent = () => (
     <Route path="/login" element={<Suspense fallback={<LoadingState />}><LoginPage /></Suspense>} />
     <Route path="/signup" element={<Suspense fallback={<LoadingState />}><SignUpPage /></Suspense>} />
     <Route path="/forgot-password" element={<Suspense fallback={<LoadingState />}><ForgotPasswordPage /></Suspense>} />
+    <Route path="/reset-password" element={<Suspense fallback={<LoadingState />}><ResetPasswordPage /></Suspense>} />
 
     {/* Core Routes */}
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
