@@ -17,6 +17,11 @@ import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
 
+// E-Sign and Document Components
+import ESignButton from '@/components/esign/ESignButton';
+import DocumentLibrary from '@/components/documents/DocumentLibrary';
+import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
+
 const OPPORTUNITY_TYPES = [
   { value: 'vacant-lot', label: 'Vacant Lot' },
   { value: 'flip-property', label: 'Flip Property' },
@@ -31,6 +36,7 @@ const OpportunityDetailPage = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   // Fetch opportunity from database
   const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
@@ -152,6 +158,128 @@ const OpportunityDetailPage = () => {
         'under-contract': 'Under Contract'
       };
       const stageName = stageMap[stageId] || stageId;
+
+      // Special handling for Negotiating stage with e-sign
+      if (stageId === 'negotiating') {
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Negotiating Stage</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+
+            {/* Key Actions Card */}
+            <div className="bg-white border rounded-lg p-6 mb-6">
+              <h3 className="font-medium text-gray-900 mb-4">Contract & E-Sign Actions</h3>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowContractModal(true)}
+                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate Contract
+                </Button>
+                <ESignButton
+                  entityType="opportunity"
+                  entityId={opportunityId}
+                  entityName={formData?.deal_number || formData?.address}
+                  prefillData={{
+                    property_address: formData?.address,
+                    property_city: formData?.city,
+                    property_state: formData?.state,
+                    property_zip: formData?.zip_code,
+                    asking_price: formData?.asking_price,
+                    earnest_money: formData?.earnest_money,
+                    seller_name: formData?.seller_name,
+                    seller_email: formData?.seller_email,
+                    seller_phone: formData?.seller_phone,
+                    assignment_fee: formData?.assignment_fee,
+                    dd_deadline: formData?.dd_deadline,
+                    close_date: formData?.close_date,
+                  }}
+                  defaultSigners={formData?.seller_name && formData?.seller_email ? [{
+                    role: 'Seller',
+                    name: formData.seller_name,
+                    email: formData.seller_email,
+                    phone: formData.seller_phone || ''
+                  }] : []}
+                  buttonText="Send for E-Sign"
+                  buttonVariant="default"
+                  className="bg-[#047857] hover:bg-[#065f46]"
+                />
+                <Button onClick={() => setField('stage', 'Negotiating')} variant="outline">
+                  Set as Current Stage
+                </Button>
+              </div>
+            </div>
+
+            {/* Negotiation Details */}
+            <div className="bg-white border rounded-lg p-6 mb-6">
+              <h3 className="font-medium text-gray-900 mb-4">Negotiation Details</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Initial Offer ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.initial_offer || ''}
+                      onChange={(e) => setField('initial_offer', e.target.value)}
+                      className="mt-1"
+                      placeholder="175000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Counter Offer ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.counter_offer || ''}
+                      onChange={(e) => setField('counter_offer', e.target.value)}
+                      className="mt-1"
+                      placeholder="185000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Final Agreed Price ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.asking_price || ''}
+                      onChange={(e) => setField('asking_price', e.target.value)}
+                      className="mt-1"
+                      placeholder="180000"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Negotiation Notes</Label>
+                    <Textarea
+                      value={formData?.negotiation_notes || ''}
+                      onChange={(e) => setField('negotiation_notes', e.target.value)}
+                      className="mt-1"
+                      rows={6}
+                      placeholder="Notes from negotiations, seller concerns, terms discussed..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contract Generation Modal */}
+            <ContractGenerationModal
+              isOpen={showContractModal}
+              onClose={() => setShowContractModal(false)}
+              entityType="opportunity"
+              entityId={opportunityId}
+              entityName={formData?.deal_number || formData?.address}
+              entityData={formData}
+              onSuccess={() => {
+                setShowContractModal(false);
+              }}
+            />
+          </div>
+        );
+      }
 
       return (
         <div className="p-6">
@@ -552,14 +680,14 @@ const OpportunityDetailPage = () => {
       case 'files':
         return (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Files & Documents</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-12 text-center">
-              <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">Document Management</p>
-              <p className="text-gray-400 text-sm mt-2">File upload and SharePoint integration coming soon</p>
-            </div>
+            <DocumentLibrary
+              entityType="opportunity"
+              entityId={opportunityId}
+              entityName={formData?.deal_number || formData?.address}
+              showHeader={true}
+              showCategories={true}
+              showUpload={true}
+            />
           </div>
         );
 

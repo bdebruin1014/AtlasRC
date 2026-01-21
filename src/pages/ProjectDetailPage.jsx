@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator, Loader2, Save, Check } from 'lucide-react';
+import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator, Loader2, Save, Check, FileSignature } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { useProject, useProjectActions, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
+
+// E-Sign and Document Components
+import ESignButton from '@/components/esign/ESignButton';
+import DocumentLibrary from '@/components/documents/DocumentLibrary';
+import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
 
 // Import ALL Budget Components
 import IndividualSpecHomeBudget from '@/features/budgets/components/IndividualSpecHomeBudget';
@@ -23,6 +28,7 @@ const ProjectDetailPage = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('basic-info');
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'finance', 'documents']);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   // Fetch project data from database
   const { project: rawProject, isLoading, error, refetch } = useProject(projectId);
@@ -476,7 +482,41 @@ const ProjectDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Purchase Contract</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+              <div className="flex items-center gap-3">
+                <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+                <Button
+                  variant="outline"
+                  onClick={() => setShowContractModal(true)}
+                  className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate Contract
+                </Button>
+                <ESignButton
+                  entityType="project"
+                  entityId={projectId}
+                  entityName={formData?.name}
+                  prefillData={{
+                    property_address: formData?.address,
+                    property_city: formData?.city,
+                    property_state: formData?.state,
+                    property_zip: formData?.zip_code,
+                    purchase_price: formData?.purchase_price,
+                    earnest_money: formData?.earnest_money,
+                    seller_name: formData?.seller_name,
+                    closing_date: formData?.closing_date,
+                  }}
+                  defaultSigners={formData?.seller_name ? [{
+                    role: 'Seller',
+                    name: formData.seller_name,
+                    email: '',
+                    phone: ''
+                  }] : []}
+                  buttonText="Send for E-Sign"
+                  buttonVariant="default"
+                  className="bg-[#047857] hover:bg-[#065f46]"
+                />
+              </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
               <div className="grid grid-cols-2 gap-6">
@@ -544,6 +584,19 @@ const ProjectDetailPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Contract Generation Modal */}
+            <ContractGenerationModal
+              isOpen={showContractModal}
+              onClose={() => setShowContractModal(false)}
+              entityType="project"
+              entityId={projectId}
+              entityName={formData?.name}
+              entityData={formData}
+              onSuccess={() => {
+                setShowContractModal(false);
+              }}
+            />
           </div>
         );
 
@@ -802,6 +855,20 @@ const ProjectDetailPage = () => {
 
       case 'contacts':
         return <ProjectContactsSection projectId={projectId} />;
+
+      case 'files':
+        return (
+          <div className="p-6">
+            <DocumentLibrary
+              entityType="project"
+              entityId={projectId}
+              entityName={formData?.name}
+              showHeader={true}
+              showCategories={true}
+              showUpload={true}
+            />
+          </div>
+        );
 
       default:
         return (
