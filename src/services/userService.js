@@ -3,6 +3,7 @@
 
 import { supabase, isDemoMode } from '@/lib/supabase';
 import { ROLES, ROLE_LABELS, setUserRole, logPermissionChange } from './permissionService';
+import { upsertTeamMember, deleteTeamMember } from './chatService';
 
 // ============================================
 // MOCK DATA (for demo mode)
@@ -168,6 +169,16 @@ export async function createUser(userData) {
         last_login_at: null,
       };
       mockUsers.push(newUser);
+
+      // Sync to team_members for chat
+      await upsertTeamMember({
+        userId: newUser.id,
+        displayName: newUser.full_name,
+        email: newUser.email,
+        avatarUrl: newUser.avatar_url,
+        role: newUser.role === 'super_admin' || newUser.role === 'admin' ? 'admin' : 'member'
+      });
+
       return { data: newUser, error: null };
     }
 
@@ -202,6 +213,15 @@ export async function createUser(userData) {
         if (userData.role) {
           await setUserRole(inviteData.user.id, userData.role, userData.custom_permissions || []);
         }
+
+        // Sync to team_members for chat
+        await upsertTeamMember({
+          userId: inviteData.user.id,
+          displayName: userData.full_name,
+          email: userData.email,
+          avatarUrl: null,
+          role: userData.role === 'super_admin' || userData.role === 'admin' ? 'admin' : 'member'
+        });
       }
 
       return { data: inviteData?.user, error: null };
@@ -219,6 +239,15 @@ export async function createUser(userData) {
       if (userData.role) {
         await setUserRole(authData.user.id, userData.role, userData.custom_permissions || []);
       }
+
+      // Sync to team_members for chat
+      await upsertTeamMember({
+        userId: authData.user.id,
+        displayName: userData.full_name,
+        email: userData.email,
+        avatarUrl: null,
+        role: userData.role === 'super_admin' || userData.role === 'admin' ? 'admin' : 'member'
+      });
 
       // Log the action
       await logPermissionChange({
@@ -242,6 +271,18 @@ export async function updateUser(userId, updates) {
       const idx = mockUsers.findIndex(u => u.id === userId);
       if (idx >= 0) {
         mockUsers[idx] = { ...mockUsers[idx], ...updates };
+
+        // Sync to team_members for chat
+        if (updates.full_name || updates.avatar_url || updates.role) {
+          await upsertTeamMember({
+            userId: userId,
+            displayName: mockUsers[idx].full_name,
+            email: mockUsers[idx].email,
+            avatarUrl: mockUsers[idx].avatar_url,
+            role: mockUsers[idx].role === 'super_admin' || mockUsers[idx].role === 'admin' ? 'admin' : 'member'
+          });
+        }
+
         return { data: mockUsers[idx], error: null };
       }
       return { data: null, error: { message: 'User not found' } };
@@ -272,6 +313,17 @@ export async function updateUser(userId, updates) {
 
     // Fetch updated user
     const updatedUser = await getUserById(userId);
+
+    // Sync to team_members for chat (if name, avatar, or role changed)
+    if (updatedUser && (updates.full_name || updates.avatar_url || updates.role)) {
+      await upsertTeamMember({
+        userId: userId,
+        displayName: updatedUser.full_name,
+        email: updatedUser.email,
+        avatarUrl: updatedUser.avatar_url,
+        role: updatedUser.role === 'super_admin' || updatedUser.role === 'admin' ? 'admin' : 'member'
+      });
+    }
 
     // Log the action
     await logPermissionChange({
@@ -320,6 +372,8 @@ export async function deleteUser(userId) {
       const idx = mockUsers.findIndex(u => u.id === userId);
       if (idx >= 0) {
         mockUsers.splice(idx, 1);
+        // Also remove from team_members
+        await deleteTeamMember(userId);
         return { success: true, error: null };
       }
       return { success: false, error: { message: 'User not found' } };
@@ -332,6 +386,9 @@ export async function deleteUser(userId) {
       .eq('id', userId);
 
     if (error) throw error;
+
+    // Also remove from team_members (so they don't appear in chat)
+    await deleteTeamMember(userId);
 
     // Log the action
     await logPermissionChange({
@@ -354,10 +411,15 @@ export async function hardDeleteUser(userId) {
       const idx = mockUsers.findIndex(u => u.id === userId);
       if (idx >= 0) {
         mockUsers.splice(idx, 1);
+        // Also remove from team_members
+        await deleteTeamMember(userId);
         return { success: true, error: null };
       }
       return { success: false, error: { message: 'User not found' } };
     }
+
+    // Remove from team_members first
+    await deleteTeamMember(userId);
 
     // Delete from auth (this will cascade to profiles via FK)
     const { error } = await supabase.auth.admin.deleteUser(userId);
@@ -439,6 +501,16 @@ export async function inviteUser(email, userData = {}) {
         ...userData,
       };
       mockUsers.push(newUser);
+
+      // Sync to team_members for chat
+      await upsertTeamMember({
+        userId: newUser.id,
+        displayName: newUser.full_name,
+        email: newUser.email,
+        avatarUrl: null,
+        role: newUser.role === 'super_admin' || newUser.role === 'admin' ? 'admin' : 'member'
+      });
+
       return { data: newUser, error: null };
     }
 
@@ -453,6 +525,17 @@ export async function inviteUser(email, userData = {}) {
     // Set role after invite
     if (data?.user?.id && userData.role) {
       await setUserRole(data.user.id, userData.role);
+    }
+
+    // Sync to team_members for chat
+    if (data?.user?.id) {
+      await upsertTeamMember({
+        userId: data.user.id,
+        displayName: userData.full_name || email.split('@')[0],
+        email: email,
+        avatarUrl: null,
+        role: userData.role === 'super_admin' || userData.role === 'admin' ? 'admin' : 'member'
+      });
     }
 
     return { data: data?.user, error: null };
@@ -568,6 +651,35 @@ export function formatLastLogin(date) {
 }
 
 // ============================================
+// SYNC USERS TO TEAM MEMBERS (for chat)
+// ============================================
+
+/**
+ * Sync all active users to the team_members table for chat
+ * This is useful when initializing the chat system or after bulk user imports
+ */
+export async function syncUsersToChat() {
+  try {
+    const users = await getUsers({ status: 'active' });
+
+    for (const user of users) {
+      await upsertTeamMember({
+        userId: user.id,
+        displayName: user.full_name,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+        role: user.role === 'super_admin' || user.role === 'admin' ? 'admin' : 'member'
+      });
+    }
+
+    return { success: true, synced: users.length, error: null };
+  } catch (error) {
+    console.error('Error syncing users to chat:', error);
+    return { success: false, synced: 0, error };
+  }
+}
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -590,4 +702,5 @@ export default {
   getRoleLabel,
   getInitials,
   formatLastLogin,
+  syncUsersToChat,
 };

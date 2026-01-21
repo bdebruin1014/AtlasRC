@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Edit2, Trash2, Key, Search, RefreshCw, Users, Shield, Mail, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { UserPlus, Edit2, Trash2, Key, Search, RefreshCw, Users, Shield, Mail, MoreHorizontal, ChevronDown, MessageSquare } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,7 @@ import {
   getRoleLabel,
   getInitials,
   formatLastLogin,
+  syncUsersToChat,
 } from '@/services/userService';
 import { getUserTeams, getTeams } from '@/services/teamService';
 import { ROLES, ROLE_LABELS, ROLE_DESCRIPTIONS, PERMISSION_GROUPS, PERMISSIONS } from '@/services/permissionService';
@@ -213,6 +214,21 @@ const UsersManagementPage = () => {
     setSaving(false);
   };
 
+  const handleSyncToChat = async () => {
+    if (!confirm('Sync all active users to the team chat? This will make all active users available for messaging.')) return;
+
+    setSaving(true);
+    try {
+      const result = await syncUsersToChat();
+      if (result.error) throw result.error;
+      alert(`Successfully synced ${result.synced} users to team chat`);
+    } catch (error) {
+      console.error('Error syncing users to chat:', error);
+      alert('Error syncing users to chat: ' + (error.message || 'Unknown error'));
+    }
+    setSaving(false);
+  };
+
   const togglePermission = (permissionId) => {
     setUserData(prev => {
       const permissions = prev.custom_permissions || [];
@@ -368,6 +384,10 @@ const UsersManagementPage = () => {
           <Button variant="outline" onClick={loadData} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button variant="outline" onClick={handleSyncToChat} disabled={saving}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Sync to Chat
           </Button>
           <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleAddUser}>
             <UserPlus className="w-4 h-4 mr-2" />
