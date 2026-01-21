@@ -1,10 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator, Loader2, Save, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useProject, PROJECT_TYPES } from '@/hooks/useProjects';
+import { useProject, useProjectActions, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
+import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
 
 // Import ALL Budget Components
 import IndividualSpecHomeBudget from '@/features/budgets/components/IndividualSpecHomeBudget';
@@ -21,40 +26,35 @@ const ProjectDetailPage = () => {
 
   // Fetch project data from database
   const { project: rawProject, isLoading, error, refetch } = useProject(projectId);
+  const { updateProject } = useProjectActions();
 
-  // Transform database project to display format
-  const project = useMemo(() => {
-    if (!rawProject) return null;
+  // Auto-save hook for project data
+  const {
+    formData,
+    setField,
+    saveStatus,
+    lastSaved,
+    error: saveError
+  } = useAutoSave(
+    rawProject,
+    async (data) => {
+      if (projectId && data) {
+        await updateProject(projectId, data);
+      }
+    },
+    1500 // 1.5 second debounce
+  );
 
-    // Map project_type to budgetType
-    const budgetTypeMap = {
-      'spec-build': 'spec-home',
-      'lot-development': 'horizontal-lot',
-      'build-to-rent': 'btr',
-      'fix-flip': 'spec-home',
-    };
+  // Get budget type info for display
+  const budgetTypeMap = {
+    'spec-build': 'spec-home',
+    'lot-development': 'horizontal-lot',
+    'build-to-rent': 'btr',
+    'fix-flip': 'spec-home',
+  };
 
-    return {
-      id: rawProject.id,
-      name: rawProject.name || 'Unnamed Project',
-      code: `PRJ-${rawProject.id?.slice(0, 3)?.toUpperCase() || '000'}`,
-      status: rawProject.status || 'active',
-      entity: rawProject.entity?.name || 'No Entity',
-      type: PROJECT_TYPES.find(t => t.key === rawProject.project_type)?.label || rawProject.project_type || 'Unknown',
-      budgetType: budgetTypeMap[rawProject.project_type] || 'spec-home',
-      address: rawProject.address?.split(',')[0] || 'No address',
-      city: rawProject.address?.split(',')[1]?.trim() || '',
-      state: rawProject.address?.split(',')[2]?.trim()?.split(' ')[0] || 'SC',
-      zip: rawProject.address?.split(',')[2]?.trim()?.split(' ')[1] || '',
-      description: rawProject.notes || '',
-      budget: parseFloat(rawProject.budget) || 0,
-      spent: 0, // TODO: Calculate from transactions
-      projectedSalePrice: (parseFloat(rawProject.budget) || 0) * 1.5, // Placeholder
-      projectedProfit: (parseFloat(rawProject.budget) || 0) * 0.25, // Placeholder
-      startDate: rawProject.start_date,
-      targetCompletion: rawProject.target_completion_date,
-    };
-  }, [rawProject]);
+  const budgetType = budgetTypeMap[formData?.project_type] || 'spec-home';
+  const budgetTypeInfo = budgetTypes?.find(bt => bt.id === budgetType);
 
   // Loading state
   if (isLoading) {
@@ -67,7 +67,7 @@ const ProjectDetailPage = () => {
   }
 
   // Error state
-  if (error || !project) {
+  if (error || !rawProject) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Building2 className="w-12 h-12 text-gray-300 mb-4" />
@@ -80,7 +80,7 @@ const ProjectDetailPage = () => {
 
   // Get budget component based on project type
   const getBudgetComponent = () => {
-    switch (project.budgetType) {
+    switch (budgetType) {
       case 'spec-home':
         return <IndividualSpecHomeBudget />;
       case 'horizontal-lot':
@@ -93,9 +93,6 @@ const ProjectDetailPage = () => {
         return <IndividualSpecHomeBudget />;
     }
   };
-
-  // Get budget type info for display
-  const budgetTypeInfo = budgetTypes.find(bt => bt.id === project.budgetType);
 
   const sidebarGroups = [
     {
@@ -155,10 +152,15 @@ const ProjectDetailPage = () => {
   ];
 
   const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => 
+    setExpandedGroups(prev =>
       prev.includes(groupId) ? prev.filter(g => g !== groupId) : [...prev, groupId]
     );
   };
+
+  const budget = parseFloat(formData?.budget) || 0;
+  const spent = 0; // TODO: Calculate from transactions
+  const projectedSalePrice = budget * 1.5;
+  const projectedProfit = budget * 0.25;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -167,37 +169,484 @@ const ProjectDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]"><Edit2 className="w-4 h-4 mr-1" />Edit</Button>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h3 className="font-medium text-gray-900 mb-4">Project Details</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><p className="text-xs text-gray-500">Project Name</p><p className="font-medium">{project.name}</p></div>
-                  <div><p className="text-xs text-gray-500">Project Code</p><p className="font-medium">{project.code}</p></div>
-                  <div><p className="text-xs text-gray-500">Entity</p><p className="font-medium">{project.entity}</p></div>
-                  <div><p className="text-xs text-gray-500">Project Type</p><p className="font-medium">{project.type}</p></div>
-                  <div><p className="text-xs text-gray-500">Status</p><p className="font-medium"><span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs">{project.status}</span></p></div>
-                  <div><p className="text-xs text-gray-500">Square Feet</p><p className="font-medium">{project.sqft}</p></div>
-                </div>
-                <div className="mt-4"><p className="text-xs text-gray-500">Description</p><p className="text-sm mt-1">{project.description}</p></div>
-              </div>
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="font-medium text-gray-900 mb-4">Budget Configuration</h3>
-                {budgetTypeInfo && (
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-4">
-                    <div className={`w-10 h-10 ${budgetTypeInfo.color} rounded-lg flex items-center justify-center text-xl`}>
-                      {budgetTypeInfo.icon}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Project Name *</Label>
+                    <Input
+                      value={formData?.name || ''}
+                      onChange={(e) => setField('name', e.target.value)}
+                      className="mt-1"
+                      placeholder="Enter project name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500">Project Type</Label>
+                      <Select value={formData?.project_type || ''} onValueChange={(v) => setField('project_type', v)}>
+                        <SelectTrigger className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
+                        <SelectContent>
+                          {PROJECT_TYPES.map(t => (
+                            <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
-                      <p className="font-medium">{budgetTypeInfo.name}</p>
-                      <p className="text-xs text-gray-500">{budgetTypeInfo.description}</p>
+                      <Label className="text-xs text-gray-500">Status</Label>
+                      <Select value={formData?.status || 'active'} onValueChange={(v) => setField('status', v)}>
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PROJECT_STATUSES.map(s => (
+                            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                )}
-                <Button variant="outline" className="w-full" onClick={() => setActiveSection('budget')}>
-                  <Calculator className="w-4 h-4 mr-2" />Open Budget
-                </Button>
+                  <div>
+                    <Label className="text-xs text-gray-500">Address</Label>
+                    <Input
+                      value={formData?.address || ''}
+                      onChange={(e) => setField('address', e.target.value)}
+                      className="mt-1"
+                      placeholder="123 Main St, City, State ZIP"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Description / Notes</Label>
+                    <Textarea
+                      value={formData?.notes || ''}
+                      onChange={(e) => setField('notes', e.target.value)}
+                      className="mt-1"
+                      rows={3}
+                      placeholder="Project description, notes, etc."
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="font-medium text-gray-900 mb-4">Timeline</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-gray-500">Start Date</Label>
+                        <Input
+                          type="date"
+                          value={formData?.start_date ? formData.start_date.split('T')[0] : ''}
+                          onChange={(e) => setField('start_date', e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Target Completion</Label>
+                        <Input
+                          type="date"
+                          value={formData?.target_completion_date ? formData.target_completion_date.split('T')[0] : ''}
+                          onChange={(e) => setField('target_completion_date', e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="font-medium text-gray-900 mb-4">Budget</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Total Budget ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.budget || ''}
+                      onChange={(e) => setField('budget', e.target.value)}
+                      className="mt-1"
+                      placeholder="250000"
+                    />
+                  </div>
+                  {budgetTypeInfo && (
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mt-4">
+                      <div className={`w-10 h-10 ${budgetTypeInfo.color} rounded-lg flex items-center justify-center text-xl`}>
+                        {budgetTypeInfo.icon}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{budgetTypeInfo.name}</p>
+                        <p className="text-xs text-gray-500">{budgetTypeInfo.description}</p>
+                      </div>
+                    </div>
+                  )}
+                  <Button variant="outline" className="w-full mt-4" onClick={() => setActiveSection('budget')}>
+                    <Calculator className="w-4 h-4 mr-2" />Open Detailed Budget
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'property':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Property Details</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Location</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Street Address</Label>
+                    <Input
+                      value={formData?.address || ''}
+                      onChange={(e) => setField('address', e.target.value)}
+                      className="mt-1"
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500">City</Label>
+                      <Input
+                        value={formData?.city || ''}
+                        onChange={(e) => setField('city', e.target.value)}
+                        className="mt-1"
+                        placeholder="Greenville"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">State</Label>
+                      <Input
+                        value={formData?.state || ''}
+                        onChange={(e) => setField('state', e.target.value)}
+                        className="mt-1"
+                        placeholder="SC"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">ZIP</Label>
+                      <Input
+                        value={formData?.zip_code || ''}
+                        onChange={(e) => setField('zip_code', e.target.value)}
+                        className="mt-1"
+                        placeholder="29601"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">County</Label>
+                    <Input
+                      value={formData?.county || ''}
+                      onChange={(e) => setField('county', e.target.value)}
+                      className="mt-1"
+                      placeholder="Greenville"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Parcel ID</Label>
+                    <Input
+                      value={formData?.parcel_id || ''}
+                      onChange={(e) => setField('parcel_id', e.target.value)}
+                      className="mt-1"
+                      placeholder="0234-56-78-9012"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Property Info</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500">Acres</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData?.acres || ''}
+                        onChange={(e) => setField('acres', e.target.value)}
+                        className="mt-1"
+                        placeholder="0.25"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Square Feet</Label>
+                      <Input
+                        type="number"
+                        value={formData?.sqft || ''}
+                        onChange={(e) => setField('sqft', e.target.value)}
+                        className="mt-1"
+                        placeholder="2200"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Zoning</Label>
+                    <Input
+                      value={formData?.zoning || ''}
+                      onChange={(e) => setField('zoning', e.target.value)}
+                      className="mt-1"
+                      placeholder="R-1 Residential"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Units / Lots</Label>
+                    <Input
+                      type="number"
+                      value={formData?.units || ''}
+                      onChange={(e) => setField('units', e.target.value)}
+                      className="mt-1"
+                      placeholder="1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Legal Description</Label>
+                    <Textarea
+                      value={formData?.legal_description || ''}
+                      onChange={(e) => setField('legal_description', e.target.value)}
+                      className="mt-1"
+                      rows={3}
+                      placeholder="Legal description of property..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'project-settings':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Project Settings</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Entity & Ownership</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Entity Name</Label>
+                    <Input
+                      value={formData?.entity_name || rawProject?.entity?.name || ''}
+                      onChange={(e) => setField('entity_name', e.target.value)}
+                      className="mt-1"
+                      placeholder="Watson House LLC"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Tax ID / EIN</Label>
+                    <Input
+                      value={formData?.tax_id || ''}
+                      onChange={(e) => setField('tax_id', e.target.value)}
+                      className="mt-1"
+                      placeholder="XX-XXXXXXX"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Project Team</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Project Manager</Label>
+                    <Input
+                      value={formData?.project_manager || ''}
+                      onChange={(e) => setField('project_manager', e.target.value)}
+                      className="mt-1"
+                      placeholder="Name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">General Contractor</Label>
+                    <Input
+                      value={formData?.general_contractor || ''}
+                      onChange={(e) => setField('general_contractor', e.target.value)}
+                      className="mt-1"
+                      placeholder="Company Name"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'purchase-contract':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Purchase Contract</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Contract Terms</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Purchase Price ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.purchase_price || ''}
+                      onChange={(e) => setField('purchase_price', e.target.value)}
+                      className="mt-1"
+                      placeholder="200000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.earnest_money || ''}
+                      onChange={(e) => setField('earnest_money', e.target.value)}
+                      className="mt-1"
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Contract Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.contract_date ? formData.contract_date.split('T')[0] : ''}
+                      onChange={(e) => setField('contract_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Key Dates</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">DD Deadline</Label>
+                    <Input
+                      type="date"
+                      value={formData?.dd_deadline ? formData.dd_deadline.split('T')[0] : ''}
+                      onChange={(e) => setField('dd_deadline', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Closing Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.closing_date ? formData.closing_date.split('T')[0] : ''}
+                      onChange={(e) => setField('closing_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Seller Name</Label>
+                    <Input
+                      value={formData?.seller_name || ''}
+                      onChange={(e) => setField('seller_name', e.target.value)}
+                      className="mt-1"
+                      placeholder="Seller name"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'due-diligence':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Due Diligence</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-900">Due Diligence Checklist</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {['Title Search', 'Survey', 'Environmental', 'Zoning Verification', 'Utilities', 'Soil Test'].map((item) => (
+                    <label key={item} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={formData?.[`dd_${item.toLowerCase().replace(/\s/g, '_')}`] || false}
+                        onChange={(e) => setField(`dd_${item.toLowerCase().replace(/\s/g, '_')}`, e.target.checked)}
+                        className="w-4 h-4 text-[#047857] rounded"
+                      />
+                      <span className="text-sm">{item}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-6">
+                  <Label className="text-xs text-gray-500">Due Diligence Notes</Label>
+                  <Textarea
+                    value={formData?.dd_notes || ''}
+                    onChange={(e) => setField('dd_notes', e.target.value)}
+                    className="mt-1"
+                    rows={4}
+                    placeholder="Notes from due diligence process..."
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'closing':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Closing</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Closing Details</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Closing Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.closing_date ? formData.closing_date.split('T')[0] : ''}
+                      onChange={(e) => setField('closing_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Title Company</Label>
+                    <Input
+                      value={formData?.title_company || ''}
+                      onChange={(e) => setField('title_company', e.target.value)}
+                      className="mt-1"
+                      placeholder="Title company name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Closing Agent</Label>
+                    <Input
+                      value={formData?.closing_agent || ''}
+                      onChange={(e) => setField('closing_agent', e.target.value)}
+                      className="mt-1"
+                      placeholder="Agent name"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Closing Costs</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Total Closing Costs ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.closing_costs || ''}
+                      onChange={(e) => setField('closing_costs', e.target.value)}
+                      className="mt-1"
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Closing Notes</Label>
+                    <Textarea
+                      value={formData?.closing_notes || ''}
+                      onChange={(e) => setField('closing_notes', e.target.value)}
+                      className="mt-1"
+                      rows={4}
+                      placeholder="Closing notes..."
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -211,7 +660,6 @@ const ProjectDetailPage = () => {
         );
 
       case 'pro-forma':
-        // Pro Forma syncs with budget data
         return (
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -225,52 +673,26 @@ const ProjectDetailPage = () => {
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-amber-800">
-                <strong>Note:</strong> Pro Forma data is synced from your project budget. 
+                <strong>Note:</strong> Pro Forma data is synced from your project budget.
                 To update projections, modify values in the Budget tool.
               </p>
             </div>
             <div className="grid grid-cols-4 gap-4 mb-6">
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Total Budget</p>
-                <p className="text-2xl font-semibold">${project.budget.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">From Budget Tool</p>
+                <p className="text-2xl font-semibold">${budget.toLocaleString()}</p>
               </div>
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Projected Sale</p>
-                <p className="text-2xl font-semibold">${project.projectedSalePrice.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">From Budget Analysis</p>
+                <p className="text-2xl font-semibold">${projectedSalePrice.toLocaleString()}</p>
               </div>
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Gross Profit</p>
-                <p className="text-2xl font-semibold text-emerald-600">${project.projectedProfit.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Net of selling costs</p>
+                <p className="text-2xl font-semibold text-emerald-600">${projectedProfit.toLocaleString()}</p>
               </div>
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Gross Margin</p>
-                <p className="text-2xl font-semibold text-emerald-600">{((project.projectedProfit / project.projectedSalePrice) * 100).toFixed(1)}%</p>
-              </div>
-            </div>
-            <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Sources & Uses</h3>
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 pb-2 border-b">SOURCES</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Construction Loan (90% LTC)</span><span className="font-mono">${Math.round(project.budget * 0.9).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Equity Required (10%)</span><span className="font-mono">${Math.round(project.budget * 0.1).toLocaleString()}</span></div>
-                    <div className="flex justify-between pt-2 border-t font-semibold"><span>Total Sources</span><span className="font-mono">${project.budget.toLocaleString()}</span></div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 pb-2 border-b">USES</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Hard Costs</span><span className="font-mono">${Math.round(project.budget * 0.75).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Soft Costs</span><span className="font-mono">${Math.round(project.budget * 0.10).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Financing</span><span className="font-mono">${Math.round(project.budget * 0.08).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-600">Contingency</span><span className="font-mono">${Math.round(project.budget * 0.07).toLocaleString()}</span></div>
-                    <div className="flex justify-between pt-2 border-t font-semibold"><span>Total Uses</span><span className="font-mono">${project.budget.toLocaleString()}</span></div>
-                  </div>
-                </div>
+                <p className="text-2xl font-semibold text-emerald-600">{projectedSalePrice > 0 ? ((projectedProfit / projectedSalePrice) * 100).toFixed(1) : 0}%</p>
               </div>
             </div>
           </div>
@@ -286,27 +708,23 @@ const ProjectDetailPage = () => {
             <div className="grid grid-cols-4 gap-4 mb-6">
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Total Budget</p>
-                <p className="text-2xl font-semibold">${project.budget.toLocaleString()}</p>
+                <p className="text-2xl font-semibold">${budget.toLocaleString()}</p>
               </div>
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Total Expenses</p>
-                <p className="text-2xl font-semibold">${project.spent.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">{Math.round(project.spent / project.budget * 100)}% of budget</p>
+                <p className="text-2xl font-semibold">${spent.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">{budget > 0 ? Math.round(spent / budget * 100) : 0}% of budget</p>
               </div>
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Remaining</p>
-                <p className="text-2xl font-semibold text-[#047857]">${(project.budget - project.spent).toLocaleString()}</p>
+                <p className="text-2xl font-semibold text-[#047857]">${(budget - spent).toLocaleString()}</p>
               </div>
               <div className="bg-white border rounded-lg p-4">
                 <p className="text-sm text-gray-500">Projected Profit</p>
-                <p className="text-2xl font-semibold text-[#047857]">${project.projectedProfit.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">{((project.projectedProfit / project.projectedSalePrice) * 100).toFixed(1)}% margin</p>
+                <p className="text-2xl font-semibold text-[#047857]">${projectedProfit.toLocaleString()}</p>
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium">Quick Actions</h3>
-              </div>
               <div className="flex gap-3">
                 <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setActiveSection('budget')}>
                   <Calculator className="w-4 h-4 mr-2" />Open Full Budget
@@ -314,51 +732,7 @@ const ProjectDetailPage = () => {
                 <Button variant="outline" onClick={() => setActiveSection('pro-forma')}>
                   <FileText className="w-4 h-4 mr-2" />View Pro Forma
                 </Button>
-                <Button variant="outline" onClick={() => setActiveSection('budget-vs-actual')}>
-                  <TrendingUp className="w-4 h-4 mr-2" />Budget vs Actual
-                </Button>
               </div>
-            </div>
-          </div>
-        );
-
-      case 'budget-vs-actual':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Budget vs Actual</h2>
-              <div className="flex gap-2">
-                <Button variant="outline">Export</Button>
-                <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setActiveSection('budget')}>
-                  <Calculator className="w-4 h-4 mr-2" />Full Budget
-                </Button>
-              </div>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-800">
-                Data synced from your project budget. Updates made in the Budget tool will reflect here automatically.
-              </p>
-            </div>
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Total Budget</p><p className="text-2xl font-semibold">${project.budget.toLocaleString()}</p></div>
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Actual Spent</p><p className="text-2xl font-semibold">${project.spent.toLocaleString()}</p></div>
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Variance</p><p className="text-2xl font-semibold text-green-600">+$5,000</p><p className="text-xs text-green-600">Under budget</p></div>
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Projected Final</p><p className="text-2xl font-semibold">$260,000</p></div>
-            </div>
-            <div className="bg-white border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3 font-medium">Category</th><th className="text-right px-4 py-3 font-medium">Budget</th><th className="text-right px-4 py-3 font-medium">Actual</th><th className="text-right px-4 py-3 font-medium">Variance</th><th className="text-right px-4 py-3 font-medium">%</th></tr></thead>
-                <tbody className="divide-y">
-                  <tr><td className="px-4 py-3">Lot Acquisition</td><td className="px-4 py-3 text-right">$43,494</td><td className="px-4 py-3 text-right">$43,494</td><td className="px-4 py-3 text-right text-gray-500">$0</td><td className="px-4 py-3 text-right">100%</td></tr>
-                  <tr><td className="px-4 py-3">Site Specific</td><td className="px-4 py-3 text-right">$13,375</td><td className="px-4 py-3 text-right">$12,500</td><td className="px-4 py-3 text-right text-green-600">+$875</td><td className="px-4 py-3 text-right">93%</td></tr>
-                  <tr><td className="px-4 py-3">Vertical Construction</td><td className="px-4 py-3 text-right">$150,016</td><td className="px-4 py-3 text-right">$55,000</td><td className="px-4 py-3 text-right text-green-600">+$95,016</td><td className="px-4 py-3 text-right">37%</td></tr>
-                  <tr><td className="px-4 py-3">Soft Costs</td><td className="px-4 py-3 text-right">$2,650</td><td className="px-4 py-3 text-right">$2,500</td><td className="px-4 py-3 text-right text-green-600">+$150</td><td className="px-4 py-3 text-right">94%</td></tr>
-                  <tr><td className="px-4 py-3">Builder Profit</td><td className="px-4 py-3 text-right">$31,340</td><td className="px-4 py-3 text-right">$0</td><td className="px-4 py-3 text-right text-green-600">+$31,340</td><td className="px-4 py-3 text-right">0%</td></tr>
-                  <tr><td className="px-4 py-3">Financing</td><td className="px-4 py-3 text-right">$11,185</td><td className="px-4 py-3 text-right">$6,506</td><td className="px-4 py-3 text-right text-green-600">+$4,679</td><td className="px-4 py-3 text-right">58%</td></tr>
-                  <tr><td className="px-4 py-3">Contingency</td><td className="px-4 py-3 text-right">$5,000</td><td className="px-4 py-3 text-right">$5,000</td><td className="px-4 py-3 text-right text-gray-500">$0</td><td className="px-4 py-3 text-right">100%</td></tr>
-                </tbody>
-                <tfoot className="bg-gray-100 font-semibold"><tr><td className="px-4 py-3">TOTAL</td><td className="px-4 py-3 text-right">${project.budget.toLocaleString()}</td><td className="px-4 py-3 text-right">${project.spent.toLocaleString()}</td><td className="px-4 py-3 text-right text-green-600">+$5,000</td><td className="px-4 py-3 text-right">47%</td></tr></tfoot>
-              </table>
             </div>
           </div>
         );
@@ -366,21 +740,35 @@ const ProjectDetailPage = () => {
       case 'schedule':
         return (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-semibold text-gray-900">Construction Schedule</h2><Button className="bg-[#047857] hover:bg-[#065f46] h-8 text-sm">Update Schedule</Button></div>
-            <div className="bg-white border rounded-lg p-6 mb-6">
-              <div className="flex items-center justify-between mb-4"><div><p className="text-sm text-gray-500">Overall Progress</p><p className="text-2xl font-semibold">35% Complete</p></div><div className="text-right"><p className="text-sm text-gray-500">Est. Completion</p><p className="text-lg font-medium">May 2025</p></div></div>
-              <div className="w-full bg-gray-200 rounded-full h-3"><div className="bg-[#047857] h-3 rounded-full" style={{ width: '35%' }}></div></div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Construction Schedule</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
-            <div className="bg-white border rounded-lg">
-              <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3 font-medium">Phase</th><th className="text-left px-4 py-3 font-medium">Start</th><th className="text-left px-4 py-3 font-medium">End</th><th className="text-left px-4 py-3 font-medium">Status</th><th className="text-right px-4 py-3 font-medium">Progress</th></tr></thead>
-                <tbody className="divide-y">
-                  <tr><td className="px-4 py-3">Site Prep</td><td className="px-4 py-3">Dec 1</td><td className="px-4 py-3">Dec 10</td><td className="px-4 py-3"><span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">Complete</span></td><td className="px-4 py-3 text-right">100%</td></tr>
-                  <tr><td className="px-4 py-3">Foundation</td><td className="px-4 py-3">Dec 11</td><td className="px-4 py-3">Dec 20</td><td className="px-4 py-3"><span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">Complete</span></td><td className="px-4 py-3 text-right">100%</td></tr>
-                  <tr><td className="px-4 py-3">Framing</td><td className="px-4 py-3">Dec 21</td><td className="px-4 py-3">Jan 15</td><td className="px-4 py-3"><span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">In Progress</span></td><td className="px-4 py-3 text-right">40%</td></tr>
-                  <tr><td className="px-4 py-3">MEP Rough</td><td className="px-4 py-3">Jan 16</td><td className="px-4 py-3">Feb 15</td><td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">Pending</span></td><td className="px-4 py-3 text-right">0%</td></tr>
-                  <tr><td className="px-4 py-3">Finishes</td><td className="px-4 py-3">Feb 16</td><td className="px-4 py-3">Apr 30</td><td className="px-4 py-3"><span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">Pending</span></td><td className="px-4 py-3 text-right">0%</td></tr>
-                </tbody>
-              </table>
+            <div className="bg-white border rounded-lg p-6 mb-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <Label className="text-xs text-gray-500">Project Start Date</Label>
+                  <Input
+                    type="date"
+                    value={formData?.start_date ? formData.start_date.split('T')[0] : ''}
+                    onChange={(e) => setField('start_date', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Target Completion</Label>
+                  <Input
+                    type="date"
+                    value={formData?.target_completion_date ? formData.target_completion_date.split('T')[0] : ''}
+                    onChange={(e) => setField('target_completion_date', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium mb-4">Phase Schedule</h3>
+              <p className="text-gray-500 text-sm">Phase scheduling with editable milestones coming soon.</p>
             </div>
           </div>
         );
@@ -388,20 +776,26 @@ const ProjectDetailPage = () => {
       case 'draws':
         return (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-semibold text-gray-900">Draw Requests</h2><Button className="bg-[#047857] hover:bg-[#065f46] h-8 text-sm">New Draw Request</Button></div>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Total Drawn</p><p className="text-2xl font-semibold">$125,000</p></div>
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Remaining</p><p className="text-2xl font-semibold text-[#047857]">$140,000</p></div>
-              <div className="bg-white border rounded-lg p-4"><p className="text-sm text-gray-500">Pending Draws</p><p className="text-2xl font-semibold">$35,000</p></div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Draw Requests</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">New Draw Request</Button>
             </div>
-            <div className="bg-white border rounded-lg">
-              <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3 font-medium">Draw #</th><th className="text-left px-4 py-3 font-medium">Date</th><th className="text-right px-4 py-3 font-medium">Amount</th><th className="text-left px-4 py-3 font-medium">Status</th></tr></thead>
-                <tbody className="divide-y">
-                  <tr><td className="px-4 py-3 font-medium">Draw #3</td><td className="px-4 py-3">Dec 20, 2024</td><td className="px-4 py-3 text-right">$35,000</td><td className="px-4 py-3"><span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded">Pending</span></td></tr>
-                  <tr><td className="px-4 py-3 font-medium">Draw #2</td><td className="px-4 py-3">Dec 10, 2024</td><td className="px-4 py-3 text-right">$45,000</td><td className="px-4 py-3"><span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">Funded</span></td></tr>
-                  <tr><td className="px-4 py-3 font-medium">Draw #1</td><td className="px-4 py-3">Dec 1, 2024</td><td className="px-4 py-3 text-right">$45,000</td><td className="px-4 py-3"><span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">Funded</span></td></tr>
-                </tbody>
-              </table>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Budget</p>
+                <p className="text-2xl font-semibold">${budget.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Drawn</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Remaining</p>
+                <p className="text-2xl font-semibold text-[#047857]">${budget.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No draw requests yet. Click "New Draw Request" to create one.</p>
             </div>
           </div>
         );
@@ -412,9 +806,12 @@ const ProjectDetailPage = () => {
       default:
         return (
           <div className="p-6">
-            <div className="bg-white border rounded-lg p-12 text-center">
-              <p className="text-gray-600 capitalize font-medium">{activeSection.replace(/-/g, ' ')}</p>
-              <p className="text-gray-400 text-sm mt-2">Mock data interface - Real integration coming</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 capitalize">{activeSection.replace(/-/g, ' ')}</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">This section is being built out. Content coming soon.</p>
             </div>
           </div>
         );
@@ -431,18 +828,23 @@ const ProjectDetailPage = () => {
           <div className="flex items-center gap-3 mt-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center"><Building2 className="w-5 h-5 text-white" /></div>
             <div>
-              <h2 className="text-white font-semibold truncate">{project.name}</h2>
-              <p className="text-gray-500 text-xs">{project.code} • {project.entity}</p>
+              <h2 className="text-white font-semibold truncate">{formData?.name || 'Unnamed'}</h2>
+              <p className="text-gray-500 text-xs">{rawProject?.entity?.name || 'No Entity'}</p>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded">{project.status}</span>
+            <span className={cn("text-xs px-2 py-0.5 rounded",
+              formData?.status === 'active' ? 'bg-emerald-500 text-white' :
+              formData?.status === 'completed' ? 'bg-blue-500 text-white' :
+              formData?.status === 'on-hold' ? 'bg-amber-500 text-white' :
+              'bg-gray-500 text-white'
+            )}>{formData?.status || 'active'}</span>
             {budgetTypeInfo && (
               <span className="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded">{budgetTypeInfo.name}</span>
             )}
           </div>
         </div>
-        
+
         <nav className="flex-1 p-2 overflow-y-auto">
           {sidebarGroups.map((group) => (
             <div key={group.id} className="mb-1">

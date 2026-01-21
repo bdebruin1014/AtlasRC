@@ -1,25 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
+  ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
   ClipboardList, MapPin, Calculator, TrendingUp, Target, ArrowRight, Mail, MessageSquare,
-  FileSignature, CheckCircle, Send, FileCheck, Loader2
+  FileSignature, CheckCircle, FileCheck, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useOpportunity, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
+import { useOpportunity, useOpportunityActions, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
+import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
 
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
 
-// Import Pipeline Page Components
-import OpportunityOverview from '@/pages/pipeline/OpportunityOverview';
-import OpportunityStageTracker from '@/pages/pipeline/OpportunityStageTracker';
-import OpportunityContacts from '@/pages/pipeline/OpportunityContacts';
-import OpportunityTasks from '@/pages/pipeline/OpportunityTasks';
-import OpportunityPropertyDetails from '@/pages/pipeline/OpportunityPropertyDetails';
-import OpportunityComparables from '@/pages/pipeline/OpportunityComparables';
-import OpportunityFiles from '@/pages/pipeline/OpportunityFiles';
+const OPPORTUNITY_TYPES = [
+  { value: 'vacant-lot', label: 'Vacant Lot' },
+  { value: 'flip-property', label: 'Flip Property' },
+  { value: 'development-lot-sale', label: 'Development Lot Sale' },
+  { value: 'development-for-sale', label: 'Development For Sale' },
+  { value: 'development-btr', label: 'Development BTR' },
+  { value: 'scattered-lot', label: 'Scattered Lot' },
+];
 
 const OpportunityDetailPage = () => {
   const { opportunityId } = useParams();
@@ -28,59 +33,34 @@ const OpportunityDetailPage = () => {
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
 
   // Fetch opportunity from database
-  const { opportunity: rawOpportunity, isLoading, error, refetch } = useOpportunity(opportunityId);
+  const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
+  const { updateOpportunity } = useOpportunityActions();
 
-  // Updated stages per requirements
+  // Auto-save hook
+  const {
+    formData,
+    setField,
+    saveStatus,
+    lastSaved,
+    error: saveError
+  } = useAutoSave(
+    rawOpportunity,
+    async (data) => {
+      if (opportunityId && data) {
+        await updateOpportunity(opportunityId, data);
+      }
+    },
+    1500
+  );
+
+  // Stages config
   const stages = [
-    { id: 'Prospecting', label: 'Prospecting', color: '#6B7280', description: 'Initial contact, sending letters/communications' },
-    { id: 'Contacted', label: 'Contacted', color: '#3B82F6', description: 'Seller responded, analyzing property' },
-    { id: 'Qualified', label: 'Qualified', color: '#F59E0B', description: 'Deal analyzed, preparing contract' },
-    { id: 'Negotiating', label: 'Negotiating', color: '#8B5CF6', description: 'Contract generation and e-sign' },
-    { id: 'Under Contract', label: 'Under Contract', color: '#10B981', description: 'Signed contract, ready to convert' },
+    { id: 'Prospecting', label: 'Prospecting', color: '#6B7280' },
+    { id: 'Contacted', label: 'Contacted', color: '#3B82F6' },
+    { id: 'Qualified', label: 'Qualified', color: '#F59E0B' },
+    { id: 'Negotiating', label: 'Negotiating', color: '#8B5CF6' },
+    { id: 'Under Contract', label: 'Under Contract', color: '#10B981' },
   ];
-
-  // Opportunity types matching project types
-  const opportunityTypes = {
-    'lot-dev': 'Lot Development',
-    'for-sale-dev': 'For Sale Development',
-    'btr-dev': 'BTR Development',
-    'for-sale-lot': 'For Sale Lot Purchase',
-    'btr-lot': 'BTR Lot Purchase',
-    'fix-flip': 'Fix and Flip',
-    'brrr': 'BRRR',
-    'vacant-lot': 'Vacant Lot',
-    'flip-property': 'Flip Property',
-    'development-lot-sale': 'Development Lot Sale',
-    'development-for-sale': 'Development For Sale',
-    'development-btr': 'Development BTR',
-    'scattered-lot': 'Scattered Lot',
-  };
-
-  // Transform database opportunity to display format
-  const opportunity = useMemo(() => {
-    if (!rawOpportunity) return null;
-
-    return {
-      id: rawOpportunity.id,
-      name: rawOpportunity.deal_number || 'Unnamed Deal',
-      type: rawOpportunity.opportunity_type || rawOpportunity.property_type || 'vacant-lot',
-      stage: rawOpportunity.stage || 'Prospecting',
-      address: rawOpportunity.address || 'No address',
-      city: rawOpportunity.city || '',
-      state: rawOpportunity.state || 'SC',
-      zip: rawOpportunity.zip_code || '',
-      askingPrice: rawOpportunity.asking_price || rawOpportunity.estimated_value || 0,
-      estimatedValue: rawOpportunity.estimated_value || 0,
-      seller: {
-        name: rawOpportunity.seller_name || '',
-        email: rawOpportunity.seller_email || '',
-        phone: rawOpportunity.seller_phone || '',
-      },
-      notes: rawOpportunity.notes || '',
-      team: rawOpportunity.assigned_to || 'Unassigned',
-      raw: rawOpportunity,
-    };
-  }, [rawOpportunity]);
 
   // Loading state
   if (isLoading) {
@@ -93,7 +73,7 @@ const OpportunityDetailPage = () => {
   }
 
   // Error state
-  if (error || !opportunity) {
+  if (error || !rawOpportunity) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Building2 className="w-12 h-12 text-gray-300 mb-4" />
@@ -110,10 +90,9 @@ const OpportunityDetailPage = () => {
       label: 'Overview',
       items: [
         { id: 'overview', label: 'Overview', icon: FileText },
-        { id: 'tasks', label: 'Tasks & Checklist', icon: ClipboardList },
         { id: 'property-details', label: 'Property Details', icon: MapPin },
-        { id: 'contacts', label: 'Contacts', icon: Users },
-        { id: 'comps', label: 'Comps', icon: TrendingUp },
+        { id: 'seller-info', label: 'Seller Info', icon: Users },
+        { id: 'deal-terms', label: 'Deal Terms', icon: DollarSign },
         { id: 'deal-analyzer', label: 'Deal Analyzer', icon: Calculator },
       ]
     },
@@ -133,212 +112,453 @@ const OpportunityDetailPage = () => {
       label: 'Documents',
       items: [
         { id: 'files', label: 'Files', icon: FolderOpen },
-        { id: 'mailing', label: 'Mailing', icon: Mail },
-        { id: 'communications', label: 'Communications', icon: MessageSquare },
-        { id: 'esigned', label: 'E-Signed Documents', icon: FileSignature },
+        { id: 'notes', label: 'Notes & Activity', icon: MessageSquare },
       ]
     },
   ];
 
   const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => 
+    setExpandedGroups(prev =>
       prev.includes(groupId) ? prev.filter(g => g !== groupId) : [...prev, groupId]
     );
   };
 
   const handleConvertToProject = () => {
-    // In a real app, this would create the project and redirect
     alert('Converting opportunity to project...');
     navigate('/projects');
   };
 
-  const renderStageContent = (stageId) => {
-    const stageInfo = {
-      'stage-prospecting': {
-        title: 'Prospecting Stage',
-        description: 'Property information and outreach tracking. Seller has not yet responded.',
-        nextSteps: [
-          'Send initial contact letter or postcard',
-          'Record all outreach attempts',
-          'Update property information as available',
-          'Track response to marketing efforts'
-        ],
-        tools: ['Direct Mail Tracking', 'Call Log', 'Property Research']
-      },
-      'stage-contacted': {
-        title: 'Contacted Stage',
-        description: 'Seller has responded. Update information and begin property analysis.',
-        nextSteps: [
-          'Gather detailed seller information',
-          'Request property documents',
-          'Conduct initial property analysis',
-          'Determine deal type and potential'
-        ],
-        tools: ['Property Details Form', 'Document Upload', 'Initial Analysis']
-      },
-      'stage-qualified': {
-        title: 'Qualified Stage',
-        description: 'Deal analyzed and seller is qualified. Prepare contract terms.',
-        nextSteps: [
-          'Select comparable properties',
-          'Finalize deal type and structure',
-          'Prepare contract terms and conditions',
-          'Set purchase price and earnest money'
-        ],
-        tools: ['Comp Selection', 'Deal Analyzer', 'Contract Preparation']
-      },
-      'stage-negotiating': {
-        title: 'Negotiating Stage',
-        description: 'Generate and send contract for signatures.',
-        nextSteps: [
-          'Complete contract form with all terms',
-          'Generate contract from template',
-          'Send for e-signature to seller and buyer',
-          'Track signature status'
-        ],
-        tools: ['Contract Generator', 'E-Sign Integration', 'Negotiation Notes']
-      },
-      'stage-under-contract': {
-        title: 'Under Contract Stage',
-        description: 'Contract signed. Ready to convert to project.',
-        nextSteps: [
-          'Verify signed contract is uploaded',
-          'Review all due diligence items',
-          'Prepare for closing',
-          'Convert to Project when ready'
-        ],
-        tools: ['Contract Verification', 'Due Diligence Checklist', 'Convert to Project']
-      },
-    };
+  const handleAdvanceStage = () => {
+    const currentIndex = stages.findIndex(s => s.id === formData?.stage);
+    if (currentIndex < stages.length - 1) {
+      setField('stage', stages[currentIndex + 1].id);
+    }
+  };
 
-    const stage = stageInfo[stageId];
-    if (!stage) return null;
-
-    return (
-      <div className="p-6">
-        <div className="bg-white border rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-2">{stage.title}</h2>
-          <p className="text-gray-600 mb-6">{stage.description}</p>
-          
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-[#047857]" />
-                Next Steps
-              </h3>
-              <ul className="space-y-2">
-                {stage.nextSteps.map((step, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
-                    <div className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs text-gray-500">{idx + 1}</span>
-                    </div>
-                    {step}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <Target className="w-4 h-4 text-[#047857]" />
-                Available Tools
-              </h3>
-              <div className="space-y-2">
-                {stage.tools.map((tool, idx) => (
-                  <Button key={idx} variant="outline" className="w-full justify-start text-sm">
-                    {tool}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {stageId === 'stage-negotiating' && (
-            <div className="mt-6 pt-6 border-t">
-              <h3 className="font-medium mb-3">Contract Generation</h3>
-              <div className="bg-gray-50 border rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-4">
-                  Generate a contract based on the deal type and send for e-signature.
-                </p>
-                <div className="flex gap-3">
-                  <Button className="bg-[#047857] hover:bg-[#065f46]">
-                    <FileSignature className="w-4 h-4 mr-2" />
-                    Generate Contract
-                  </Button>
-                  <Button variant="outline">
-                    <Send className="w-4 h-4 mr-2" />
-                    Send for E-Sign
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {stageId === 'stage-under-contract' && (
-            <div className="mt-6 pt-6 border-t">
-              <h3 className="font-medium mb-3">Convert to Project</h3>
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-4">
-                  This opportunity is under contract and ready to be converted to a project.
-                  All data will be transferred to the new project record.
-                </p>
-                <Button 
-                  onClick={handleConvertToProject}
-                  className="bg-[#047857] hover:bg-[#065f46]"
-                >
-                  <ArrowRight className="w-4 h-4 mr-2" />
-                  Convert to Project
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const formatPrice = (price) => {
+    if (!price) return '$0';
+    return `$${parseFloat(price).toLocaleString()}`;
   };
 
   const renderContent = () => {
     // Handle stage tracker pages
     if (activeSection.startsWith('stage-')) {
-      return renderStageContent(activeSection);
+      const stageId = activeSection.replace('stage-', '');
+      const stageMap = {
+        'prospecting': 'Prospecting',
+        'contacted': 'Contacted',
+        'qualified': 'Qualified',
+        'negotiating': 'Negotiating',
+        'under-contract': 'Under Contract'
+      };
+      const stageName = stageMap[stageId] || stageId;
+
+      return (
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">{stageName} Stage</h2>
+            <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+          </div>
+          <div className="bg-white border rounded-lg p-6">
+            <div className="space-y-4">
+              <p className="text-gray-600">Manage your {stageName.toLowerCase()} stage activities and requirements here.</p>
+              <div className="flex gap-3">
+                <Button onClick={() => setField('stage', stageName)} className="bg-[#047857] hover:bg-[#065f46]">
+                  Set as Current Stage
+                </Button>
+                {stageName === 'Under Contract' && (
+                  <Button onClick={handleConvertToProject} variant="outline">
+                    <ArrowRight className="w-4 h-4 mr-2" />Convert to Project
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
     }
 
     switch (activeSection) {
       case 'overview':
-        return <OpportunityOverview opportunity={opportunity} opportunityTypes={opportunityTypes} />;
-      
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Opportunity Overview</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+
+            {/* Key Metrics */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Estimated Value</p>
+                <p className="text-2xl font-semibold">{formatPrice(formData?.estimated_value)}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Asking Price</p>
+                <p className="text-2xl font-semibold">{formatPrice(formData?.asking_price)}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Assignment Fee</p>
+                <p className="text-2xl font-semibold text-[#047857]">{formatPrice(formData?.assignment_fee)}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Current Stage</p>
+                <p className="text-2xl font-semibold">{formData?.stage || 'Prospecting'}</p>
+              </div>
+            </div>
+
+            {/* Basic Info Form */}
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Basic Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500">Deal Number *</Label>
+                  <Input
+                    value={formData?.deal_number || ''}
+                    onChange={(e) => setField('deal_number', e.target.value)}
+                    className="mt-1"
+                    placeholder="25-001"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Stage</Label>
+                  <Select value={formData?.stage || 'Prospecting'} onValueChange={(v) => setField('stage', v)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {OPPORTUNITY_STAGES.map(s => (
+                        <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Property Type</Label>
+                  <Select value={formData?.property_type || 'vacant-lot'} onValueChange={(v) => setField('property_type', v)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {OPPORTUNITY_TYPES.map(t => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Assigned To</Label>
+                  <Input
+                    value={formData?.assigned_to || ''}
+                    onChange={(e) => setField('assigned_to', e.target.value)}
+                    className="mt-1"
+                    placeholder="Team member name"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'property-details':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Property Details</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Location</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Address *</Label>
+                    <Input
+                      value={formData?.address || ''}
+                      onChange={(e) => setField('address', e.target.value)}
+                      className="mt-1"
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500">City</Label>
+                      <Input
+                        value={formData?.city || ''}
+                        onChange={(e) => setField('city', e.target.value)}
+                        className="mt-1"
+                        placeholder="Greenville"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">State</Label>
+                      <Input
+                        value={formData?.state || ''}
+                        onChange={(e) => setField('state', e.target.value)}
+                        className="mt-1"
+                        placeholder="SC"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">ZIP</Label>
+                      <Input
+                        value={formData?.zip_code || ''}
+                        onChange={(e) => setField('zip_code', e.target.value)}
+                        className="mt-1"
+                        placeholder="29601"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">County</Label>
+                    <Input
+                      value={formData?.county || ''}
+                      onChange={(e) => setField('county', e.target.value)}
+                      className="mt-1"
+                      placeholder="Greenville"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Parcel ID</Label>
+                    <Input
+                      value={formData?.parcel_id || ''}
+                      onChange={(e) => setField('parcel_id', e.target.value)}
+                      className="mt-1"
+                      placeholder="0234-56-78-9012"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Property Info</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500">Acres</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData?.acres || ''}
+                        onChange={(e) => setField('acres', e.target.value)}
+                        className="mt-1"
+                        placeholder="0.25"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Potential Lots/Units</Label>
+                      <Input
+                        type="number"
+                        value={formData?.potential_lots || ''}
+                        onChange={(e) => setField('potential_lots', e.target.value)}
+                        className="mt-1"
+                        placeholder="1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Zoning</Label>
+                    <Input
+                      value={formData?.zoning || ''}
+                      onChange={(e) => setField('zoning', e.target.value)}
+                      className="mt-1"
+                      placeholder="R-1 Residential"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Source</Label>
+                    <Input
+                      value={formData?.source || ''}
+                      onChange={(e) => setField('source', e.target.value)}
+                      className="mt-1"
+                      placeholder="Direct Mail, Referral, etc."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'seller-info':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Seller Information</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Contact Details</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Seller Name</Label>
+                    <Input
+                      value={formData?.seller_name || ''}
+                      onChange={(e) => setField('seller_name', e.target.value)}
+                      className="mt-1"
+                      placeholder="John Smith"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Phone</Label>
+                    <Input
+                      type="tel"
+                      value={formData?.seller_phone || ''}
+                      onChange={(e) => setField('seller_phone', e.target.value)}
+                      className="mt-1"
+                      placeholder="(864) 555-0123"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Email</Label>
+                    <Input
+                      type="email"
+                      value={formData?.seller_email || ''}
+                      onChange={(e) => setField('seller_email', e.target.value)}
+                      className="mt-1"
+                      placeholder="seller@email.com"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Additional Info</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Motivation</Label>
+                    <Textarea
+                      value={formData?.seller_motivation || ''}
+                      onChange={(e) => setField('seller_motivation', e.target.value)}
+                      className="mt-1"
+                      rows={3}
+                      placeholder="Why is the seller selling? Timeline, situation, etc."
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Contact Notes</Label>
+                    <Textarea
+                      value={formData?.contact_notes || ''}
+                      onChange={(e) => setField('contact_notes', e.target.value)}
+                      className="mt-1"
+                      rows={3}
+                      placeholder="Best time to call, preferred contact method, etc."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'deal-terms':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Deal Terms</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Pricing</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Asking Price ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.asking_price || ''}
+                      onChange={(e) => setField('asking_price', e.target.value)}
+                      className="mt-1"
+                      placeholder="200000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Estimated Value ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.estimated_value || ''}
+                      onChange={(e) => setField('estimated_value', e.target.value)}
+                      className="mt-1"
+                      placeholder="250000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Assignment Fee ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.assignment_fee || ''}
+                      onChange={(e) => setField('assignment_fee', e.target.value)}
+                      className="mt-1"
+                      placeholder="10000"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Contract Terms</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.earnest_money || ''}
+                      onChange={(e) => setField('earnest_money', e.target.value)}
+                      className="mt-1"
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">DD Deadline</Label>
+                    <Input
+                      type="date"
+                      value={formData?.dd_deadline ? formData.dd_deadline.split('T')[0] : ''}
+                      onChange={(e) => setField('dd_deadline', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Target Close Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.close_date ? formData.close_date.split('T')[0] : ''}
+                      onChange={(e) => setField('close_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case 'deal-analyzer':
         return (
           <div className="h-full">
             <PipelineDealAnalyzer />
           </div>
         );
-      
-      case 'tasks':
-        return <OpportunityTasks opportunity={opportunity} />;
-      
-      case 'property-details':
-        return <OpportunityPropertyDetails opportunity={opportunity} />;
-      
-      case 'contacts':
-        return <OpportunityContacts opportunity={opportunity} />;
-      
-      case 'comps':
-        return <OpportunityComparables opportunity={opportunity} />;
-      
-      case 'files':
-        return <OpportunityFiles />;
-      
-      case 'mailing':
-      case 'communications':
-      case 'esigned':
+
+      case 'notes':
         return (
           <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Notes & Activity</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <div>
+                <Label className="text-xs text-gray-500">Notes</Label>
+                <Textarea
+                  value={formData?.notes || ''}
+                  onChange={(e) => setField('notes', e.target.value)}
+                  className="mt-1"
+                  rows={10}
+                  placeholder="Add notes about this opportunity..."
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'files':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Files & Documents</h2>
+            </div>
             <div className="bg-white border rounded-lg p-12 text-center">
-              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 capitalize font-medium">{activeSection.replace('-', ' ')}</p>
-              <p className="text-gray-400 text-sm mt-2">Document management interface coming soon</p>
-              <p className="text-gray-400 text-xs mt-1">SharePoint integration will be available here</p>
+              <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 font-medium">Document Management</p>
+              <p className="text-gray-400 text-sm mt-2">File upload and SharePoint integration coming soon</p>
             </div>
           </div>
         );
@@ -347,7 +567,7 @@ const OpportunityDetailPage = () => {
         return (
           <div className="p-6">
             <div className="bg-white border rounded-lg p-12 text-center">
-              <p className="text-gray-600 capitalize font-medium">{activeSection.replace('-', ' ')}</p>
+              <p className="text-gray-600 capitalize font-medium">{activeSection.replace(/-/g, ' ')}</p>
               <p className="text-gray-400 text-sm mt-2">Content coming soon</p>
             </div>
           </div>
@@ -355,7 +575,7 @@ const OpportunityDetailPage = () => {
     }
   };
 
-  const currentStage = stages.find(s => s.id === opportunity.stage);
+  const currentStage = stages.find(s => s.id === formData?.stage) || stages[0];
 
   return (
     <div className="flex h-[calc(100vh-40px)] bg-gray-50">
@@ -365,11 +585,10 @@ const OpportunityDetailPage = () => {
           <button onClick={() => navigate('/opportunities')} className="flex items-center gap-2 text-gray-400 hover:text-white text-xs mb-2">
             <ArrowLeft className="w-3 h-3" /> Back to Pipeline
           </button>
-          <h2 className="text-white font-semibold truncate text-sm">{opportunity.name}</h2>
-          <p className="text-gray-500 text-xs mt-1">{opportunityTypes[opportunity.type]}</p>
-          <p className="text-gray-500 text-xs">{opportunity.acres} acres • {opportunity.team}</p>
+          <h2 className="text-white font-semibold truncate text-sm">{formData?.deal_number || 'New Deal'}</h2>
+          <p className="text-gray-500 text-xs mt-1">{formData?.address || 'No address'}</p>
         </div>
-        
+
         <nav className="flex-1 p-2 overflow-y-auto">
           {sidebarGroups.map((group) => (
             <div key={group.id} className="mb-2">
@@ -390,8 +609,8 @@ const OpportunityDetailPage = () => {
                         onClick={() => setActiveSection(item.id)}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-xs rounded transition-colors",
-                          activeSection === item.id 
-                            ? "bg-white/10 text-white" 
+                          activeSection === item.id
+                            ? "bg-[#047857] text-white"
                             : "text-gray-400 hover:text-white hover:bg-white/5"
                         )}
                       >
@@ -426,22 +645,21 @@ const OpportunityDetailPage = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold">{opportunity.name}</h1>
+                <h1 className="text-xl font-semibold">{formData?.deal_number || 'New Deal'}</h1>
                 <span className="text-xs px-2 py-1 rounded font-medium" style={{ backgroundColor: currentStage?.color + '20', color: currentStage?.color }}>
                   {currentStage?.label}
                 </span>
               </div>
-              <p className="text-sm text-gray-500">{opportunity.address}, {opportunity.city}, {opportunity.state} {opportunity.zip}</p>
+              <p className="text-sm text-gray-500">{formData?.address || 'No address'}, {formData?.city || ''} {formData?.state || ''} {formData?.zip_code || ''}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline"><Edit2 className="w-4 h-4 mr-1" />Edit</Button>
-            {opportunity.stage === 'Under Contract' ? (
+            {formData?.stage === 'Under Contract' ? (
               <Button onClick={handleConvertToProject} className="bg-[#047857] hover:bg-[#065f46]">
                 <ArrowRight className="w-4 h-4 mr-1" />Convert to Project
               </Button>
             ) : (
-              <Button className="bg-[#047857] hover:bg-[#065f46]">Advance Stage</Button>
+              <Button onClick={handleAdvanceStage} className="bg-[#047857] hover:bg-[#065f46]">Advance Stage</Button>
             )}
           </div>
         </div>
@@ -450,20 +668,23 @@ const OpportunityDetailPage = () => {
         <div className="bg-white border-b px-6 py-3">
           <div className="flex items-center gap-2">
             {stages.map((stage, idx) => {
-              const isCurrent = stage.id === opportunity.stage;
-              const isPast = stages.findIndex(s => s.id === opportunity.stage) > idx;
+              const isCurrent = stage.id === formData?.stage;
+              const isPast = stages.findIndex(s => s.id === formData?.stage) > idx;
               return (
                 <React.Fragment key={stage.id}>
-                  <div className="flex items-center gap-2">
-                    <div 
+                  <button
+                    onClick={() => setField('stage', stage.id)}
+                    className="flex items-center gap-2 hover:opacity-80"
+                  >
+                    <div
                       className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium",
                         isCurrent ? "ring-2 ring-offset-2" : "",
                         isPast || isCurrent ? "text-white" : "bg-gray-200 text-gray-500"
                       )}
-                      style={{ 
+                      style={{
                         backgroundColor: isPast || isCurrent ? stage.color : undefined,
-                        ringColor: isCurrent ? stage.color : undefined 
+                        ringColor: isCurrent ? stage.color : undefined
                       }}
                     >
                       {isPast ? '✓' : idx + 1}
@@ -471,7 +692,7 @@ const OpportunityDetailPage = () => {
                     <span className={cn("text-xs font-medium", isCurrent ? "text-gray-900" : "text-gray-500")}>
                       {stage.label}
                     </span>
-                  </div>
+                  </button>
                   {idx < stages.length - 1 && (
                     <div className={cn("flex-1 h-1 rounded", isPast ? "bg-[#047857]" : "bg-gray-200")} />
                   )}
