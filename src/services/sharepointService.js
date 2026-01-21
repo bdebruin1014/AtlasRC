@@ -235,7 +235,7 @@ const CUSTOMER_FOLDER_STRUCTURE = [
   'Financial Records',
 ];
 
-// Standard folder structure for each project
+// Standard folder structure for each project (default if no template)
 const PROJECT_FOLDER_STRUCTURE = [
   'Contracts',
   'Legal',
@@ -247,6 +247,80 @@ const PROJECT_FOLDER_STRUCTURE = [
   'Permits',
   'Insurance',
 ];
+
+/**
+ * Get template folder structure from database
+ */
+async function getTemplateFolderStructure(templateId) {
+  const { data: folders, error } = await supabase
+    .from('project_template_folders')
+    .select('*')
+    .eq('template_id', templateId)
+    .order('sort_order', { ascending: true });
+
+  if (error || !folders?.length) {
+    return null;
+  }
+
+  return folders;
+}
+
+/**
+ * Build folder tree from flat list
+ */
+function buildFolderTree(folders) {
+  const folderMap = new Map();
+  const rootFolders = [];
+
+  // First pass: create folder objects
+  folders.forEach(folder => {
+    folderMap.set(folder.id, { ...folder, children: [] });
+  });
+
+  // Second pass: build tree
+  folders.forEach(folder => {
+    const folderObj = folderMap.get(folder.id);
+    if (folder.parent_folder_id) {
+      const parent = folderMap.get(folder.parent_folder_id);
+      if (parent) {
+        parent.children.push(folderObj);
+      } else {
+        rootFolders.push(folderObj);
+      }
+    } else {
+      rootFolders.push(folderObj);
+    }
+  });
+
+  return rootFolders;
+}
+
+/**
+ * Recursively create folders from template structure
+ */
+async function createFoldersFromTemplate(driveId, parentFolderId, folderTree, createdFolders = {}) {
+  for (const folder of folderTree) {
+    const { data: created, error } = await createFolder(driveId, parentFolderId, folder.name);
+    if (error) {
+      console.error(`Error creating folder ${folder.name}:`, error);
+      continue;
+    }
+
+    createdFolders[folder.id] = {
+      templateFolderId: folder.id,
+      sharePointFolderId: created.id,
+      name: folder.name,
+      webUrl: created.webUrl,
+    };
+
+    // Recursively create children
+    if (folder.children?.length > 0) {
+      await createFoldersFromTemplate(driveId, created.id, folder.children, createdFolders);
+    }
+  }
+
+  return createdFolders;
+}
 
 /**
  * Initialize folder structure for a new customer organization
@@ -304,8 +378,12 @@ export async function getOrganizationFolderMapping(organizationId) {
 
 /**
  * Create project folder structure within a customer's folder
+ * @param {string} organizationId - Organization UUID
+ * @param {string} projectId - Project UUID
+ * @param {string} projectName - Display name for the project
+ * @param {string} templateId - Optional template ID for custom folder structure
  */
-export async function createProjectFolders(organizationId, projectId, projectName) {
+export async function createProjectFolders(organizationId, projectId, projectName, templateId = null) {
   try {
     // Get organization's root folder
     const { data: orgMapping, error: orgError } = await getOrganizationFolderMapping(organizationId);
@@ -322,9 +400,25 @@ export async function createProjectFolders(organizationId, projectId, projectNam
     // Create project folder
     const projectFolder = await createFolder(driveId, projectsFolder.id, sanitizedName);
 
-    // Create standard project subfolders
-    for (const folderName of PROJECT_FOLDER_STRUCTURE) {
-      await createFolder(driveId, projectFolder.id, folderName);
+    let createdFolders = {};
+
+    // Check if using template
+    if (templateId) {
+      const templateFolders = await getTemplateFolderStructure(templateId);
+      if (templateFolders?.length > 0) {
+        const folderTree = buildFolderTree(templateFolders);
+        createdFolders = await createFoldersFromTemplate(driveId, projectFolder.data.id, folderTree);
+      } else {
+        // Fallback to default structure
+        for (const folderName of PROJECT_FOLDER_STRUCTURE) {
+          await createFolder(driveId, projectFolder.data.id, folderName);
+        }
+      }
+    } else {
+      // Use default project folder structure
+      for (const folderName of PROJECT_FOLDER_STRUCTURE) {
+        await createFolder(driveId, projectFolder.data.id, folderName);
+      }
     }
 
     // Save project mapping
@@ -332,16 +426,48 @@ export async function createProjectFolders(organizationId, projectId, projectNam
       project_id: projectId,
       organization_id: organizationId,
       drive_id: driveId,
-      folder_id: projectFolder.id,
+      folder_id: projectFolder.data.id,
       folder_name: sanitizedName,
       folder_path: `${orgMapping.folder_path}/Projects/${sanitizedName}`,
-      folder_url: projectFolder.webUrl,
+      folder_url: projectFolder.data.webUrl,
+      template_id: templateId,
+      created_folders: createdFolders,
       created_at: new Date().toISOString(),
     }, { onConflict: 'project_id' });
 
-    return { data: projectFolder, error: null };
+    return { data: projectFolder.data, createdFolders, error: null };
   } catch (error) {
     console.error('Error creating project folders:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Create folders from a template for an existing project
+ * Used when adding template folders to existing project
+ */
+export async function addTemplateFoldersToProject(projectId, templateId) {
+  try {
+    const { data: projectMapping } = await getProjectFolderMapping(projectId);
+    if (!projectMapping) {
+      throw new Error('Project folder not found');
+    }
+
+    const templateFolders = await getTemplateFolderStructure(templateId);
+    if (!templateFolders?.length) {
+      throw new Error('Template has no folders defined');
+    }
+
+    const folderTree = buildFolderTree(templateFolders);
+    const createdFolders = await createFoldersFromTemplate(
+      projectMapping.drive_id,
+      projectMapping.folder_id,
+      folderTree
+    );
+
+    return { data: createdFolders, error: null };
+  } catch (error) {
+    console.error('Error adding template folders to project:', error);
     return { data: null, error };
   }
 }
@@ -831,6 +957,7 @@ export default {
   getOrganizationFolderMapping,
   createProjectFolders,
   getProjectFolderMapping,
+  addTemplateFoldersToProject,
 
   // Discovery (Admin)
   getAvailableSites,
