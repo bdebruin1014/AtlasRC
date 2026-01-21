@@ -482,7 +482,6 @@ const ProjectDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Purchase Contract</h2>
-<<<<<<< HEAD
               <div className="flex items-center gap-3">
                 <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
                 <Button
@@ -518,9 +517,6 @@ const ProjectDetailPage = () => {
                   className="bg-[#047857] hover:bg-[#065f46]"
                 />
               </div>
-=======
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
->>>>>>> 8f1bb31 (fix: rename useAutoSave.js to .jsx for JSX syntax support)
             </div>
             <div className="bg-white border rounded-lg p-6">
               <div className="grid grid-cols-2 gap-6">
@@ -588,7 +584,6 @@ const ProjectDetailPage = () => {
                 </div>
               </div>
             </div>
-<<<<<<< HEAD
 
             {/* Contract Generation Modal */}
             <ContractGenerationModal
@@ -602,8 +597,6 @@ const ProjectDetailPage = () => {
                 setShowContractModal(false);
               }}
             />
-=======
->>>>>>> 8f1bb31 (fix: rename useAutoSave.js to .jsx for JSX syntax support)
           </div>
         );
 
