@@ -5,8 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { DatePicker } from '@/components/ui/datepicker';
-import { useEntities } from '@/hooks/useEntities';
 
 const PROJECT_TYPES = [
   { value: 'lot-development', label: 'Lot Development' },
@@ -25,15 +23,14 @@ const STATUS_OPTIONS = [
 ];
 
 const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
-  const { entities } = useEntities();
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     city: '',
     state: '',
     zip_code: '',
-    entity_id: '',
-    project_type: '',
+    entity_name: '',
+    project_type: 'spec-build',
     status: 'active',
     start_date: '',
     target_completion_date: '',
@@ -51,8 +48,8 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
         city: project.city || '',
         state: project.state || '',
         zip_code: project.zip_code || '',
-        entity_id: project.entity_id || '',
-        project_type: project.project_type || '',
+        entity_name: project.entity?.name || '',
+        project_type: project.project_type || 'spec-build',
         status: project.status || 'active',
         start_date: project.start_date || '',
         target_completion_date: project.target_completion_date || '',
@@ -60,20 +57,33 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
         budget: project.budget || '',
         notes: project.notes || '',
       });
+    } else {
+      setFormData({
+        name: '',
+        address: '',
+        city: '',
+        state: '',
+        zip_code: '',
+        entity_name: '',
+        project_type: 'spec-build',
+        status: 'active',
+        start_date: new Date().toISOString().split('T')[0],
+        target_completion_date: '',
+        actual_completion_date: '',
+        budget: '',
+        notes: '',
+      });
     }
   }, [project, open]);
 
   const validate = () => {
     const errs = {};
-    if (!formData.name || formData.name.length < 3) errs.name = 'Project name required (min 3 chars)';
-    if (!formData.entity_id) errs.entity_id = 'Entity owner required';
+    if (!formData.name || formData.name.length < 2) errs.name = 'Project name required (min 2 chars)';
     if (!formData.project_type) errs.project_type = 'Project type required';
     if (!formData.status) errs.status = 'Status required';
-    if (!formData.start_date) errs.start_date = 'Start date required';
-    if (!formData.target_completion_date) errs.target_completion_date = 'Target completion required';
-    if (formData.start_date && formData.target_completion_date && new Date(formData.target_completion_date) < new Date(formData.start_date)) errs.target_completion_date = 'Target completion must be after start date';
-    if (formData.actual_completion_date && formData.start_date && new Date(formData.actual_completion_date) < new Date(formData.start_date)) errs.actual_completion_date = 'Actual completion must be after start date';
-    if (!formData.budget || isNaN(formData.budget) || Number(formData.budget) <= 0) errs.budget = 'Budget required and must be positive';
+    if (formData.start_date && formData.target_completion_date && new Date(formData.target_completion_date) < new Date(formData.start_date)) {
+      errs.target_completion_date = 'Target completion must be after start date';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -85,8 +95,10 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    // Don't send entity_name to DB - it's a display helper
+    const { entity_name, ...dataToSave } = formData;
     await onSave({
-      ...formData,
+      ...dataToSave,
       budget: formData.budget ? parseFloat(formData.budget) : null,
     });
   };
@@ -124,16 +136,12 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
                 <Input value={formData.zip_code} onChange={e => handleChange('zip_code', e.target.value)} />
               </div>
               <div>
-                <Label>Entity Owner *</Label>
-                <Select value={formData.entity_id} onValueChange={v => handleChange('entity_id', v)} required>
-                  <SelectTrigger><SelectValue placeholder="Select Entity" /></SelectTrigger>
-                  <SelectContent>
-                    {entities.map(ent => (
-                      <SelectItem key={ent.id} value={ent.id}>{ent.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.entity_id && <div className="text-xs text-red-500 mt-1">{errors.entity_id}</div>}
+                <Label>Entity Name</Label>
+                <Input
+                  value={formData.entity_name || ''}
+                  onChange={e => handleChange('entity_name', e.target.value)}
+                  placeholder="e.g., Watson House LLC"
+                />
               </div>
             </div>
           </div>
@@ -174,18 +182,30 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
             <h4 className="font-medium mb-2">Timeline</h4>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label>Start Date *</Label>
-                <DatePicker value={formData.start_date} onChange={date => handleChange('start_date', date)} required />
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={formData.start_date ? formData.start_date.split('T')[0] : ''}
+                  onChange={e => handleChange('start_date', e.target.value)}
+                />
                 {errors.start_date && <div className="text-xs text-red-500 mt-1">{errors.start_date}</div>}
               </div>
               <div>
-                <Label>Target Completion *</Label>
-                <DatePicker value={formData.target_completion_date} onChange={date => handleChange('target_completion_date', date)} required />
+                <Label>Target Completion</Label>
+                <Input
+                  type="date"
+                  value={formData.target_completion_date ? formData.target_completion_date.split('T')[0] : ''}
+                  onChange={e => handleChange('target_completion_date', e.target.value)}
+                />
                 {errors.target_completion_date && <div className="text-xs text-red-500 mt-1">{errors.target_completion_date}</div>}
               </div>
               <div>
                 <Label>Actual Completion</Label>
-                <DatePicker value={formData.actual_completion_date} onChange={date => handleChange('actual_completion_date', date)} />
+                <Input
+                  type="date"
+                  value={formData.actual_completion_date ? formData.actual_completion_date.split('T')[0] : ''}
+                  onChange={e => handleChange('actual_completion_date', e.target.value)}
+                />
                 {errors.actual_completion_date && <div className="text-xs text-red-500 mt-1">{errors.actual_completion_date}</div>}
               </div>
             </div>

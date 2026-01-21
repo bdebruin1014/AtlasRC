@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, 
-  ClipboardList, MapPin, Calculator, TrendingUp, Target, ArrowRight, Mail, MessageSquare, 
-  FileSignature, CheckCircle, Send, FileCheck
+import {
+  ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
+  ClipboardList, MapPin, Calculator, TrendingUp, Target, ArrowRight, Mail, MessageSquare,
+  FileSignature, CheckCircle, Send, FileCheck, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useOpportunity, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
 
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
@@ -26,13 +27,16 @@ const OpportunityDetailPage = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
 
+  // Fetch opportunity from database
+  const { opportunity: rawOpportunity, isLoading, error, refetch } = useOpportunity(opportunityId);
+
   // Updated stages per requirements
   const stages = [
-    { id: 'prospecting', label: 'Prospecting', color: '#6B7280', description: 'Initial contact, sending letters/communications' },
-    { id: 'contacted', label: 'Contacted', color: '#3B82F6', description: 'Seller responded, analyzing property' },
-    { id: 'qualified', label: 'Qualified', color: '#F59E0B', description: 'Deal analyzed, preparing contract' },
-    { id: 'negotiating', label: 'Negotiating', color: '#8B5CF6', description: 'Contract generation and e-sign' },
-    { id: 'under-contract', label: 'Under Contract', color: '#10B981', description: 'Signed contract, ready to convert' },
+    { id: 'Prospecting', label: 'Prospecting', color: '#6B7280', description: 'Initial contact, sending letters/communications' },
+    { id: 'Contacted', label: 'Contacted', color: '#3B82F6', description: 'Seller responded, analyzing property' },
+    { id: 'Qualified', label: 'Qualified', color: '#F59E0B', description: 'Deal analyzed, preparing contract' },
+    { id: 'Negotiating', label: 'Negotiating', color: '#8B5CF6', description: 'Contract generation and e-sign' },
+    { id: 'Under Contract', label: 'Under Contract', color: '#10B981', description: 'Signed contract, ready to convert' },
   ];
 
   // Opportunity types matching project types
@@ -44,41 +48,61 @@ const OpportunityDetailPage = () => {
     'btr-lot': 'BTR Lot Purchase',
     'fix-flip': 'Fix and Flip',
     'brrr': 'BRRR',
+    'vacant-lot': 'Vacant Lot',
+    'flip-property': 'Flip Property',
+    'development-lot-sale': 'Development Lot Sale',
+    'development-for-sale': 'Development For Sale',
+    'development-btr': 'Development BTR',
+    'scattered-lot': 'Scattered Lot',
   };
 
-  const opportunity = {
-    id: opportunityId,
-    name: '25-008-600 Heritage Way',
-    type: 'lot-dev',
-    stage: 'under-contract',
-    acres: '25',
-    askingPrice: 2100000,
-    address: '600 Heritage Way',
-    city: 'Mauldin',
-    state: 'SC',
-    zip: '29662',
-    county: 'Greenville',
-    parcelId: '0456-78-90-1234',
-    zoning: 'R-3 Residential',
-    potentialLots: 45,
-    source: 'Direct Mail',
-    team: 'Development Team',
-    seller: {
-      name: 'James Wilson',
-      email: 'jwilson@email.com',
-      phone: '(864) 555-0199',
-    },
-    buyer: {
-      name: 'VanRock Holdings LLC',
-      email: 'acquisitions@vanrock.com',
-    },
-    notes: 'Prime location for lot development. Seller motivated. Adjacent to new retail development.',
-    ddDeadline: '2025-01-15',
-    closeDate: '2025-02-28',
-    earnestMoney: 50000,
-    purchasePrice: 2000000,
-    convertedToProject: null,
-  };
+  // Transform database opportunity to display format
+  const opportunity = useMemo(() => {
+    if (!rawOpportunity) return null;
+
+    return {
+      id: rawOpportunity.id,
+      name: rawOpportunity.deal_number || 'Unnamed Deal',
+      type: rawOpportunity.opportunity_type || rawOpportunity.property_type || 'vacant-lot',
+      stage: rawOpportunity.stage || 'Prospecting',
+      address: rawOpportunity.address || 'No address',
+      city: rawOpportunity.city || '',
+      state: rawOpportunity.state || 'SC',
+      zip: rawOpportunity.zip_code || '',
+      askingPrice: rawOpportunity.asking_price || rawOpportunity.estimated_value || 0,
+      estimatedValue: rawOpportunity.estimated_value || 0,
+      seller: {
+        name: rawOpportunity.seller_name || '',
+        email: rawOpportunity.seller_email || '',
+        phone: rawOpportunity.seller_phone || '',
+      },
+      notes: rawOpportunity.notes || '',
+      team: rawOpportunity.assigned_to || 'Unassigned',
+      raw: rawOpportunity,
+    };
+  }, [rawOpportunity]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-[#047857]" />
+        <span className="ml-2">Loading opportunity...</span>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !opportunity) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <Building2 className="w-12 h-12 text-gray-300 mb-4" />
+        <h2 className="text-lg font-medium text-gray-900 mb-2">Opportunity Not Found</h2>
+        <p className="text-gray-500 mb-4">{error || 'The requested opportunity could not be found.'}</p>
+        <Button onClick={() => navigate('/opportunities')}>Back to Opportunities</Button>
+      </div>
+    );
+  }
 
   const sidebarGroups = [
     {
@@ -412,7 +436,7 @@ const OpportunityDetailPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline"><Edit2 className="w-4 h-4 mr-1" />Edit</Button>
-            {opportunity.stage === 'under-contract' ? (
+            {opportunity.stage === 'Under Contract' ? (
               <Button onClick={handleConvertToProject} className="bg-[#047857] hover:bg-[#065f46]">
                 <ArrowRight className="w-4 h-4 mr-1" />Convert to Project
               </Button>

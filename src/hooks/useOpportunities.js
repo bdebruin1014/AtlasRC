@@ -65,6 +65,48 @@ const MOCK_OPPORTUNITIES = [
   },
 ];
 
+// Hook to fetch a single opportunity by ID
+export function useOpportunity(opportunityId) {
+  const [opportunity, setOpportunity] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchOpportunity = useCallback(async () => {
+    if (!opportunityId) {
+      setOpportunity(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (isDemoMode) {
+        const mockOpp = MOCK_OPPORTUNITIES.find(o => o.id === opportunityId);
+        setOpportunity(mockOpp || null);
+        return;
+      }
+
+      const data = await opportunityService.getById(opportunityId);
+      setOpportunity(data);
+    } catch (err) {
+      console.error('Error fetching opportunity:', err);
+      setError(err.message);
+      const mockOpp = MOCK_OPPORTUNITIES.find(o => o.id === opportunityId);
+      setOpportunity(mockOpp || null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [opportunityId]);
+
+  useEffect(() => {
+    fetchOpportunity();
+  }, [fetchOpportunity]);
+
+  return { opportunity, isLoading, error, refetch: fetchOpportunity };
+}
+
 // Hook to fetch all opportunities
 export function useOpportunities() {
   const [opportunities, setOpportunities] = useState([]);
@@ -223,6 +265,7 @@ export function useOpportunitySubscription(onUpdate) {
 }
 
 export default {
+  useOpportunity,
   useOpportunities,
   useOpportunityActions,
   useOpportunitySummary,

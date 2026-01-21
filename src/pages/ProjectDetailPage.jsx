@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator } from 'lucide-react';
+import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useProject, PROJECT_TYPES } from '@/hooks/useProjects';
 
 // Import ALL Budget Components
 import IndividualSpecHomeBudget from '@/features/budgets/components/IndividualSpecHomeBudget';
@@ -18,34 +19,64 @@ const ProjectDetailPage = () => {
   const [activeSection, setActiveSection] = useState('basic-info');
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'finance', 'documents']);
 
-  // In a real app, this would come from the database based on projectId
-  // The budgetType is set when the project is created
-  const project = {
-    id: projectId,
-    name: 'Watson House',
-    code: 'PRJ-001',
-    status: 'construction',
-    entity: 'Watson House LLC',
-    type: 'Spec Home',
-    budgetType: 'spec-home', // This determines which budget component loads
-    // Options: 'spec-home', 'horizontal-lot', 'btr', 'bts'
-    units: 1,
-    sqft: '2,214',
-    address: '123 Main Street',
-    city: 'Greenville',
-    state: 'SC',
-    zip: '29601',
-    county: 'Greenville',
-    parcelId: '0234-56-78-9012',
-    zoning: 'R-1 Residential',
-    acres: '0.25',
-    description: 'Single family spec home build with Cherry floor plan and Classic upgrades.',
-    // These would sync from the budget
-    budget: 265000,
-    spent: 125000,
-    projectedSalePrice: 405000,
-    projectedProfit: 65000,
-  };
+  // Fetch project data from database
+  const { project: rawProject, isLoading, error, refetch } = useProject(projectId);
+
+  // Transform database project to display format
+  const project = useMemo(() => {
+    if (!rawProject) return null;
+
+    // Map project_type to budgetType
+    const budgetTypeMap = {
+      'spec-build': 'spec-home',
+      'lot-development': 'horizontal-lot',
+      'build-to-rent': 'btr',
+      'fix-flip': 'spec-home',
+    };
+
+    return {
+      id: rawProject.id,
+      name: rawProject.name || 'Unnamed Project',
+      code: `PRJ-${rawProject.id?.slice(0, 3)?.toUpperCase() || '000'}`,
+      status: rawProject.status || 'active',
+      entity: rawProject.entity?.name || 'No Entity',
+      type: PROJECT_TYPES.find(t => t.key === rawProject.project_type)?.label || rawProject.project_type || 'Unknown',
+      budgetType: budgetTypeMap[rawProject.project_type] || 'spec-home',
+      address: rawProject.address?.split(',')[0] || 'No address',
+      city: rawProject.address?.split(',')[1]?.trim() || '',
+      state: rawProject.address?.split(',')[2]?.trim()?.split(' ')[0] || 'SC',
+      zip: rawProject.address?.split(',')[2]?.trim()?.split(' ')[1] || '',
+      description: rawProject.notes || '',
+      budget: parseFloat(rawProject.budget) || 0,
+      spent: 0, // TODO: Calculate from transactions
+      projectedSalePrice: (parseFloat(rawProject.budget) || 0) * 1.5, // Placeholder
+      projectedProfit: (parseFloat(rawProject.budget) || 0) * 0.25, // Placeholder
+      startDate: rawProject.start_date,
+      targetCompletion: rawProject.target_completion_date,
+    };
+  }, [rawProject]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-[#047857]" />
+        <span className="ml-2">Loading project...</span>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !project) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <Building2 className="w-12 h-12 text-gray-300 mb-4" />
+        <h2 className="text-lg font-medium text-gray-900 mb-2">Project Not Found</h2>
+        <p className="text-gray-500 mb-4">{error || 'The requested project could not be found.'}</p>
+        <Button onClick={() => navigate('/projects')}>Back to Projects</Button>
+      </div>
+    );
+  }
 
   // Get budget component based on project type
   const getBudgetComponent = () => {
