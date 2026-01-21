@@ -17,6 +17,8 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const SignUpPage = lazy(() => import('@/pages/SignUpPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const SharePointCallback = lazy(() => import('@/pages/auth/SharePointCallback'));
+const OutlookCallback = lazy(() => import('@/pages/auth/OutlookCallback'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
@@ -198,6 +200,10 @@ const AppContent = () => (
     <Route path="/login" element={<Suspense fallback={<LoadingState />}><LoginPage /></Suspense>} />
     <Route path="/signup" element={<Suspense fallback={<LoadingState />}><SignUpPage /></Suspense>} />
     <Route path="/forgot-password" element={<Suspense fallback={<LoadingState />}><ForgotPasswordPage /></Suspense>} />
+
+    {/* OAuth Callback Routes */}
+    <Route path="/auth/sharepoint/callback" element={<Suspense fallback={<LoadingState />}><SharePointCallback /></Suspense>} />
+    <Route path="/auth/outlook/callback" element={<Suspense fallback={<LoadingState />}><OutlookCallback /></Suspense>} />
 
     {/* Core Routes */}
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
