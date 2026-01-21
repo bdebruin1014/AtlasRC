@@ -19,7 +19,8 @@ import {
   getDefaultSigners,
   SAMPLE_TEMPLATES
 } from '@/services/contractGenerationService';
-import { sendForSignature, getTemplatesForModule } from '@/services/esignService';
+import { sendGeneratedDocument, getTemplatesForModule } from '@/services/esignService';
+import { generateContractPDFBase64, downloadContractPDF } from '@/services/pdfGeneratorService';
 
 const STEPS = [
   { id: 'template', label: 'Select Template' },
@@ -128,6 +129,12 @@ const ContractGenerationModal = ({
     setSigners(updated);
   };
 
+  const handleDownloadPDF = () => {
+    if (previewContent) {
+      downloadContractPDF(previewContent, documentName, signers);
+    }
+  };
+
   const handleSend = async () => {
     // Validate signers
     const invalidSigners = signers.filter(s => !s.name || !s.email);
@@ -148,17 +155,16 @@ const ContractGenerationModal = ({
       // Build prefill data for the contract
       const prefillData = buildPrefillData(entityType, entityData, customOverrides);
 
-      // Find DocuSeal template ID if available
-      const docusealTemplate = docusealTemplates.find(t => t.name === selectedTemplate?.name);
-      const docusealTemplateId = docusealTemplate?.docuseal_template_id || selectedTemplate?.docuseal_id || 1;
+      // Generate PDF from the contract content
+      const pdfBase64 = generateContractPDFBase64(previewContent, documentName, signers);
 
-      const result = await sendForSignature({
+      // Send the generated document for e-signature
+      const result = await sendGeneratedDocument({
         entityType,
         entityId,
         entityName: entityName || entityData.name || entityData.deal_number,
-        templateId: selectedTemplate?.id,
-        docusealTemplateId,
         documentName,
+        pdfBase64,
         signers,
         prefillData,
         sendEmail,
@@ -288,17 +294,31 @@ const ContractGenerationModal = ({
             </div>
 
             <div>
-              <Label>Preview</Label>
-              <div className="mt-1 border rounded-lg bg-gray-50 p-4 max-h-[400px] overflow-y-auto">
-                <pre className="text-sm whitespace-pre-wrap font-mono text-gray-700">
-                  {previewContent}
-                </pre>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Contract Content</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadPDF}
+                    className="h-7 text-xs"
+                  >
+                    <Download className="w-3 h-3 mr-1" />
+                    Download PDF
+                  </Button>
+                </div>
               </div>
+              <Textarea
+                value={previewContent}
+                onChange={(e) => setPreviewContent(e.target.value)}
+                className="mt-1 font-mono text-sm min-h-[350px]"
+                placeholder="Contract content will appear here..."
+              />
             </div>
 
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Eye className="w-4 h-4" />
-              <span>Variables have been replaced with data from this {entityType}</span>
+              <Edit className="w-4 h-4" />
+              <span>Variables have been replaced. You can edit the content above before sending.</span>
             </div>
           </div>
         );
