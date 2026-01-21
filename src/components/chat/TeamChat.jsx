@@ -14,6 +14,8 @@ import {
   getTeamMembers,
   getChannels,
   getDirectMessages,
+  getOrCreateDirectMessage,
+  createChannel,
   getMessages,
   sendMessage,
   subscribeToChannel,
@@ -43,7 +45,10 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [expandedSections, setExpandedSections] = useState(['dms', 'tasks', 'notes']);
+  const [expandedSections, setExpandedSections] = useState(['dms', 'tasks', 'notes', 'channels']);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [creatingChannel, setCreatingChannel] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Load initial data
@@ -142,6 +147,44 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
     const members = dm.chat_channel_members || [];
     const other = members.find(m => m.user_id !== currentUser?.id);
     return other?.team_members || { display_name: 'Unknown', status: 'offline' };
+  };
+
+  // Start a DM with a team member
+  const handleStartDM = async (member) => {
+    setLoading(true);
+    const { data: dmChannel, error } = await getOrCreateDirectMessage(member.user_id);
+    if (!error && dmChannel) {
+      setSelectedChannel({
+        ...dmChannel,
+        name: member.display_name,
+        type: 'dm',
+        otherUser: member
+      });
+    } else {
+      // Fallback for demo mode or error
+      setSelectedChannel({
+        id: `dm-${member.user_id}`,
+        name: member.display_name,
+        type: 'dm',
+        otherUser: member
+      });
+    }
+    setLoading(false);
+  };
+
+  // Create a new group channel
+  const handleCreateChannel = async () => {
+    if (!newChannelName.trim()) return;
+
+    setCreatingChannel(true);
+    const { data: channel, error } = await createChannel(newChannelName.trim());
+    if (!error && channel) {
+      setChannels(prev => [...prev, channel]);
+      setSelectedChannel(channel);
+      setNewChannelName('');
+      setShowCreateChannel(false);
+    }
+    setCreatingChannel(false);
   };
 
   if (!isOpen) return null;
@@ -270,15 +313,12 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
 
               {expandedSections.includes('dms') && (
                 <div className="pb-2">
-                  {teamMembers.map(member => {
+                  {teamMembers.filter(m => m.user_id !== currentUser?.id).map(member => {
                     const isOnline = member.status === 'online';
                     return (
                       <button
                         key={member.id}
-                        onClick={() => {
-                          // In a real app, get or create DM channel
-                          setSelectedChannel({ id: member.id, name: member.display_name, type: 'dm' });
-                        }}
+                        onClick={() => handleStartDM(member)}
                         className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 text-left"
                       >
                         <div className="relative">
@@ -301,6 +341,9 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
                       </button>
                     );
                   })}
+                  {teamMembers.filter(m => m.user_id !== currentUser?.id).length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-2">No other team members</p>
+                  )}
                 </div>
               )}
             </div>
@@ -383,7 +426,16 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
                   CHANNELS
                 </span>
                 <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCreateChannel(true);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded"
+                    title="Create new channel"
+                  >
+                    <Plus className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                  </button>
                   <ChevronDown className={cn(
                     "w-4 h-4 text-gray-400 transition-transform",
                     !expandedSections.includes('channels') && "-rotate-90"
@@ -393,6 +445,50 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
 
               {expandedSections.includes('channels') && (
                 <div className="pb-2">
+                  {/* Create Channel Form */}
+                  {showCreateChannel && (
+                    <div className="px-3 pb-3 pt-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Hash className="w-4 h-4 text-gray-400" />
+                        <Input
+                          value={newChannelName}
+                          onChange={(e) => setNewChannelName(e.target.value)}
+                          placeholder="Channel name"
+                          className="flex-1 h-8 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleCreateChannel();
+                            if (e.key === 'Escape') {
+                              setShowCreateChannel(false);
+                              setNewChannelName('');
+                            }
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowCreateChannel(false);
+                            setNewChannelName('');
+                          }}
+                          className="h-7 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleCreateChannel}
+                          disabled={!newChannelName.trim() || creatingChannel}
+                          className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          {creatingChannel ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {channels.map(channel => (
                     <button
                       key={channel.id}
@@ -408,8 +504,16 @@ const TeamChat = ({ isOpen, onClose, currentUser }) => {
                       )}
                     </button>
                   ))}
-                  {channels.length === 0 && (
-                    <p className="text-xs text-gray-400 text-center py-2">No channels yet</p>
+                  {channels.length === 0 && !showCreateChannel && (
+                    <p className="text-xs text-gray-400 text-center py-2">
+                      No channels yet.{' '}
+                      <button
+                        onClick={() => setShowCreateChannel(true)}
+                        className="text-emerald-600 hover:underline"
+                      >
+                        Create one
+                      </button>
+                    </p>
                   )}
                 </div>
               )}
