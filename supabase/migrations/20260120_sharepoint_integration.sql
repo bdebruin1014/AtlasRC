@@ -1,12 +1,14 @@
 -- Atlas Real Estate Development - SharePoint Integration Schema
 -- Created: 2026-01-20
+-- Updated: Supports ORG-WIDE admin connection + per-user access
 
 -- ============================================================================
--- SHAREPOINT USER CONNECTIONS
+-- SHAREPOINT CONNECTIONS (Org-wide or per-user)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS sharepoint_connections (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  connection_type TEXT NOT NULL DEFAULT 'organization' CHECK (connection_type IN ('organization', 'user')),
   access_token TEXT,
   refresh_token TEXT,
   token_expires_at TIMESTAMPTZ,
@@ -15,13 +17,14 @@ CREATE TABLE IF NOT EXISTS sharepoint_connections (
   site_url TEXT,
   drive_id TEXT,
   is_connected BOOLEAN DEFAULT false,
+  connected_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id)
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Index for quick lookups
 CREATE INDEX IF NOT EXISTS idx_sharepoint_connections_user ON sharepoint_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_sharepoint_connections_type ON sharepoint_connections(connection_type);
 
 -- ============================================================================
 -- PROJECT SHAREPOINT MAPPINGS
@@ -168,12 +171,18 @@ ALTER TABLE document_access_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_access_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_templates_library ENABLE ROW LEVEL SECURITY;
 
--- SharePoint connections: Users can only access their own
-CREATE POLICY "Users can manage their own SharePoint connection"
+-- SharePoint connections: All authenticated users can read org-wide connection
+-- Only the connected admin can modify org-wide connection
+CREATE POLICY "Users can view org-wide SharePoint connection"
+  ON sharepoint_connections FOR SELECT
+  TO authenticated
+  USING (connection_type = 'organization' OR user_id = auth.uid());
+
+CREATE POLICY "Admins can manage SharePoint connections"
   ON sharepoint_connections FOR ALL
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (true)
+  WITH CHECK (true);
 
 -- Project mappings: Authenticated users can view, admins can modify
 CREATE POLICY "Users can view project SharePoint mappings"

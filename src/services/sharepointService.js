@@ -1,6 +1,6 @@
 // src/services/sharepointService.js
 // SharePoint Integration Service with Microsoft Graph API
-// Handles OAuth authentication and file management
+// Supports ORG-WIDE admin connection (all users share same SharePoint access)
 
 import { supabase } from '@/lib/supabase';
 
@@ -13,7 +13,7 @@ const MS_CLIENT_ID = import.meta.env.VITE_MS_CLIENT_ID;
 const GRAPH_API_URL = 'https://graph.microsoft.com/v1.0';
 const REDIRECT_URI = `${window.location.origin}/auth/sharepoint/callback`;
 
-// Scopes needed for SharePoint access
+// Scopes needed for SharePoint access (admin connects once for org)
 const SHAREPOINT_SCOPES = [
   'Files.ReadWrite.All',
   'Sites.ReadWrite.All',
@@ -27,14 +27,15 @@ export function isSharePointConfigured() {
 }
 
 // ============================================
-// OAUTH AUTHENTICATION
+// OAUTH AUTHENTICATION (Admin Only)
 // ============================================
 
-export function getAuthorizationUrl(state = '') {
+export function getAdminAuthorizationUrl(state = '') {
   if (!isSharePointConfigured()) {
     throw new Error('SharePoint is not configured. Please set VITE_MS_TENANT_ID and VITE_MS_CLIENT_ID environment variables.');
   }
 
+  // Request admin consent for org-wide access
   const params = new URLSearchParams({
     client_id: MS_CLIENT_ID,
     response_type: 'code',
@@ -42,10 +43,14 @@ export function getAuthorizationUrl(state = '') {
     response_mode: 'query',
     scope: SHAREPOINT_SCOPES,
     state: state,
+    prompt: 'consent', // Force consent to ensure admin grants permissions
   });
 
   return `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/authorize?${params}`;
 }
+
+// Alias for backward compatibility
+export const getAuthorizationUrl = getAdminAuthorizationUrl;
 
 export async function exchangeCodeForTokens(code) {
   const tokenUrl = `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`;
@@ -96,14 +101,17 @@ export async function refreshAccessToken(refreshToken) {
 }
 
 // ============================================
-// TOKEN STORAGE (in Supabase)
+// ORG-WIDE TOKEN STORAGE (in Supabase)
 // ============================================
 
-export async function saveSharePointConnection(userId, tokens, siteInfo) {
+// Save org-wide SharePoint connection (admin only)
+export async function saveOrgSharePointConnection(adminUserId, tokens, siteInfo) {
   const { data, error } = await supabase
     .from('sharepoint_connections')
     .upsert({
-      user_id: userId,
+      id: 'org-wide', // Single org-wide connection
+      user_id: adminUserId,
+      connection_type: 'organization',
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
@@ -112,19 +120,26 @@ export async function saveSharePointConnection(userId, tokens, siteInfo) {
       site_url: siteInfo?.webUrl,
       drive_id: siteInfo?.driveId,
       is_connected: true,
+      connected_by: adminUserId,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' })
+    }, { onConflict: 'id' })
     .select()
     .single();
 
   return { data, error };
 }
 
-export async function getSharePointConnection(userId) {
+// Alias for backward compatibility
+export const saveSharePointConnection = async (userId, tokens, siteInfo) => {
+  return saveOrgSharePointConnection(userId, tokens, siteInfo);
+};
+
+// Get org-wide SharePoint connection (any user can read)
+export async function getOrgSharePointConnection() {
   const { data, error } = await supabase
     .from('sharepoint_connections')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', 'org-wide')
     .single();
 
   if (error && error.code !== 'PGRST116') {
@@ -134,7 +149,13 @@ export async function getSharePointConnection(userId) {
   return { data, error: null };
 }
 
-export async function disconnectSharePoint(userId) {
+// Alias for backward compatibility (ignores userId, returns org connection)
+export const getSharePointConnection = async (userId) => {
+  return getOrgSharePointConnection();
+};
+
+// Disconnect org-wide SharePoint (admin only)
+export async function disconnectOrgSharePoint() {
   const { error } = await supabase
     .from('sharepoint_connections')
     .update({
@@ -143,17 +164,22 @@ export async function disconnectSharePoint(userId) {
       refresh_token: null,
       updated_at: new Date().toISOString(),
     })
-    .eq('user_id', userId);
+    .eq('id', 'org-wide');
 
   return { success: !error, error };
 }
 
-// Get valid access token (refresh if needed)
-async function getValidAccessToken(userId) {
-  const { data: connection, error } = await getSharePointConnection(userId);
+// Alias for backward compatibility
+export const disconnectSharePoint = async (userId) => {
+  return disconnectOrgSharePoint();
+};
+
+// Get valid access token (refresh if needed) - uses org-wide connection
+async function getValidAccessToken() {
+  const { data: connection, error } = await getOrgSharePointConnection();
 
   if (error || !connection || !connection.is_connected) {
-    throw new Error('SharePoint not connected');
+    throw new Error('SharePoint not connected. Please ask your admin to connect SharePoint.');
   }
 
   // Check if token is expired or about to expire (5 min buffer)
@@ -164,12 +190,15 @@ async function getValidAccessToken(userId) {
   if (expiresAt.getTime() - now.getTime() < bufferMs) {
     // Refresh the token
     const tokens = await refreshAccessToken(connection.refresh_token);
-    await saveSharePointConnection(userId, tokens, {
-      id: connection.site_id,
-      displayName: connection.site_name,
-      webUrl: connection.site_url,
-      driveId: connection.drive_id,
-    });
+    await supabase
+      .from('sharepoint_connections')
+      .update({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token || connection.refresh_token,
+        token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'org-wide');
     return tokens.access_token;
   }
 
@@ -180,8 +209,8 @@ async function getValidAccessToken(userId) {
 // GRAPH API HELPERS
 // ============================================
 
-async function graphRequest(userId, endpoint, options = {}) {
-  const accessToken = await getValidAccessToken(userId);
+async function graphRequest(endpoint, options = {}) {
+  const accessToken = await getValidAccessToken();
 
   const response = await fetch(`${GRAPH_API_URL}${endpoint}`, {
     ...options,
@@ -204,13 +233,18 @@ async function graphRequest(userId, endpoint, options = {}) {
   return response.json();
 }
 
+// Legacy wrapper that accepts userId but doesn't use it
+async function graphRequestWithUser(userId, endpoint, options = {}) {
+  return graphRequest(endpoint, options);
+}
+
 // ============================================
 // SITE & DRIVE DISCOVERY
 // ============================================
 
-export async function getUserSites(userId) {
+export async function getAvailableSites() {
   try {
-    const result = await graphRequest(userId, '/sites?search=*');
+    const result = await graphRequest('/sites?search=*');
     return { data: result.value || [], error: null };
   } catch (error) {
     console.error('Error fetching sites:', error);
@@ -218,9 +252,12 @@ export async function getUserSites(userId) {
   }
 }
 
-export async function getSiteDrives(userId, siteId) {
+// Legacy alias
+export const getUserSites = async (userId) => getAvailableSites();
+
+export async function getSiteDrives(siteId) {
   try {
-    const result = await graphRequest(userId, `/sites/${siteId}/drives`);
+    const result = await graphRequest(`/sites/${siteId}/drives`);
     return { data: result.value || [], error: null };
   } catch (error) {
     console.error('Error fetching drives:', error);
@@ -228,27 +265,48 @@ export async function getSiteDrives(userId, siteId) {
   }
 }
 
-export async function getMyDrive(userId) {
+export async function getDefaultDrive() {
   try {
-    const result = await graphRequest(userId, '/me/drive');
+    const { data: connection } = await getOrgSharePointConnection();
+    if (connection?.drive_id) {
+      const result = await graphRequest(`/drives/${connection.drive_id}`);
+      return { data: result, error: null };
+    }
+    // Fallback to first available drive
+    const result = await graphRequest('/me/drive');
     return { data: result, error: null };
   } catch (error) {
-    console.error('Error fetching my drive:', error);
+    console.error('Error fetching default drive:', error);
     return { data: null, error };
   }
 }
 
+// Legacy alias
+export const getMyDrive = async (userId) => getDefaultDrive();
+
 // ============================================
-// FILE BROWSER
+// FILE BROWSER (Any User)
 // ============================================
 
-export async function listFolder(userId, driveId, folderId = 'root') {
+export async function listFolder(driveIdOrUserId, folderIdOrDriveId = 'root', maybeFolderId) {
+  // Handle both old signature (userId, driveId, folderId) and new signature (driveId, folderId)
+  let driveId, folderId;
+  if (maybeFolderId !== undefined) {
+    // Old signature: (userId, driveId, folderId)
+    driveId = folderIdOrDriveId;
+    folderId = maybeFolderId;
+  } else {
+    // New signature: (driveId, folderId)
+    driveId = driveIdOrUserId;
+    folderId = folderIdOrDriveId;
+  }
+
   try {
     const endpoint = folderId === 'root'
       ? `/drives/${driveId}/root/children`
       : `/drives/${driveId}/items/${folderId}/children`;
 
-    const result = await graphRequest(userId, `${endpoint}?$orderby=name&$top=100`);
+    const result = await graphRequest(`${endpoint}?$orderby=name&$top=100`);
 
     const items = (result.value || []).map(item => ({
       id: item.id,
@@ -272,24 +330,32 @@ export async function listFolder(userId, driveId, folderId = 'root') {
   }
 }
 
-export async function getFolderPath(userId, driveId, folderId) {
+export async function getFolderPath(driveIdOrUserId, folderIdOrDriveId, maybeFolderId) {
+  // Handle both signatures
+  let driveId, folderId;
+  if (maybeFolderId !== undefined) {
+    driveId = folderIdOrDriveId;
+    folderId = maybeFolderId;
+  } else {
+    driveId = driveIdOrUserId;
+    folderId = folderIdOrDriveId;
+  }
+
   if (folderId === 'root') {
     return { data: [{ id: 'root', name: 'Root' }], error: null };
   }
 
   try {
-    const item = await graphRequest(userId, `/drives/${driveId}/items/${folderId}`);
+    const item = await graphRequest(`/drives/${driveId}/items/${folderId}`);
 
     const path = [];
     if (item.parentReference?.path) {
       const pathParts = item.parentReference.path.split('/').filter(Boolean);
-      // Remove 'drive/root:' prefix
       const startIndex = pathParts.findIndex(p => p === 'root:');
       if (startIndex >= 0) {
         pathParts.splice(0, startIndex + 1);
       }
 
-      // Build breadcrumb
       let currentPath = '';
       for (const part of pathParts) {
         currentPath = currentPath ? `${currentPath}/${part}` : part;
@@ -306,9 +372,19 @@ export async function getFolderPath(userId, driveId, folderId) {
   }
 }
 
-export async function searchFiles(userId, driveId, query) {
+export async function searchFiles(driveIdOrUserId, queryOrDriveId, maybeQuery) {
+  // Handle both signatures
+  let driveId, query;
+  if (maybeQuery !== undefined) {
+    driveId = queryOrDriveId;
+    query = maybeQuery;
+  } else {
+    driveId = driveIdOrUserId;
+    query = queryOrDriveId;
+  }
+
   try {
-    const result = await graphRequest(userId, `/drives/${driveId}/root/search(q='${encodeURIComponent(query)}')`);
+    const result = await graphRequest(`/drives/${driveId}/root/search(q='${encodeURIComponent(query)}')`);
 
     const items = (result.value || []).map(item => ({
       id: item.id,
@@ -327,12 +403,28 @@ export async function searchFiles(userId, driveId, query) {
 }
 
 // ============================================
-// FILE OPERATIONS
+// FILE OPERATIONS (Any User)
 // ============================================
 
-export async function uploadFileToSharePoint(userId, driveId, folderId, file, fileName) {
+export async function uploadFileToSharePoint(driveIdOrUserId, folderIdOrDriveId, fileOrFolderId, fileNameOrFile, maybeFileName) {
+  // Handle both signatures
+  let driveId, folderId, file, fileName;
+  if (maybeFileName !== undefined) {
+    // Old: (userId, driveId, folderId, file, fileName)
+    driveId = folderIdOrDriveId;
+    folderId = fileOrFolderId;
+    file = fileNameOrFile;
+    fileName = maybeFileName;
+  } else {
+    // New: (driveId, folderId, file, fileName)
+    driveId = driveIdOrUserId;
+    folderId = folderIdOrDriveId;
+    file = fileOrFolderId;
+    fileName = fileNameOrFile;
+  }
+
   try {
-    const accessToken = await getValidAccessToken(userId);
+    const accessToken = await getValidAccessToken();
 
     const endpoint = folderId === 'root'
       ? `/drives/${driveId}/root:/${fileName}:/content`
@@ -369,13 +461,25 @@ export async function uploadFileToSharePoint(userId, driveId, folderId, file, fi
   }
 }
 
-export async function createFolder(userId, driveId, parentFolderId, folderName) {
+export async function createFolder(driveIdOrUserId, parentFolderIdOrDriveId, folderNameOrParentFolderId, maybeFolderName) {
+  // Handle both signatures
+  let driveId, parentFolderId, folderName;
+  if (maybeFolderName !== undefined) {
+    driveId = parentFolderIdOrDriveId;
+    parentFolderId = folderNameOrParentFolderId;
+    folderName = maybeFolderName;
+  } else {
+    driveId = driveIdOrUserId;
+    parentFolderId = parentFolderIdOrDriveId;
+    folderName = folderNameOrParentFolderId;
+  }
+
   try {
     const endpoint = parentFolderId === 'root'
       ? `/drives/${driveId}/root/children`
       : `/drives/${driveId}/items/${parentFolderId}/children`;
 
-    const result = await graphRequest(userId, endpoint, {
+    const result = await graphRequest(endpoint, {
       method: 'POST',
       body: JSON.stringify({
         name: folderName,
@@ -398,9 +502,18 @@ export async function createFolder(userId, driveId, parentFolderId, folderName) 
   }
 }
 
-export async function deleteItem(userId, driveId, itemId) {
+export async function deleteItem(driveIdOrUserId, itemIdOrDriveId, maybeItemId) {
+  let driveId, itemId;
+  if (maybeItemId !== undefined) {
+    driveId = itemIdOrDriveId;
+    itemId = maybeItemId;
+  } else {
+    driveId = driveIdOrUserId;
+    itemId = itemIdOrDriveId;
+  }
+
   try {
-    await graphRequest(userId, `/drives/${driveId}/items/${itemId}`, {
+    await graphRequest(`/drives/${driveId}/items/${itemId}`, {
       method: 'DELETE',
     });
     return { success: true, error: null };
@@ -410,9 +523,20 @@ export async function deleteItem(userId, driveId, itemId) {
   }
 }
 
-export async function renameItem(userId, driveId, itemId, newName) {
+export async function renameItem(driveIdOrUserId, itemIdOrDriveId, newNameOrItemId, maybeNewName) {
+  let driveId, itemId, newName;
+  if (maybeNewName !== undefined) {
+    driveId = itemIdOrDriveId;
+    itemId = newNameOrItemId;
+    newName = maybeNewName;
+  } else {
+    driveId = driveIdOrUserId;
+    itemId = itemIdOrDriveId;
+    newName = newNameOrItemId;
+  }
+
   try {
-    const result = await graphRequest(userId, `/drives/${driveId}/items/${itemId}`, {
+    const result = await graphRequest(`/drives/${driveId}/items/${itemId}`, {
       method: 'PATCH',
       body: JSON.stringify({ name: newName }),
     });
@@ -423,9 +547,20 @@ export async function renameItem(userId, driveId, itemId, newName) {
   }
 }
 
-export async function copyItem(userId, driveId, itemId, destinationFolderId) {
+export async function copyItem(driveIdOrUserId, itemIdOrDriveId, destinationFolderIdOrItemId, maybeDestinationFolderId) {
+  let driveId, itemId, destinationFolderId;
+  if (maybeDestinationFolderId !== undefined) {
+    driveId = itemIdOrDriveId;
+    itemId = destinationFolderIdOrItemId;
+    destinationFolderId = maybeDestinationFolderId;
+  } else {
+    driveId = driveIdOrUserId;
+    itemId = itemIdOrDriveId;
+    destinationFolderId = destinationFolderIdOrItemId;
+  }
+
   try {
-    await graphRequest(userId, `/drives/${driveId}/items/${itemId}/copy`, {
+    await graphRequest(`/drives/${driveId}/items/${itemId}/copy`, {
       method: 'POST',
       body: JSON.stringify({
         parentReference: {
@@ -441,9 +576,20 @@ export async function copyItem(userId, driveId, itemId, destinationFolderId) {
   }
 }
 
-export async function moveItem(userId, driveId, itemId, destinationFolderId) {
+export async function moveItem(driveIdOrUserId, itemIdOrDriveId, destinationFolderIdOrItemId, maybeDestinationFolderId) {
+  let driveId, itemId, destinationFolderId;
+  if (maybeDestinationFolderId !== undefined) {
+    driveId = itemIdOrDriveId;
+    itemId = destinationFolderIdOrItemId;
+    destinationFolderId = maybeDestinationFolderId;
+  } else {
+    driveId = driveIdOrUserId;
+    itemId = itemIdOrDriveId;
+    destinationFolderId = destinationFolderIdOrItemId;
+  }
+
   try {
-    const result = await graphRequest(userId, `/drives/${driveId}/items/${itemId}`, {
+    const result = await graphRequest(`/drives/${driveId}/items/${itemId}`, {
       method: 'PATCH',
       body: JSON.stringify({
         parentReference: {
@@ -458,9 +604,18 @@ export async function moveItem(userId, driveId, itemId, destinationFolderId) {
   }
 }
 
-export async function getDownloadUrl(userId, driveId, itemId) {
+export async function getDownloadUrl(driveIdOrUserId, itemIdOrDriveId, maybeItemId) {
+  let driveId, itemId;
+  if (maybeItemId !== undefined) {
+    driveId = itemIdOrDriveId;
+    itemId = maybeItemId;
+  } else {
+    driveId = driveIdOrUserId;
+    itemId = itemIdOrDriveId;
+  }
+
   try {
-    const result = await graphRequest(userId, `/drives/${driveId}/items/${itemId}`);
+    const result = await graphRequest(`/drives/${driveId}/items/${itemId}`);
     return { url: result['@microsoft.graph.downloadUrl'], error: null };
   } catch (error) {
     console.error('Error getting download URL:', error);
@@ -468,10 +623,25 @@ export async function getDownloadUrl(userId, driveId, itemId) {
   }
 }
 
-export async function createShareLink(userId, driveId, itemId, type = 'view', expirationHours = null) {
+export async function createShareLink(driveIdOrUserId, itemIdOrDriveId, typeOrItemId, expirationHoursOrType, maybeExpirationHours) {
+  let driveId, itemId, type, expirationHours;
+  if (maybeExpirationHours !== undefined || typeof expirationHoursOrType === 'string') {
+    // Old signature
+    driveId = itemIdOrDriveId;
+    itemId = typeOrItemId;
+    type = expirationHoursOrType || 'view';
+    expirationHours = maybeExpirationHours;
+  } else {
+    // New signature
+    driveId = driveIdOrUserId;
+    itemId = itemIdOrDriveId;
+    type = typeOrItemId || 'view';
+    expirationHours = expirationHoursOrType;
+  }
+
   try {
     const body = {
-      type: type, // 'view' or 'edit'
+      type: type,
       scope: 'anonymous',
     };
 
@@ -479,7 +649,7 @@ export async function createShareLink(userId, driveId, itemId, type = 'view', ex
       body.expirationDateTime = new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString();
     }
 
-    const result = await graphRequest(userId, `/drives/${driveId}/items/${itemId}/createLink`, {
+    const result = await graphRequest(`/drives/${driveId}/items/${itemId}/createLink`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -503,30 +673,39 @@ export async function createShareLink(userId, driveId, itemId, type = 'view', ex
 // PROJECT FOLDER SYNC
 // ============================================
 
-export async function setupProjectFolder(userId, driveId, projectId, projectName) {
+export async function setupProjectFolder(driveIdOrUserId, projectIdOrDriveId, projectNameOrProjectId, maybeProjectName) {
+  let driveId, projectId, projectName;
+  if (maybeProjectName !== undefined) {
+    driveId = projectIdOrDriveId;
+    projectId = projectNameOrProjectId;
+    projectName = maybeProjectName;
+  } else {
+    driveId = driveIdOrUserId;
+    projectId = projectIdOrDriveId;
+    projectName = projectNameOrProjectId;
+  }
+
   try {
-    // Create base folder structure for project
     const baseFolderName = `${projectName} (${projectId})`.replace(/[<>:"/\\|?*]/g, '-');
 
-    // Create project root folder
-    const { data: projectFolder, error: folderError } = await createFolder(userId, driveId, 'root', baseFolderName);
+    const { data: projectFolder, error: folderError } = await createFolder(driveId, 'root', baseFolderName);
     if (folderError) throw folderError;
 
-    // Create standard subfolders
     const subfolders = ['Contracts', 'Legal', 'Financial', 'Correspondence', 'Photos', 'Reports', 'Inspections'];
 
     for (const subfolder of subfolders) {
-      await createFolder(userId, driveId, projectFolder.id, subfolder);
+      await createFolder(driveId, projectFolder.id, subfolder);
     }
 
-    // Save project-SharePoint mapping
+    const { data: { user } } = await supabase.auth.getUser();
+
     await supabase.from('project_sharepoint_mappings').upsert({
       project_id: projectId,
       drive_id: driveId,
       folder_id: projectFolder.id,
       folder_name: baseFolderName,
       folder_url: projectFolder.webUrl,
-      created_by: userId,
+      created_by: user?.id,
     }, { onConflict: 'project_id' });
 
     return { data: projectFolder, error: null };
@@ -544,6 +723,40 @@ export async function getProjectSharePointMapping(projectId) {
     .single();
 
   return { data, error };
+}
+
+// ============================================
+// ADMIN FUNCTIONS
+// ============================================
+
+export async function isSharePointConnected() {
+  const { data } = await getOrgSharePointConnection();
+  return data?.is_connected === true;
+}
+
+export async function getSharePointStatus() {
+  const { data, error } = await getOrgSharePointConnection();
+
+  if (error || !data) {
+    return {
+      connected: false,
+      configured: isSharePointConfigured(),
+      siteName: null,
+      siteUrl: null,
+      connectedBy: null,
+      connectedAt: null,
+    };
+  }
+
+  return {
+    connected: data.is_connected,
+    configured: isSharePointConfigured(),
+    siteName: data.site_name,
+    siteUrl: data.site_url,
+    driveId: data.drive_id,
+    connectedBy: data.connected_by,
+    connectedAt: data.updated_at,
+  };
 }
 
 // ============================================
@@ -566,7 +779,6 @@ export function formatFileSize(bytes) {
 
 export function getFileIcon(mimeType, isFolder) {
   if (isFolder) return 'folder';
-
   if (!mimeType) return 'file';
 
   if (mimeType.startsWith('image/')) return 'image';
@@ -586,20 +798,28 @@ export function getFileIcon(mimeType, isFolder) {
 // ============================================
 
 export default {
-  // Auth
+  // Auth (Admin)
   isSharePointConfigured,
+  getAdminAuthorizationUrl,
   getAuthorizationUrl,
   exchangeCodeForTokens,
   refreshAccessToken,
 
-  // Connection
+  // Connection (Org-wide)
+  saveOrgSharePointConnection,
   saveSharePointConnection,
+  getOrgSharePointConnection,
   getSharePointConnection,
+  disconnectOrgSharePoint,
   disconnectSharePoint,
+  isSharePointConnected,
+  getSharePointStatus,
 
   // Discovery
+  getAvailableSites,
   getUserSites,
   getSiteDrives,
+  getDefaultDrive,
   getMyDrive,
 
   // Browser

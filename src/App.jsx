@@ -82,6 +82,7 @@ const MilestoneTemplatesPage = lazy(() => import('@/pages/admin/MilestoneTemplat
 const AdminProjectTemplatesPage = lazy(() => import('@/pages/admin/ProjectTemplatesPage'));
 const COATemplatesPage = lazy(() => import('@/pages/admin/COATemplatesPage'));
 const UsersManagementPage = lazy(() => import('@/pages/admin/UsersManagementPage'));
+const IntegrationsPage = lazy(() => import('@/pages/admin/IntegrationsPage'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -365,6 +366,7 @@ const AppContent = () => (
     <Route path="/admin/milestone-templates" element={<ProtectedRoute><AppLayout><AdminLayout><MilestoneTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/project-templates" element={<ProtectedRoute><AppLayout><AdminLayout><AdminProjectTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/coa-templates" element={<ProtectedRoute><AppLayout><AdminLayout><COATemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/integrations" element={<ProtectedRoute><AppLayout><AdminLayout><IntegrationsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}
