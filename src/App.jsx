@@ -8,6 +8,7 @@ import { PermissionProvider } from '@/contexts/PermissionContext';
 import { TransactionEntryProvider } from '@/contexts/TransactionEntryContext';
 import TopNavigation from '@/components/TopNavigation';
 import LoadingState from '@/components/LoadingState';
+import { ChatButton } from '@/components/chat';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 
@@ -166,12 +167,16 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-const AppLayout = ({ children }) => (
-  <div className="min-h-screen bg-gray-50 flex flex-col">
-    <TopNavigation />
-    <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
-  </div>
-);
+const AppLayout = ({ children }) => {
+  const { user } = useAuth();
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <TopNavigation />
+      <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
+      <ChatButton currentUser={user} />
+    </div>
+  );
+};
 
 const AdminLayout = ({ children }) => (
   <div className="flex h-[calc(100vh-40px)]">
