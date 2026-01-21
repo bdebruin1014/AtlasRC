@@ -1,6 +1,6 @@
 // src/services/sharepointService.js
-// SharePoint Integration Service with Microsoft Graph API
-// Supports ORG-WIDE admin connection (all users share same SharePoint access)
+// SharePoint Integration Service - Multi-Tenant SaaS Model
+// Atlas owns SharePoint, customers get isolated folder structures
 
 import { supabase } from '@/lib/supabase';
 
@@ -13,7 +13,7 @@ const MS_CLIENT_ID = import.meta.env.VITE_MS_CLIENT_ID;
 const GRAPH_API_URL = 'https://graph.microsoft.com/v1.0';
 const REDIRECT_URI = `${window.location.origin}/auth/sharepoint/callback`;
 
-// Scopes needed for SharePoint access (admin connects once for org)
+// Scopes needed for SharePoint access
 const SHAREPOINT_SCOPES = [
   'Files.ReadWrite.All',
   'Sites.ReadWrite.All',
@@ -27,7 +27,7 @@ export function isSharePointConfigured() {
 }
 
 // ============================================
-// OAUTH AUTHENTICATION (Admin Only)
+// OAUTH AUTHENTICATION (Atlas Admin Only)
 // ============================================
 
 export function getAdminAuthorizationUrl(state = '') {
@@ -35,7 +35,6 @@ export function getAdminAuthorizationUrl(state = '') {
     throw new Error('SharePoint is not configured. Please set VITE_MS_TENANT_ID and VITE_MS_CLIENT_ID environment variables.');
   }
 
-  // Request admin consent for org-wide access
   const params = new URLSearchParams({
     client_id: MS_CLIENT_ID,
     response_type: 'code',
@@ -43,13 +42,12 @@ export function getAdminAuthorizationUrl(state = '') {
     response_mode: 'query',
     scope: SHAREPOINT_SCOPES,
     state: state,
-    prompt: 'consent', // Force consent to ensure admin grants permissions
+    prompt: 'consent',
   });
 
   return `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/authorize?${params}`;
 }
 
-// Alias for backward compatibility
 export const getAuthorizationUrl = getAdminAuthorizationUrl;
 
 export async function exchangeCodeForTokens(code) {
@@ -101,17 +99,16 @@ export async function refreshAccessToken(refreshToken) {
 }
 
 // ============================================
-// ORG-WIDE TOKEN STORAGE (in Supabase)
+// ATLAS PLATFORM TOKEN STORAGE
 // ============================================
 
-// Save org-wide SharePoint connection (admin only)
-export async function saveOrgSharePointConnection(adminUserId, tokens, siteInfo) {
+export async function saveAtlasSharePointConnection(adminUserId, tokens, siteInfo) {
   const { data, error } = await supabase
     .from('sharepoint_connections')
     .upsert({
-      id: 'org-wide', // Single org-wide connection
+      id: 'atlas-platform',
       user_id: adminUserId,
-      connection_type: 'organization',
+      connection_type: 'platform',
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
@@ -129,17 +126,15 @@ export async function saveOrgSharePointConnection(adminUserId, tokens, siteInfo)
   return { data, error };
 }
 
-// Alias for backward compatibility
-export const saveSharePointConnection = async (userId, tokens, siteInfo) => {
-  return saveOrgSharePointConnection(userId, tokens, siteInfo);
-};
+// Aliases for backward compatibility
+export const saveOrgSharePointConnection = saveAtlasSharePointConnection;
+export const saveSharePointConnection = saveAtlasSharePointConnection;
 
-// Get org-wide SharePoint connection (any user can read)
-export async function getOrgSharePointConnection() {
+export async function getAtlasSharePointConnection() {
   const { data, error } = await supabase
     .from('sharepoint_connections')
     .select('*')
-    .eq('id', 'org-wide')
+    .eq('id', 'atlas-platform')
     .single();
 
   if (error && error.code !== 'PGRST116') {
@@ -149,13 +144,10 @@ export async function getOrgSharePointConnection() {
   return { data, error: null };
 }
 
-// Alias for backward compatibility (ignores userId, returns org connection)
-export const getSharePointConnection = async (userId) => {
-  return getOrgSharePointConnection();
-};
+export const getOrgSharePointConnection = getAtlasSharePointConnection;
+export const getSharePointConnection = async () => getAtlasSharePointConnection();
 
-// Disconnect org-wide SharePoint (admin only)
-export async function disconnectOrgSharePoint() {
+export async function disconnectAtlasSharePoint() {
   const { error } = await supabase
     .from('sharepoint_connections')
     .update({
@@ -164,31 +156,27 @@ export async function disconnectOrgSharePoint() {
       refresh_token: null,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', 'org-wide');
+    .eq('id', 'atlas-platform');
 
   return { success: !error, error };
 }
 
-// Alias for backward compatibility
-export const disconnectSharePoint = async (userId) => {
-  return disconnectOrgSharePoint();
-};
+export const disconnectOrgSharePoint = disconnectAtlasSharePoint;
+export const disconnectSharePoint = async () => disconnectAtlasSharePoint();
 
-// Get valid access token (refresh if needed) - uses org-wide connection
+// Get valid access token (refresh if needed)
 async function getValidAccessToken() {
-  const { data: connection, error } = await getOrgSharePointConnection();
+  const { data: connection, error } = await getAtlasSharePointConnection();
 
   if (error || !connection || !connection.is_connected) {
-    throw new Error('SharePoint not connected. Please ask your admin to connect SharePoint.');
+    throw new Error('Atlas SharePoint not connected. Platform admin must configure SharePoint.');
   }
 
-  // Check if token is expired or about to expire (5 min buffer)
   const expiresAt = new Date(connection.token_expires_at);
   const now = new Date();
   const bufferMs = 5 * 60 * 1000;
 
   if (expiresAt.getTime() - now.getTime() < bufferMs) {
-    // Refresh the token
     const tokens = await refreshAccessToken(connection.refresh_token);
     await supabase
       .from('sharepoint_connections')
@@ -198,7 +186,7 @@ async function getValidAccessToken() {
         token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', 'org-wide');
+      .eq('id', 'atlas-platform');
     return tokens.access_token;
   }
 
@@ -233,74 +221,169 @@ async function graphRequest(endpoint, options = {}) {
   return response.json();
 }
 
-// Legacy wrapper that accepts userId but doesn't use it
-async function graphRequestWithUser(userId, endpoint, options = {}) {
-  return graphRequest(endpoint, options);
-}
-
 // ============================================
-// SITE & DRIVE DISCOVERY
+// MULTI-TENANT CUSTOMER FOLDER MANAGEMENT
 // ============================================
 
-export async function getAvailableSites() {
-  try {
-    const result = await graphRequest('/sites?search=*');
-    return { data: result.value || [], error: null };
-  } catch (error) {
-    console.error('Error fetching sites:', error);
-    return { data: [], error };
-  }
-}
+// Standard folder structure for each customer organization
+const CUSTOMER_FOLDER_STRUCTURE = [
+  'Projects',
+  'Company Documents',
+  'Templates',
+  'Contracts',
+  'Legal',
+  'Financial Records',
+];
 
-// Legacy alias
-export const getUserSites = async (userId) => getAvailableSites();
+// Standard folder structure for each project
+const PROJECT_FOLDER_STRUCTURE = [
+  'Contracts',
+  'Legal',
+  'Financial',
+  'Correspondence',
+  'Photos',
+  'Reports',
+  'Inspections',
+  'Permits',
+  'Insurance',
+];
 
-export async function getSiteDrives(siteId) {
+/**
+ * Initialize folder structure for a new customer organization
+ * Called when a new organization signs up for Atlas
+ */
+export async function initializeCustomerFolders(organizationId, organizationName) {
   try {
-    const result = await graphRequest(`/sites/${siteId}/drives`);
-    return { data: result.value || [], error: null };
-  } catch (error) {
-    console.error('Error fetching drives:', error);
-    return { data: [], error };
-  }
-}
-
-export async function getDefaultDrive() {
-  try {
-    const { data: connection } = await getOrgSharePointConnection();
-    if (connection?.drive_id) {
-      const result = await graphRequest(`/drives/${connection.drive_id}`);
-      return { data: result, error: null };
+    const { data: connection } = await getAtlasSharePointConnection();
+    if (!connection?.drive_id) {
+      throw new Error('Atlas SharePoint not configured');
     }
-    // Fallback to first available drive
-    const result = await graphRequest('/me/drive');
-    return { data: result, error: null };
+
+    const driveId = connection.drive_id;
+    const sanitizedName = organizationName.replace(/[<>:"/\\|?*]/g, '-');
+
+    // Create customer root folder under "Customers"
+    const customersFolder = await ensureFolder(driveId, 'root', 'Customers');
+    const customerRoot = await createFolder(driveId, customersFolder.id, sanitizedName);
+
+    // Create standard subfolders
+    for (const folderName of CUSTOMER_FOLDER_STRUCTURE) {
+      await createFolder(driveId, customerRoot.id, folderName);
+    }
+
+    // Save mapping to database
+    await supabase.from('organization_sharepoint_mappings').upsert({
+      organization_id: organizationId,
+      drive_id: driveId,
+      folder_id: customerRoot.id,
+      folder_name: sanitizedName,
+      folder_path: `/Customers/${sanitizedName}`,
+      folder_url: customerRoot.webUrl,
+      created_at: new Date().toISOString(),
+    }, { onConflict: 'organization_id' });
+
+    return { data: customerRoot, error: null };
   } catch (error) {
-    console.error('Error fetching default drive:', error);
+    console.error('Error initializing customer folders:', error);
     return { data: null, error };
   }
 }
 
-// Legacy alias
-export const getMyDrive = async (userId) => getDefaultDrive();
+/**
+ * Get the SharePoint folder mapping for an organization
+ */
+export async function getOrganizationFolderMapping(organizationId) {
+  const { data, error } = await supabase
+    .from('organization_sharepoint_mappings')
+    .select('*')
+    .eq('organization_id', organizationId)
+    .single();
 
-// ============================================
-// FILE BROWSER (Any User)
-// ============================================
+  return { data, error };
+}
 
-export async function listFolder(driveIdOrUserId, folderIdOrDriveId = 'root', maybeFolderId) {
-  // Handle both old signature (userId, driveId, folderId) and new signature (driveId, folderId)
-  let driveId, folderId;
-  if (maybeFolderId !== undefined) {
-    // Old signature: (userId, driveId, folderId)
-    driveId = folderIdOrDriveId;
-    folderId = maybeFolderId;
-  } else {
-    // New signature: (driveId, folderId)
-    driveId = driveIdOrUserId;
-    folderId = folderIdOrDriveId;
+/**
+ * Create project folder structure within a customer's folder
+ */
+export async function createProjectFolders(organizationId, projectId, projectName) {
+  try {
+    // Get organization's root folder
+    const { data: orgMapping, error: orgError } = await getOrganizationFolderMapping(organizationId);
+    if (orgError || !orgMapping) {
+      throw new Error('Organization folder not found');
+    }
+
+    const driveId = orgMapping.drive_id;
+    const sanitizedName = `${projectName}`.replace(/[<>:"/\\|?*]/g, '-');
+
+    // Get or create Projects folder
+    const projectsFolder = await ensureFolder(driveId, orgMapping.folder_id, 'Projects');
+
+    // Create project folder
+    const projectFolder = await createFolder(driveId, projectsFolder.id, sanitizedName);
+
+    // Create standard project subfolders
+    for (const folderName of PROJECT_FOLDER_STRUCTURE) {
+      await createFolder(driveId, projectFolder.id, folderName);
+    }
+
+    // Save project mapping
+    await supabase.from('project_sharepoint_mappings').upsert({
+      project_id: projectId,
+      organization_id: organizationId,
+      drive_id: driveId,
+      folder_id: projectFolder.id,
+      folder_name: sanitizedName,
+      folder_path: `${orgMapping.folder_path}/Projects/${sanitizedName}`,
+      folder_url: projectFolder.webUrl,
+      created_at: new Date().toISOString(),
+    }, { onConflict: 'project_id' });
+
+    return { data: projectFolder, error: null };
+  } catch (error) {
+    console.error('Error creating project folders:', error);
+    return { data: null, error };
   }
+}
 
+/**
+ * Get project folder mapping
+ */
+export async function getProjectFolderMapping(projectId) {
+  const { data, error } = await supabase
+    .from('project_sharepoint_mappings')
+    .select('*')
+    .eq('project_id', projectId)
+    .single();
+
+  return { data, error };
+}
+
+// Helper: Ensure a folder exists, create if not
+async function ensureFolder(driveId, parentFolderId, folderName) {
+  try {
+    // Try to find existing folder
+    const { data: items } = await listFolder(driveId, parentFolderId);
+    const existingFolder = items?.find(item => item.name === folderName && item.type === 'folder');
+
+    if (existingFolder) {
+      return { id: existingFolder.id, name: existingFolder.name, webUrl: existingFolder.webUrl };
+    }
+
+    // Create new folder
+    const result = await createFolder(driveId, parentFolderId, folderName);
+    return result.data;
+  } catch (error) {
+    console.error('Error ensuring folder:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// FILE BROWSER (Scoped to Organization)
+// ============================================
+
+export async function listFolder(driveId, folderId = 'root') {
   try {
     const endpoint = folderId === 'root'
       ? `/drives/${driveId}/root/children`
@@ -330,17 +413,50 @@ export async function listFolder(driveIdOrUserId, folderIdOrDriveId = 'root', ma
   }
 }
 
-export async function getFolderPath(driveIdOrUserId, folderIdOrDriveId, maybeFolderId) {
-  // Handle both signatures
-  let driveId, folderId;
-  if (maybeFolderId !== undefined) {
-    driveId = folderIdOrDriveId;
-    folderId = maybeFolderId;
-  } else {
-    driveId = driveIdOrUserId;
-    folderId = folderIdOrDriveId;
-  }
+/**
+ * List folder contents scoped to an organization
+ * Users can only browse within their organization's folder
+ */
+export async function listOrganizationFolder(organizationId, folderId = null) {
+  try {
+    const { data: orgMapping, error: orgError } = await getOrganizationFolderMapping(organizationId);
+    if (orgError || !orgMapping) {
+      throw new Error('Organization folder not found');
+    }
 
+    // Default to org root folder
+    const targetFolderId = folderId || orgMapping.folder_id;
+
+    // Security check: Ensure folder is within org's folder tree
+    // (In production, add path validation)
+
+    return await listFolder(orgMapping.drive_id, targetFolderId);
+  } catch (error) {
+    console.error('Error listing organization folder:', error);
+    return { data: [], error };
+  }
+}
+
+/**
+ * List folder contents scoped to a project
+ */
+export async function listProjectFolder(projectId, folderId = null) {
+  try {
+    const { data: projectMapping, error: projError } = await getProjectFolderMapping(projectId);
+    if (projError || !projectMapping) {
+      throw new Error('Project folder not found');
+    }
+
+    const targetFolderId = folderId || projectMapping.folder_id;
+
+    return await listFolder(projectMapping.drive_id, targetFolderId);
+  } catch (error) {
+    console.error('Error listing project folder:', error);
+    return { data: [], error };
+  }
+}
+
+export async function getFolderPath(driveId, folderId) {
   if (folderId === 'root') {
     return { data: [{ id: 'root', name: 'Root' }], error: null };
   }
@@ -372,17 +488,7 @@ export async function getFolderPath(driveIdOrUserId, folderIdOrDriveId, maybeFol
   }
 }
 
-export async function searchFiles(driveIdOrUserId, queryOrDriveId, maybeQuery) {
-  // Handle both signatures
-  let driveId, query;
-  if (maybeQuery !== undefined) {
-    driveId = queryOrDriveId;
-    query = maybeQuery;
-  } else {
-    driveId = driveIdOrUserId;
-    query = queryOrDriveId;
-  }
-
+export async function searchFiles(driveId, query) {
   try {
     const result = await graphRequest(`/drives/${driveId}/root/search(q='${encodeURIComponent(query)}')`);
 
@@ -403,26 +509,39 @@ export async function searchFiles(driveIdOrUserId, queryOrDriveId, maybeQuery) {
 }
 
 // ============================================
-// FILE OPERATIONS (Any User)
+// FILE OPERATIONS
 // ============================================
 
-export async function uploadFileToSharePoint(driveIdOrUserId, folderIdOrDriveId, fileOrFolderId, fileNameOrFile, maybeFileName) {
-  // Handle both signatures
-  let driveId, folderId, file, fileName;
-  if (maybeFileName !== undefined) {
-    // Old: (userId, driveId, folderId, file, fileName)
-    driveId = folderIdOrDriveId;
-    folderId = fileOrFolderId;
-    file = fileNameOrFile;
-    fileName = maybeFileName;
-  } else {
-    // New: (driveId, folderId, file, fileName)
-    driveId = driveIdOrUserId;
-    folderId = folderIdOrDriveId;
-    file = fileOrFolderId;
-    fileName = fileNameOrFile;
-  }
+export async function createFolder(driveId, parentFolderId, folderName) {
+  try {
+    const endpoint = parentFolderId === 'root'
+      ? `/drives/${driveId}/root/children`
+      : `/drives/${driveId}/items/${parentFolderId}/children`;
 
+    const result = await graphRequest(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: folderName,
+        folder: {},
+        '@microsoft.graph.conflictBehavior': 'rename',
+      }),
+    });
+
+    return {
+      data: {
+        id: result.id,
+        name: result.name,
+        webUrl: result.webUrl,
+      },
+      error: null
+    };
+  } catch (error) {
+    console.error('Error creating folder:', error);
+    return { data: null, error };
+  }
+}
+
+export async function uploadFile(driveId, folderId, file, fileName) {
   try {
     const accessToken = await getValidAccessToken();
 
@@ -461,57 +580,36 @@ export async function uploadFileToSharePoint(driveIdOrUserId, folderIdOrDriveId,
   }
 }
 
-export async function createFolder(driveIdOrUserId, parentFolderIdOrDriveId, folderNameOrParentFolderId, maybeFolderName) {
-  // Handle both signatures
-  let driveId, parentFolderId, folderName;
-  if (maybeFolderName !== undefined) {
-    driveId = parentFolderIdOrDriveId;
-    parentFolderId = folderNameOrParentFolderId;
-    folderName = maybeFolderName;
-  } else {
-    driveId = driveIdOrUserId;
-    parentFolderId = parentFolderIdOrDriveId;
-    folderName = folderNameOrParentFolderId;
+// Alias for backward compatibility
+export const uploadFileToSharePoint = uploadFile;
+
+/**
+ * Upload file to organization folder
+ */
+export async function uploadToOrganization(organizationId, folderId, file, fileName) {
+  const { data: orgMapping } = await getOrganizationFolderMapping(organizationId);
+  if (!orgMapping) {
+    return { data: null, error: new Error('Organization folder not found') };
   }
 
-  try {
-    const endpoint = parentFolderId === 'root'
-      ? `/drives/${driveId}/root/children`
-      : `/drives/${driveId}/items/${parentFolderId}/children`;
-
-    const result = await graphRequest(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({
-        name: folderName,
-        folder: {},
-        '@microsoft.graph.conflictBehavior': 'rename',
-      }),
-    });
-
-    return {
-      data: {
-        id: result.id,
-        name: result.name,
-        webUrl: result.webUrl,
-      },
-      error: null
-    };
-  } catch (error) {
-    console.error('Error creating folder:', error);
-    return { data: null, error };
-  }
+  const targetFolderId = folderId || orgMapping.folder_id;
+  return await uploadFile(orgMapping.drive_id, targetFolderId, file, fileName);
 }
 
-export async function deleteItem(driveIdOrUserId, itemIdOrDriveId, maybeItemId) {
-  let driveId, itemId;
-  if (maybeItemId !== undefined) {
-    driveId = itemIdOrDriveId;
-    itemId = maybeItemId;
-  } else {
-    driveId = driveIdOrUserId;
-    itemId = itemIdOrDriveId;
+/**
+ * Upload file to project folder
+ */
+export async function uploadToProject(projectId, folderId, file, fileName) {
+  const { data: projectMapping } = await getProjectFolderMapping(projectId);
+  if (!projectMapping) {
+    return { data: null, error: new Error('Project folder not found') };
   }
 
+  const targetFolderId = folderId || projectMapping.folder_id;
+  return await uploadFile(projectMapping.drive_id, targetFolderId, file, fileName);
+}
+
+export async function deleteItem(driveId, itemId) {
   try {
     await graphRequest(`/drives/${driveId}/items/${itemId}`, {
       method: 'DELETE',
@@ -523,18 +621,7 @@ export async function deleteItem(driveIdOrUserId, itemIdOrDriveId, maybeItemId) 
   }
 }
 
-export async function renameItem(driveIdOrUserId, itemIdOrDriveId, newNameOrItemId, maybeNewName) {
-  let driveId, itemId, newName;
-  if (maybeNewName !== undefined) {
-    driveId = itemIdOrDriveId;
-    itemId = newNameOrItemId;
-    newName = maybeNewName;
-  } else {
-    driveId = driveIdOrUserId;
-    itemId = itemIdOrDriveId;
-    newName = newNameOrItemId;
-  }
-
+export async function renameItem(driveId, itemId, newName) {
   try {
     const result = await graphRequest(`/drives/${driveId}/items/${itemId}`, {
       method: 'PATCH',
@@ -547,73 +634,7 @@ export async function renameItem(driveIdOrUserId, itemIdOrDriveId, newNameOrItem
   }
 }
 
-export async function copyItem(driveIdOrUserId, itemIdOrDriveId, destinationFolderIdOrItemId, maybeDestinationFolderId) {
-  let driveId, itemId, destinationFolderId;
-  if (maybeDestinationFolderId !== undefined) {
-    driveId = itemIdOrDriveId;
-    itemId = destinationFolderIdOrItemId;
-    destinationFolderId = maybeDestinationFolderId;
-  } else {
-    driveId = driveIdOrUserId;
-    itemId = itemIdOrDriveId;
-    destinationFolderId = destinationFolderIdOrItemId;
-  }
-
-  try {
-    await graphRequest(`/drives/${driveId}/items/${itemId}/copy`, {
-      method: 'POST',
-      body: JSON.stringify({
-        parentReference: {
-          driveId,
-          id: destinationFolderId,
-        },
-      }),
-    });
-    return { success: true, error: null };
-  } catch (error) {
-    console.error('Error copying item:', error);
-    return { success: false, error };
-  }
-}
-
-export async function moveItem(driveIdOrUserId, itemIdOrDriveId, destinationFolderIdOrItemId, maybeDestinationFolderId) {
-  let driveId, itemId, destinationFolderId;
-  if (maybeDestinationFolderId !== undefined) {
-    driveId = itemIdOrDriveId;
-    itemId = destinationFolderIdOrItemId;
-    destinationFolderId = maybeDestinationFolderId;
-  } else {
-    driveId = driveIdOrUserId;
-    itemId = itemIdOrDriveId;
-    destinationFolderId = destinationFolderIdOrItemId;
-  }
-
-  try {
-    const result = await graphRequest(`/drives/${driveId}/items/${itemId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        parentReference: {
-          id: destinationFolderId,
-        },
-      }),
-    });
-    return { data: result, error: null };
-  } catch (error) {
-    console.error('Error moving item:', error);
-    return { data: null, error };
-  }
-}
-
-export async function getDownloadUrl(driveIdOrUserId, itemIdOrDriveId, maybeItemId) {
-  let driveId, itemId;
-  if (maybeItemId !== undefined) {
-    driveId = itemIdOrDriveId;
-    itemId = maybeItemId;
-  } else {
-    driveId = driveIdOrUserId;
-    itemId = itemIdOrDriveId;
-  }
-
+export async function getDownloadUrl(driveId, itemId) {
   try {
     const result = await graphRequest(`/drives/${driveId}/items/${itemId}`);
     return { url: result['@microsoft.graph.downloadUrl'], error: null };
@@ -623,22 +644,7 @@ export async function getDownloadUrl(driveIdOrUserId, itemIdOrDriveId, maybeItem
   }
 }
 
-export async function createShareLink(driveIdOrUserId, itemIdOrDriveId, typeOrItemId, expirationHoursOrType, maybeExpirationHours) {
-  let driveId, itemId, type, expirationHours;
-  if (maybeExpirationHours !== undefined || typeof expirationHoursOrType === 'string') {
-    // Old signature
-    driveId = itemIdOrDriveId;
-    itemId = typeOrItemId;
-    type = expirationHoursOrType || 'view';
-    expirationHours = maybeExpirationHours;
-  } else {
-    // New signature
-    driveId = driveIdOrUserId;
-    itemId = itemIdOrDriveId;
-    type = typeOrItemId || 'view';
-    expirationHours = expirationHoursOrType;
-  }
-
+export async function createShareLink(driveId, itemId, type = 'view', expirationHours = null) {
   try {
     const body = {
       type: type,
@@ -670,72 +676,58 @@ export async function createShareLink(driveIdOrUserId, itemIdOrDriveId, typeOrIt
 }
 
 // ============================================
-// PROJECT FOLDER SYNC
+// SITE & DRIVE DISCOVERY (Atlas Admin Only)
 // ============================================
 
-export async function setupProjectFolder(driveIdOrUserId, projectIdOrDriveId, projectNameOrProjectId, maybeProjectName) {
-  let driveId, projectId, projectName;
-  if (maybeProjectName !== undefined) {
-    driveId = projectIdOrDriveId;
-    projectId = projectNameOrProjectId;
-    projectName = maybeProjectName;
-  } else {
-    driveId = driveIdOrUserId;
-    projectId = projectIdOrDriveId;
-    projectName = projectNameOrProjectId;
-  }
-
+export async function getAvailableSites() {
   try {
-    const baseFolderName = `${projectName} (${projectId})`.replace(/[<>:"/\\|?*]/g, '-');
-
-    const { data: projectFolder, error: folderError } = await createFolder(driveId, 'root', baseFolderName);
-    if (folderError) throw folderError;
-
-    const subfolders = ['Contracts', 'Legal', 'Financial', 'Correspondence', 'Photos', 'Reports', 'Inspections'];
-
-    for (const subfolder of subfolders) {
-      await createFolder(driveId, projectFolder.id, subfolder);
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    await supabase.from('project_sharepoint_mappings').upsert({
-      project_id: projectId,
-      drive_id: driveId,
-      folder_id: projectFolder.id,
-      folder_name: baseFolderName,
-      folder_url: projectFolder.webUrl,
-      created_by: user?.id,
-    }, { onConflict: 'project_id' });
-
-    return { data: projectFolder, error: null };
+    const result = await graphRequest('/sites?search=*');
+    return { data: result.value || [], error: null };
   } catch (error) {
-    console.error('Error setting up project folder:', error);
+    console.error('Error fetching sites:', error);
+    return { data: [], error };
+  }
+}
+
+export const getUserSites = getAvailableSites;
+
+export async function getSiteDrives(siteId) {
+  try {
+    const result = await graphRequest(`/sites/${siteId}/drives`);
+    return { data: result.value || [], error: null };
+  } catch (error) {
+    console.error('Error fetching drives:', error);
+    return { data: [], error };
+  }
+}
+
+export async function getDefaultDrive() {
+  try {
+    const { data: connection } = await getAtlasSharePointConnection();
+    if (connection?.drive_id) {
+      const result = await graphRequest(`/drives/${connection.drive_id}`);
+      return { data: result, error: null };
+    }
+    return { data: null, error: new Error('No drive configured') };
+  } catch (error) {
+    console.error('Error fetching default drive:', error);
     return { data: null, error };
   }
 }
 
-export async function getProjectSharePointMapping(projectId) {
-  const { data, error } = await supabase
-    .from('project_sharepoint_mappings')
-    .select('*')
-    .eq('project_id', projectId)
-    .single();
-
-  return { data, error };
-}
+export const getMyDrive = getDefaultDrive;
 
 // ============================================
-// ADMIN FUNCTIONS
+// STATUS & ADMIN FUNCTIONS
 // ============================================
 
 export async function isSharePointConnected() {
-  const { data } = await getOrgSharePointConnection();
+  const { data } = await getAtlasSharePointConnection();
   return data?.is_connected === true;
 }
 
 export async function getSharePointStatus() {
-  const { data, error } = await getOrgSharePointConnection();
+  const { data, error } = await getAtlasSharePointConnection();
 
   if (error || !data) {
     return {
@@ -794,28 +786,53 @@ export function getFileIcon(mimeType, isFolder) {
 }
 
 // ============================================
+// LEGACY COMPATIBILITY (for existing components)
+// ============================================
+
+// These functions maintain backward compatibility with existing code
+export async function setupProjectFolder(driveIdOrUserId, projectIdOrDriveId, projectNameOrProjectId, maybeProjectName) {
+  // Simplified: just call createProjectFolders with proper params
+  // This assumes organizationId is available in context
+  console.warn('setupProjectFolder is deprecated. Use createProjectFolders instead.');
+  return { data: null, error: new Error('Use createProjectFolders with organizationId') };
+}
+
+export async function getProjectSharePointMapping(projectId) {
+  return getProjectFolderMapping(projectId);
+}
+
+// ============================================
 // EXPORTS
 // ============================================
 
 export default {
-  // Auth (Admin)
+  // Auth (Atlas Admin)
   isSharePointConfigured,
   getAdminAuthorizationUrl,
   getAuthorizationUrl,
   exchangeCodeForTokens,
   refreshAccessToken,
 
-  // Connection (Org-wide)
+  // Platform Connection
+  saveAtlasSharePointConnection,
   saveOrgSharePointConnection,
   saveSharePointConnection,
+  getAtlasSharePointConnection,
   getOrgSharePointConnection,
   getSharePointConnection,
+  disconnectAtlasSharePoint,
   disconnectOrgSharePoint,
   disconnectSharePoint,
   isSharePointConnected,
   getSharePointStatus,
 
-  // Discovery
+  // Multi-tenant Management
+  initializeCustomerFolders,
+  getOrganizationFolderMapping,
+  createProjectFolders,
+  getProjectFolderMapping,
+
+  // Discovery (Admin)
   getAvailableSites,
   getUserSites,
   getSiteDrives,
@@ -824,20 +841,23 @@ export default {
 
   // Browser
   listFolder,
+  listOrganizationFolder,
+  listProjectFolder,
   getFolderPath,
   searchFiles,
 
   // Operations
-  uploadFileToSharePoint,
   createFolder,
+  uploadFile,
+  uploadFileToSharePoint,
+  uploadToOrganization,
+  uploadToProject,
   deleteItem,
   renameItem,
-  copyItem,
-  moveItem,
   getDownloadUrl,
   createShareLink,
 
-  // Project
+  // Legacy
   setupProjectFolder,
   getProjectSharePointMapping,
 

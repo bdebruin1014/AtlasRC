@@ -1,14 +1,14 @@
 -- Atlas Real Estate Development - SharePoint Integration Schema
 -- Created: 2026-01-20
--- Updated: Supports ORG-WIDE admin connection + per-user access
+-- Updated: Multi-Tenant SaaS Model - Atlas owns SharePoint, customers get folders
 
 -- ============================================================================
--- SHAREPOINT CONNECTIONS (Org-wide or per-user)
+-- SHAREPOINT PLATFORM CONNECTION (Atlas owns this)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS sharepoint_connections (
   id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  connection_type TEXT NOT NULL DEFAULT 'organization' CHECK (connection_type IN ('organization', 'user')),
+  connection_type TEXT NOT NULL DEFAULT 'platform' CHECK (connection_type IN ('platform', 'organization', 'user')),
   access_token TEXT,
   refresh_token TEXT,
   token_expires_at TIMESTAMPTZ,
@@ -23,18 +23,71 @@ CREATE TABLE IF NOT EXISTS sharepoint_connections (
 );
 
 -- Index for quick lookups
-CREATE INDEX IF NOT EXISTS idx_sharepoint_connections_user ON sharepoint_connections(user_id);
 CREATE INDEX IF NOT EXISTS idx_sharepoint_connections_type ON sharepoint_connections(connection_type);
 
 -- ============================================================================
--- PROJECT SHAREPOINT MAPPINGS
+-- ORGANIZATIONS (Customer tenants in the SaaS)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS organizations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE,
+  subscription_tier TEXT DEFAULT 'starter' CHECK (subscription_tier IN ('starter', 'professional', 'enterprise')),
+  subscription_status TEXT DEFAULT 'active' CHECK (subscription_status IN ('active', 'trial', 'suspended', 'cancelled')),
+  trial_ends_at TIMESTAMPTZ,
+  settings JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_status ON organizations(subscription_status);
+
+-- ============================================================================
+-- ORGANIZATION MEMBERS (Users belonging to organizations)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS organization_members (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
+  invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(organization_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+
+-- ============================================================================
+-- ORGANIZATION SHAREPOINT MAPPINGS (Each customer gets a folder)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS organization_sharepoint_mappings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  drive_id TEXT NOT NULL,
+  folder_id TEXT NOT NULL,
+  folder_name TEXT NOT NULL,
+  folder_path TEXT NOT NULL,
+  folder_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(organization_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_sharepoint_mappings_org ON organization_sharepoint_mappings(organization_id);
+
+-- ============================================================================
+-- PROJECT SHAREPOINT MAPPINGS (Projects within customer folders)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS project_sharepoint_mappings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   drive_id TEXT NOT NULL,
   folder_id TEXT NOT NULL,
   folder_name TEXT NOT NULL,
+  folder_path TEXT,
   folder_url TEXT,
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -42,14 +95,15 @@ CREATE TABLE IF NOT EXISTS project_sharepoint_mappings (
   UNIQUE(project_id)
 );
 
--- Index for quick lookups
 CREATE INDEX IF NOT EXISTS idx_project_sharepoint_mappings_project ON project_sharepoint_mappings(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_sharepoint_mappings_org ON project_sharepoint_mappings(organization_id);
 
 -- ============================================================================
 -- DOCUMENTS (Enhanced with SharePoint integration)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS documents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
   entity_type TEXT NOT NULL,
   entity_id UUID NOT NULL,
   name TEXT NOT NULL,
@@ -83,6 +137,7 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 -- Indexes for documents
+CREATE INDEX IF NOT EXISTS idx_documents_org ON documents(organization_id);
 CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
 CREATE INDEX IF NOT EXISTS idx_documents_sharepoint ON documents(sharepoint_item_id);
@@ -103,7 +158,6 @@ CREATE TABLE IF NOT EXISTS document_access_links (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for document links
 CREATE INDEX IF NOT EXISTS idx_document_access_links_document ON document_access_links(document_id);
 CREATE INDEX IF NOT EXISTS idx_document_access_links_expires ON document_access_links(expires_at);
 
@@ -112,6 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_document_access_links_expires ON document_access_
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS document_access_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
   entity_type TEXT,
   entity_id UUID,
@@ -123,17 +178,17 @@ CREATE TABLE IF NOT EXISTS document_access_log (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes for access log
+CREATE INDEX IF NOT EXISTS idx_document_access_log_org ON document_access_log(organization_id);
 CREATE INDEX IF NOT EXISTS idx_document_access_log_document ON document_access_log(document_id);
 CREATE INDEX IF NOT EXISTS idx_document_access_log_user ON document_access_log(user_id);
-CREATE INDEX IF NOT EXISTS idx_document_access_log_action ON document_access_log(action);
 CREATE INDEX IF NOT EXISTS idx_document_access_log_created ON document_access_log(created_at DESC);
 
 -- ============================================================================
--- DOCUMENT TEMPLATES LIBRARY
+-- DOCUMENT TEMPLATES LIBRARY (Platform-wide templates)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS document_templates_library (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
   category TEXT NOT NULL,
@@ -148,6 +203,7 @@ CREATE TABLE IF NOT EXISTS document_templates_library (
 
   tags JSONB DEFAULT '[]'::jsonb,
   is_active BOOLEAN DEFAULT true,
+  is_platform_template BOOLEAN DEFAULT false,
   usage_count INTEGER DEFAULT 0,
 
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -155,36 +211,75 @@ CREATE TABLE IF NOT EXISTS document_templates_library (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for templates
+CREATE INDEX IF NOT EXISTS idx_document_templates_org ON document_templates_library(organization_id);
 CREATE INDEX IF NOT EXISTS idx_document_templates_category ON document_templates_library(category);
 CREATE INDEX IF NOT EXISTS idx_document_templates_active ON document_templates_library(is_active);
+CREATE INDEX IF NOT EXISTS idx_document_templates_platform ON document_templates_library(is_platform_template);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================================
 
--- Enable RLS
 ALTER TABLE sharepoint_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_sharepoint_mappings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_sharepoint_mappings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_access_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_access_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_templates_library ENABLE ROW LEVEL SECURITY;
 
--- SharePoint connections: All authenticated users can read org-wide connection
--- Only the connected admin can modify org-wide connection
-CREATE POLICY "Users can view org-wide SharePoint connection"
-  ON sharepoint_connections FOR SELECT
-  TO authenticated
-  USING (connection_type = 'organization' OR user_id = auth.uid());
-
-CREATE POLICY "Admins can manage SharePoint connections"
+-- Platform SharePoint connection: Only platform admins
+CREATE POLICY "Platform admins can manage SharePoint connection"
   ON sharepoint_connections FOR ALL
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
--- Project mappings: Authenticated users can view, admins can modify
+-- Organizations: Members can view their org
+CREATE POLICY "Users can view their organization"
+  ON organizations FOR SELECT
+  TO authenticated
+  USING (
+    id IN (SELECT organization_id FROM organization_members WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can manage organizations"
+  ON organizations FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Organization members
+CREATE POLICY "Users can view org members"
+  ON organization_members FOR SELECT
+  TO authenticated
+  USING (
+    organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can manage org members"
+  ON organization_members FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Organization SharePoint mappings: Org members can view
+CREATE POLICY "Users can view their org SharePoint mapping"
+  ON organization_sharepoint_mappings FOR SELECT
+  TO authenticated
+  USING (
+    organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Admins can manage org SharePoint mappings"
+  ON organization_sharepoint_mappings FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- Project mappings: Based on organization
 CREATE POLICY "Users can view project SharePoint mappings"
   ON project_sharepoint_mappings FOR SELECT
   TO authenticated
@@ -196,11 +291,14 @@ CREATE POLICY "Admins can manage project SharePoint mappings"
   USING (true)
   WITH CHECK (true);
 
--- Documents: Authenticated users can access
-CREATE POLICY "Users can view documents"
+-- Documents: Based on organization
+CREATE POLICY "Users can view documents in their org"
   ON documents FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = auth.uid())
+    OR organization_id IS NULL
+  );
 
 CREATE POLICY "Users can manage documents"
   ON documents FOR ALL
@@ -223,7 +321,10 @@ CREATE POLICY "Users can create document links"
 CREATE POLICY "Users can view access log"
   ON document_access_log FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = auth.uid())
+    OR organization_id IS NULL
+  );
 
 CREATE POLICY "Users can insert access log"
   ON document_access_log FOR INSERT
@@ -234,7 +335,11 @@ CREATE POLICY "Users can insert access log"
 CREATE POLICY "Users can view document templates"
   ON document_templates_library FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    is_platform_template = true
+    OR organization_id IN (SELECT organization_id FROM organization_members WHERE user_id = auth.uid())
+    OR organization_id IS NULL
+  );
 
 CREATE POLICY "Admins can manage document templates"
   ON document_templates_library FOR ALL
@@ -247,6 +352,12 @@ CREATE POLICY "Admins can manage document templates"
 -- ============================================================================
 
 CREATE TRIGGER update_sharepoint_connections_updated_at BEFORE UPDATE ON sharepoint_connections
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_org_sharepoint_mappings_updated_at BEFORE UPDATE ON organization_sharepoint_mappings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_project_sharepoint_mappings_updated_at BEFORE UPDATE ON project_sharepoint_mappings
@@ -276,3 +387,20 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER increment_template_usage_on_document_create
   AFTER INSERT ON documents
   FOR EACH ROW EXECUTE FUNCTION increment_template_usage();
+
+-- ============================================================================
+-- FUNCTION: Auto-create customer folder on organization creation
+-- ============================================================================
+CREATE OR REPLACE FUNCTION notify_new_organization()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- This would trigger a webhook/edge function to create SharePoint folders
+  -- For now, just log it
+  RAISE NOTICE 'New organization created: % (%)', NEW.name, NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_organization_created
+  AFTER INSERT ON organizations
+  FOR EACH ROW EXECUTE FUNCTION notify_new_organization();
