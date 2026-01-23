@@ -127,17 +127,39 @@ After running the download script:
    cat profiles.json.error
    ```
 
-## Step 5: Create Database Schema (If Needed)
+## Step 5: Create Database Schema
 
-If your tables don't exist yet in Supabase:
+We have pre-built migration files in `supabase/migrations/`:
 
-### Using Supabase Dashboard
-1. Go to **Table Editor** in Supabase dashboard
-2. Create each table manually using the column information from downloaded data
-3. Set up relationships and foreign keys
-4. Configure Row Level Security (RLS) policies
+### Available Migrations
 
-### Using Supabase CLI (Recommended)
+1. **`20260120_init_atlas_schema.sql`** - Core tables:
+   - `entities` - Business entity hierarchy
+   - `opportunities` - Deal pipeline
+   - `projects` - Active developments
+   - `contacts` - CRM contacts
+   - `transactions` - Financial records
+
+2. **`20260120_extend_schema.sql`** - Extended tables:
+   - `profiles` - User profiles (extends auth.users)
+   - `accounts` - Chart of accounts
+   - `activity_logs` - Audit trail
+   - `opportunity_activities` - Notes, calls, tasks
+   - `opportunity_comparables` - Comp sales
+   - `opportunity_contracts` - Purchase agreements
+   - `opportunity_feasibility_items` - Due diligence checklist
+   - `opportunity_milestones` - Timeline tracking
+   - `vendors`, `bills`, `bill_line_items` - AP management
+   - `entity_members`, `capital_contributions`, `distributions` - Capital tracking
+   - `documents`, `document_access_log` - Document management
+
+### Option A: Using Supabase Dashboard (Manual)
+1. Go to **SQL Editor** in Supabase dashboard
+2. Copy contents of each migration file
+3. Execute in order (init first, then extend)
+4. Run `seed.sql` to populate sample data
+
+### Option B: Using Supabase CLI (Recommended)
 ```bash
 # Install Supabase CLI
 npm install -g supabase
@@ -148,12 +170,19 @@ supabase login
 # Link to your project
 supabase link --project-ref your-project-ref
 
-# Create migration files
-supabase migration new create_initial_schema
-
-# Edit the migration file in supabase/migrations/
-# Then push to Supabase
+# Push migrations to Supabase
 supabase db push
+
+# Optionally run seed data
+supabase db reset --seed-only
+```
+
+### Option C: Direct SQL Execution
+```bash
+# Using psql (requires DATABASE_URL)
+psql $DATABASE_URL -f supabase/migrations/20260120_init_atlas_schema.sql
+psql $DATABASE_URL -f supabase/migrations/20260120_extend_schema.sql
+psql $DATABASE_URL -f supabase/seed.sql
 ```
 
 ## Step 6: Test Connection

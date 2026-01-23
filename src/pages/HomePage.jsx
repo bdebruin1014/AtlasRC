@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, LayoutDashboard, Activity, ArrowRight, 
+import {
+  Plus, LayoutDashboard, Activity, ArrowRight,
   Building2, CheckSquare, DollarSign, Calendar,
   MoreHorizontal, Briefcase, Users, FileText,
-  TrendingUp, ChevronDown, Wallet, CreditCard
+  TrendingUp, ChevronDown, Wallet, CreditCard,
+  Target, AlertTriangle, Clock, PieChart,
+  ArrowUpRight, ArrowDownRight, FolderKanban
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -50,6 +52,33 @@ const RECENT_ACTIVITY = [
   { user: 'Sarah M.', action: 'uploaded document', target: 'Q3 Investor Report.pdf', time: 'Yesterday', icon: FileText, color: 'bg-blue-100 text-blue-700' },
   { user: 'Mike R.', action: 'created project', target: 'Riverside Commercial Phase 2', time: 'Yesterday', icon: Building2, color: 'bg-purple-100 text-purple-700' },
 ];
+
+const PIPELINE_DATA = [
+  { stage: 'Lead', count: 8, value: '$12.5M', color: 'bg-gray-400' },
+  { stage: 'Qualified', count: 5, value: '$8.2M', color: 'bg-blue-400' },
+  { stage: 'Due Diligence', count: 3, value: '$4.8M', color: 'bg-yellow-400' },
+  { stage: 'Under Contract', count: 2, value: '$3.1M', color: 'bg-orange-400' },
+  { stage: 'Closing', count: 1, value: '$1.5M', color: 'bg-emerald-500' },
+];
+
+const PROJECT_HEALTH = [
+  { name: 'Highland Park Townhomes', status: 'On Track', budget: 92, timeline: 88, color: 'text-emerald-600' },
+  { name: 'Riverside Commercial', status: 'At Risk', budget: 105, timeline: 72, color: 'text-amber-600' },
+  { name: 'Downtown Mixed Use', status: 'On Track', budget: 85, timeline: 95, color: 'text-emerald-600' },
+  { name: 'Oak Street Renovation', status: 'Delayed', budget: 78, timeline: 45, color: 'text-red-600' },
+];
+
+const FINANCIAL_SUMMARY = {
+  totalAssets: 45200000,
+  totalLiabilities: 28500000,
+  equity: 16700000,
+  ytdRevenue: 3850000,
+  ytdExpenses: 2940000,
+  netIncome: 910000,
+  cashOnHand: 2450000,
+  arReceivable: 485000,
+  apPayable: 312000,
+};
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -164,6 +193,149 @@ const HomePage = () => {
                   ))}
                </div>
 
+               {/* Pipeline Overview */}
+               <Card className="border-gray-200 shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                     <div>
+                        <CardTitle className="text-lg font-bold text-gray-900">Pipeline Overview</CardTitle>
+                        <CardDescription>Deal flow across acquisition stages</CardDescription>
+                     </div>
+                     <Button variant="outline" size="sm" onClick={() => navigate('/opportunities')}>
+                        View All <ArrowRight className="w-4 h-4 ml-1" />
+                     </Button>
+                  </CardHeader>
+                  <CardContent>
+                     <div className="flex items-end gap-1 h-32 mb-4">
+                        {PIPELINE_DATA.map((stage, i) => (
+                           <div key={i} className="flex-1 flex flex-col items-center">
+                              <div
+                                 className={cn("w-full rounded-t transition-all hover:opacity-80", stage.color)}
+                                 style={{ height: `${(stage.count / 8) * 100}%`, minHeight: '20px' }}
+                              />
+                           </div>
+                        ))}
+                     </div>
+                     <div className="grid grid-cols-5 gap-1 text-center">
+                        {PIPELINE_DATA.map((stage, i) => (
+                           <div key={i} className="space-y-1">
+                              <p className="text-xs font-medium text-gray-500 truncate">{stage.stage}</p>
+                              <p className="text-lg font-bold text-gray-900">{stage.count}</p>
+                              <p className="text-xs text-gray-400">{stage.value}</p>
+                           </div>
+                        ))}
+                     </div>
+                  </CardContent>
+               </Card>
+
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Financial Summary */}
+                  <Card className="border-gray-200 shadow-sm">
+                     <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                           <CardTitle className="text-lg font-bold text-gray-900">Financial Summary</CardTitle>
+                           <CardDescription>Consolidated overview</CardDescription>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => navigate('/accounting/dashboard')}>
+                           <ArrowRight className="w-4 h-4" />
+                        </Button>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                           <div className="p-3 bg-emerald-50 rounded-lg">
+                              <p className="text-xs text-emerald-600 font-medium">Cash on Hand</p>
+                              <p className="text-xl font-bold text-emerald-700">
+                                 ${(FINANCIAL_SUMMARY.cashOnHand / 1000000).toFixed(2)}M
+                              </p>
+                           </div>
+                           <div className="p-3 bg-blue-50 rounded-lg">
+                              <p className="text-xs text-blue-600 font-medium">Net Income YTD</p>
+                              <p className="text-xl font-bold text-blue-700 flex items-center gap-1">
+                                 ${(FINANCIAL_SUMMARY.netIncome / 1000).toFixed(0)}K
+                                 <ArrowUpRight className="w-4 h-4 text-emerald-500" />
+                              </p>
+                           </div>
+                        </div>
+                        <div className="space-y-2">
+                           <div className="flex justify-between text-sm">
+                              <span className="text-gray-500">A/R Outstanding</span>
+                              <span className="font-medium">${(FINANCIAL_SUMMARY.arReceivable / 1000).toFixed(0)}K</span>
+                           </div>
+                           <div className="flex justify-between text-sm">
+                              <span className="text-gray-500">A/P Due</span>
+                              <span className="font-medium">${(FINANCIAL_SUMMARY.apPayable / 1000).toFixed(0)}K</span>
+                           </div>
+                           <div className="flex justify-between text-sm border-t pt-2">
+                              <span className="text-gray-500">Total Equity</span>
+                              <span className="font-bold text-gray-900">${(FINANCIAL_SUMMARY.equity / 1000000).toFixed(1)}M</span>
+                           </div>
+                        </div>
+                     </CardContent>
+                  </Card>
+
+                  {/* Project Health */}
+                  <Card className="lg:col-span-2 border-gray-200 shadow-sm">
+                     <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                           <CardTitle className="text-lg font-bold text-gray-900">Project Health</CardTitle>
+                           <CardDescription>Budget and timeline status</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate('/projects')}>
+                           All Projects <ArrowRight className="w-4 h-4 ml-1" />
+                        </Button>
+                     </CardHeader>
+                     <CardContent>
+                        <div className="space-y-4">
+                           {PROJECT_HEALTH.map((project, i) => (
+                              <div key={i} className="p-3 border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all">
+                                 <div className="flex items-center justify-between mb-2">
+                                    <h4 className="text-sm font-semibold text-gray-900">{project.name}</h4>
+                                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full",
+                                       project.status === 'On Track' ? "bg-emerald-100 text-emerald-700" :
+                                       project.status === 'At Risk' ? "bg-amber-100 text-amber-700" :
+                                       "bg-red-100 text-red-700"
+                                    )}>{project.status}</span>
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                       <div className="flex items-center justify-between text-xs mb-1">
+                                          <span className="text-gray-500">Budget</span>
+                                          <span className={cn("font-medium", project.budget > 100 ? "text-red-600" : "text-gray-700")}>
+                                             {project.budget}%
+                                          </span>
+                                       </div>
+                                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                          <div
+                                             className={cn("h-full rounded-full",
+                                                project.budget > 100 ? "bg-red-500" : project.budget > 90 ? "bg-amber-500" : "bg-emerald-500"
+                                             )}
+                                             style={{ width: `${Math.min(project.budget, 100)}%` }}
+                                          />
+                                       </div>
+                                    </div>
+                                    <div>
+                                       <div className="flex items-center justify-between text-xs mb-1">
+                                          <span className="text-gray-500">Timeline</span>
+                                          <span className={cn("font-medium", project.timeline < 50 ? "text-red-600" : "text-gray-700")}>
+                                             {project.timeline}%
+                                          </span>
+                                       </div>
+                                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                          <div
+                                             className={cn("h-full rounded-full",
+                                                project.timeline < 50 ? "bg-red-500" : project.timeline < 75 ? "bg-amber-500" : "bg-emerald-500"
+                                             )}
+                                             style={{ width: `${project.timeline}%` }}
+                                          />
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     </CardContent>
+                  </Card>
+               </div>
+
                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Recent Activity */}
                   <Card className="lg:col-span-2 border-gray-200 shadow-sm">
@@ -185,7 +357,7 @@ const HomePage = () => {
                               </div>
                            ))}
                         </div>
-                        <Button variant="ghost" className="w-full mt-6 text-sm text-gray-500 hover:text-emerald-600">View All Activity</Button>
+                        <Button variant="ghost" className="w-full mt-6 text-sm text-gray-500 hover:text-emerald-600" onClick={() => navigate('/admin/activity-log')}>View All Activity</Button>
                      </CardContent>
                   </Card>
 
@@ -206,8 +378,8 @@ const HomePage = () => {
                                  <div className="flex justify-between items-start mb-1">
                                     <span className={cn(
                                        "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                                       task.priority === 'Urgent' ? "bg-red-100 text-red-700" : 
-                                       task.priority === 'High' ? "bg-orange-100 text-orange-700" : 
+                                       task.priority === 'Urgent' ? "bg-red-100 text-red-700" :
+                                       task.priority === 'High' ? "bg-orange-100 text-orange-700" :
                                        "bg-blue-100 text-blue-700"
                                     )}>{task.priority}</span>
                                     <span className="text-xs text-gray-400">{task.due}</span>
@@ -221,6 +393,36 @@ const HomePage = () => {
                      </CardContent>
                   </Card>
                </div>
+
+               {/* Quick Access Links */}
+               <Card className="border-gray-200 shadow-sm">
+                  <CardHeader>
+                     <CardTitle className="text-lg font-bold text-gray-900">Quick Access</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {[
+                           { label: 'New Opportunity', icon: FolderKanban, path: '/opportunities/new', color: 'bg-purple-100 text-purple-600' },
+                           { label: 'Add Contact', icon: Users, path: '/contacts/new', color: 'bg-blue-100 text-blue-600' },
+                           { label: 'New Entity', icon: Building2, path: '/entities/new', color: 'bg-emerald-100 text-emerald-600' },
+                           { label: 'Record Transaction', icon: DollarSign, path: '/accounting/transactions/new', color: 'bg-green-100 text-green-600' },
+                           { label: 'View Reports', icon: PieChart, path: '/reports/preset', color: 'bg-amber-100 text-amber-600' },
+                           { label: 'Team Settings', icon: Users, path: '/admin/team', color: 'bg-gray-100 text-gray-600' },
+                        ].map((item, i) => (
+                           <button
+                              key={i}
+                              onClick={() => navigate(item.path)}
+                              className="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all"
+                           >
+                              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", item.color)}>
+                                 <item.icon className="w-5 h-5" />
+                              </div>
+                              <span className="text-xs font-medium text-gray-700">{item.label}</span>
+                           </button>
+                        ))}
+                     </div>
+                  </CardContent>
+               </Card>
 
             </div>
          </div>

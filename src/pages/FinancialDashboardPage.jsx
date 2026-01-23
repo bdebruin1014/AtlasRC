@@ -1,16 +1,27 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowUpRight, ArrowDownLeft, DollarSign, Wallet, 
+import {
+  ArrowUpRight, ArrowDownLeft, DollarSign, Wallet,
   CreditCard, FileText, Plus, ArrowRight, Calendar,
   TrendingUp, AlertCircle, Building2, MoreHorizontal,
-  BarChart3, PieChart, Download
+  BarChart3, PieChart, Download, Loader2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -70,6 +81,56 @@ const FinancialDashboardPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [dateRange, setDateRange] = useState('this_month');
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    type: 'payment_out',
+    vendor: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    account: '',
+    reference: '',
+    memo: '',
+  });
+
+  const handleRecordPayment = async () => {
+    if (!paymentData.vendor || !paymentData.amount || !paymentData.account) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in vendor, amount, and account',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setPaymentSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: 'Payment Recorded',
+        description: `${paymentData.type === 'payment_out' ? 'Payment to' : 'Payment from'} ${paymentData.vendor} for ${formatCurrency(parseFloat(paymentData.amount))} has been recorded.`,
+      });
+      setPaymentDialogOpen(false);
+      setPaymentData({
+        type: 'payment_out',
+        vendor: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        account: '',
+        reference: '',
+        memo: '',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to record payment',
+        variant: 'destructive',
+      });
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
 
   // Helper to calculate bar height percentage
   const maxFlow = Math.max(...CASH_FLOW_DATA.map(d => Math.max(d.inflow, d.outflow))) * 1.1; // 10% buffer
@@ -211,7 +272,7 @@ const FinancialDashboardPage = () => {
                            <CardTitle className="text-base font-bold text-gray-900">Quick Actions</CardTitle>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-3">
-                           <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors" onClick={() => toast({ title: "Feature coming soon", description: "Payment recording interface" })}>
+                           <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors" onClick={() => setPaymentDialogOpen(true)}>
                               <CreditCard className="w-5 h-5" />
                               <span className="text-xs">Record Payment</span>
                            </Button>
@@ -350,6 +411,110 @@ const FinancialDashboardPage = () => {
             </div>
          </div>
       </div>
+
+      {/* Payment Recording Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>
+              Record an incoming or outgoing payment transaction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Payment Type</Label>
+              <Select
+                value={paymentData.type}
+                onValueChange={(value) => setPaymentData({ ...paymentData, type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="payment_out">Payment Out (Bill Payment)</SelectItem>
+                  <SelectItem value="payment_in">Payment In (Receipt)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{paymentData.type === 'payment_out' ? 'Pay To (Vendor)' : 'Received From'}</Label>
+                <Input
+                  placeholder="Enter name"
+                  value={paymentData.vendor}
+                  onChange={(e) => setPaymentData({ ...paymentData, vendor: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={paymentData.amount}
+                  onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={paymentData.date}
+                  onChange={(e) => setPaymentData({ ...paymentData, date: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Bank Account</Label>
+                <Select
+                  value={paymentData.account}
+                  onValueChange={(value) => setPaymentData({ ...paymentData, account: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="checking">Operating Checking</SelectItem>
+                    <SelectItem value="savings">Reserve Savings</SelectItem>
+                    <SelectItem value="money_market">Money Market</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Reference / Check Number</Label>
+              <Input
+                placeholder="Optional"
+                value={paymentData.reference}
+                onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Memo</Label>
+              <Textarea
+                placeholder="Add notes about this payment..."
+                value={paymentData.memo}
+                onChange={(e) => setPaymentData({ ...paymentData, memo: e.target.value })}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRecordPayment}
+              disabled={paymentSaving}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {paymentSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Record Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Home, Building2, FolderKanban, Users, Calendar, Settings, DollarSign, 
-  Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2, 
-  BarChart3, Target, TrendingUp, Clock,
+import {
+  Home, Building2, FolderKanban, Users, Calendar, Settings, DollarSign,
+  Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2,
+  BarChart3, Target, TrendingUp, Clock, BookOpen, Receipt, Plus,
   FileSignature, FolderOpen, Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,11 +27,22 @@ const TopNavigation = () => {
       ]
     },
     
-    { label: 'Contacts', path: '/contacts', icon: Users },
+    { label: 'Contacts', path: '/contacts/list', icon: Users },
     { label: 'Calendar', path: '/calendar', icon: Calendar },
     
-    // Single link to Accounting - goes to entity list
-    { label: 'Accounting', path: '/accounting', icon: DollarSign },
+    // Accounting Dropdown with main sections
+    {
+      label: 'Accounting',
+      icon: DollarSign,
+      dropdown: [
+        { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview' },
+        { label: 'Entities', path: '/entities/list', icon: Building2, description: 'Manage entities' },
+        { label: 'Chart of Accounts', path: '/accounting/chart-of-accounts', icon: BookOpen, description: 'Account structure' },
+        { label: 'Transactions', path: '', isHeader: true },
+        { label: 'All Transactions', path: '/accounting/transactions', icon: Receipt, description: 'View all transactions' },
+        { label: 'New Transaction', path: '/accounting/transactions/new', icon: Plus, description: 'Record a transaction' },
+      ]
+    },
 
     // Operations Dropdown (Streamlined)
     { 

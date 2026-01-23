@@ -7,6 +7,10 @@ const AuthContext = createContext({
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
+  sendMagicLink: async () => {},
+  sendPasswordResetEmail: async () => {},
+  updatePassword: async () => {},
+  isDemoMode: false,
 });
 
 export const useAuth = () => {
@@ -112,12 +116,57 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const sendMagicLink = async (email, redirectTo = `${window.location.origin}/dashboard`) => {
+    if (isDemoMode) {
+      // Demo mode - simulate magic link sent
+      return { success: true, message: 'Demo mode - no email sent' };
+    }
+
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const sendPasswordResetEmail = async (email, redirectTo = `${window.location.origin}/reset-password`) => {
+    if (isDemoMode) {
+      // Demo mode - simulate reset email sent
+      return { success: true, message: 'Demo mode - no email sent' };
+    }
+
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const updatePassword = async (newPassword) => {
+    if (isDemoMode) {
+      // Demo mode - simulate password update
+      return { success: true, message: 'Demo mode - password not updated' };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) throw error;
+    return data;
+  };
+
   const value = {
     user,
     loading,
     signIn,
     signUp,
     signOut,
+    sendMagicLink,
+    sendPasswordResetEmail,
+    updatePassword,
     isDemoMode,
   };
 
