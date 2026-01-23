@@ -1,90 +1,78 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, Search, Filter, LayoutGrid, List, Building2, MapPin, 
-  DollarSign, Calendar, ChevronRight, MoreVertical, Eye, Edit2, 
+import {
+  Plus, Search, Filter, LayoutGrid, List, Building2, MapPin,
+  DollarSign, Calendar, ChevronRight, MoreVertical, Eye, Edit2,
   Trash2, Copy, Archive
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useProjects, useProjectActions, useProjectSummary, PROJECT_STATUSES, PROJECT_TYPES } from '@/hooks/useProjects';
+import ProjectModal from '@/components/ProjectModal';
 
 const ProjectsPage = () => {
   const navigate = useNavigate();
+  const { projects: rawProjects, isLoading, error, refetch } = useProjects();
+  const { createProject, updateProject, deleteProject, isLoading: isSaving } = useProjectActions();
+  const summary = useProjectSummary(rawProjects);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
 
-  const projects = [
-    {
-      id: 'PRJ-001',
-      name: 'Watson House',
-      type: 'Multifamily',
-      units: 48,
-      status: 'construction',
-      location: 'Greenville, SC',
-      budgetSpent: 12500000,
-      budgetTotal: 18000000,
-      targetDate: 'Jun 29, 2025',
-      progress: 69,
-    },
-    {
-      id: 'PRJ-002',
-      name: 'Oslo Townhomes',
-      type: 'BTR',
-      units: 32,
-      status: 'pre development',
-      location: 'Spartanburg, SC',
-      budgetSpent: 2500000,
-      budgetTotal: 14000000,
-      targetDate: 'Dec 30, 2025',
-      progress: 18,
-    },
-    {
-      id: 'PRJ-003',
-      name: 'Cedar Mill Apartments',
-      type: 'Multifamily',
-      units: 72,
-      status: 'construction',
-      location: 'Greer, SC',
-      budgetSpent: 18500000,
-      budgetTotal: 22000000,
-      targetDate: 'Mar 14, 2025',
-      progress: 84,
-    },
-    {
-      id: 'PRJ-004',
-      name: 'Riverside Lots',
-      type: 'Land Development',
-      units: 24,
-      status: 'entitlements',
-      location: 'Simpsonville, SC',
-      budgetSpent: 850000,
-      budgetTotal: 4200000,
-      targetDate: 'Aug 15, 2025',
-      progress: 20,
-    },
-    {
-      id: 'PRJ-005',
-      name: 'Maple Street Flip',
-      type: 'Fix & Flip',
-      units: 1,
-      status: 'construction',
-      location: 'Greenville, SC',
-      budgetSpent: 185000,
-      budgetTotal: 245000,
-      targetDate: 'Feb 28, 2025',
-      progress: 75,
-    },
-  ];
+  // Transform projects to display format
+  const projects = rawProjects.map(p => ({
+    id: p.id,
+    name: p.name,
+    type: PROJECT_TYPES.find(t => t.key === p.project_type)?.label || p.project_type || 'Unknown',
+    status: p.status,
+    location: p.address || 'No address',
+    budgetSpent: 0, // TODO: Calculate from transactions
+    budgetTotal: parseFloat(p.budget) || 0,
+    targetDate: p.target_completion_date ? new Date(p.target_completion_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD',
+    progress: 0, // TODO: Calculate progress
+    entity: p.entity?.name,
+    raw: p,
+  }));
+
+  const handleCreate = () => {
+    setEditingProject(null);
+    setModalOpen(true);
+  };
+
+  const handleEdit = (project) => {
+    setEditingProject(project.raw);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      await deleteProject(id);
+      refetch();
+    }
+  };
+
+  const handleSave = async (data) => {
+    if (editingProject) {
+      await updateProject(editingProject.id, data);
+    } else {
+      await createProject(data);
+    }
+    setModalOpen(false);
+    refetch();
+  };
 
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'construction': return 'bg-emerald-100 text-emerald-700';
-      case 'pre development': return 'bg-blue-100 text-blue-700';
-      case 'entitlements': return 'bg-amber-100 text-amber-700';
-      case 'completed': return 'bg-gray-100 text-gray-700';
-      case 'on hold': return 'bg-red-100 text-red-700';
+    switch (status?.toLowerCase()) {
+      case 'active': return 'bg-emerald-100 text-emerald-700';
+      case 'completed': return 'bg-blue-100 text-blue-700';
+      case 'on-hold': return 'bg-amber-100 text-amber-700';
+      case 'cancelled': return 'bg-red-100 text-red-700';
       default: return 'bg-gray-100 text-gray-600';
     }
   };
@@ -95,11 +83,32 @@ const ProjectsPage = () => {
     return `$${val}`;
   };
 
-  const filteredProjects = projects.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProjects = projects.filter(p => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+    const matchesType = typeFilter === 'all' || p.raw?.project_type === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">Loading projects...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-red-500">Error: {error}</div>
+        <Button onClick={refetch} className="mt-4">Retry</Button>
+      </div>
+    );
+  }
 
   const ProjectCard = ({ project }) => (
     <div 
@@ -211,9 +220,9 @@ const ProjectsPage = () => {
           <h1 className="text-2xl font-bold">Projects</h1>
           <p className="text-sm text-gray-500">{filteredProjects.length} active projects</p>
         </div>
-        <Button 
+        <Button
           className="bg-[#047857] hover:bg-[#065f46]"
-          onClick={() => navigate('/projects/new')}
+          onClick={handleCreate}
         >
           <Plus className="w-4 h-4 mr-2" />New Project
         </Button>
@@ -265,45 +274,40 @@ const ProjectsPage = () => {
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Status</label>
-              <select className="w-full border rounded-md px-3 py-2 text-sm">
-                <option>All Statuses</option>
-                <option>Construction</option>
-                <option>Pre Development</option>
-                <option>Entitlements</option>
-                <option>Completed</option>
-                <option>On Hold</option>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                {PROJECT_STATUSES.map(s => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
               </select>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Type</label>
-              <select className="w-full border rounded-md px-3 py-2 text-sm">
-                <option>All Types</option>
-                <option>Multifamily</option>
-                <option>BTR</option>
-                <option>Land Development</option>
-                <option>Fix & Flip</option>
-                <option>New Construction</option>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="all">All Types</option>
+                {PROJECT_TYPES.map(t => (
+                  <option key={t.key} value={t.key}>{t.label}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Location</label>
-              <select className="w-full border rounded-md px-3 py-2 text-sm">
-                <option>All Locations</option>
-                <option>Greenville, SC</option>
-                <option>Spartanburg, SC</option>
-                <option>Greer, SC</option>
-                <option>Simpsonville, SC</option>
-              </select>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Summary</label>
+              <div className="text-sm text-gray-600 mt-2">
+                {summary.total} projects • ${(summary.totalBudget / 1000000).toFixed(1)}M budget
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Budget Range</label>
-              <select className="w-full border rounded-md px-3 py-2 text-sm">
-                <option>All Budgets</option>
-                <option>Under $1M</option>
-                <option>$1M - $5M</option>
-                <option>$5M - $15M</option>
-                <option>Over $15M</option>
-              </select>
+            <div className="flex items-end">
+              <Button variant="outline" size="sm" onClick={() => { setStatusFilter('all'); setTypeFilter('all'); }}>
+                Clear Filters
+              </Button>
             </div>
           </div>
         </div>
@@ -350,11 +354,20 @@ const ProjectsPage = () => {
           <Building2 className="w-12 h-12 mx-auto text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-1">No projects found</h3>
           <p className="text-sm text-gray-500 mb-4">Try adjusting your search or filter criteria</p>
-          <Button className="bg-[#047857] hover:bg-[#065f46]">
+          <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleCreate}>
             <Plus className="w-4 h-4 mr-2" />Create New Project
           </Button>
         </div>
       )}
+
+      {/* Project Modal */}
+      <ProjectModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        project={editingProject}
+        onSave={handleSave}
+        isLoading={isSaving}
+      />
     </div>
   );
 };

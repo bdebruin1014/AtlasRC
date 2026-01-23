@@ -1,23 +1,23 @@
 // src/components/documents/DocumentLibrary.jsx
-// Embeddable document library component for any entity
+// Document library with folder grouping and SharePoint container integration
 
-import React, { useState, useEffect } from 'react';
-import { 
-  FolderOpen, File, FileText, FileImage, FileSpreadsheet, FileVideo,
-  Upload, Download, Edit, Trash2, MoreVertical, Search, Filter,
-  Grid, List, ExternalLink, Clock, Eye, Plus, FolderPlus, RefreshCw,
-  ChevronRight, ChevronDown, Loader2, AlertCircle, Check
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  FolderOpen, Folder, File, FileText, FileImage, FileSpreadsheet, FileVideo,
+  Upload, Download, Edit, Trash2, Search, Eye, RefreshCw, Scan,
+  ChevronRight, ChevronDown, Loader2, Plus, FileSignature, HelpCircle,
+  MoreHorizontal, ExternalLink, Copy, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import DocumentUploadModal from './DocumentUploadModal';
 import DocumentViewerModal from './DocumentViewerModal';
-import { 
-  getDocumentsForEntity, 
-  deleteFile, 
+import {
+  getDocumentsForEntity,
+  deleteFile,
   getEditLink,
   getViewLink,
-  getDocumentStats 
+  getDocumentStats
 } from '@/services/documentService';
 
 // File type icons mapping
@@ -35,15 +35,19 @@ const FILE_ICONS = {
   default: File
 };
 
-const CATEGORIES = [
-  { id: 'all', label: 'All Documents', icon: FolderOpen },
-  { id: 'Contracts', label: 'Contracts', icon: FileText },
-  { id: 'Legal', label: 'Legal', icon: FileText },
-  { id: 'Financial', label: 'Financial', icon: FileSpreadsheet },
-  { id: 'Correspondence', label: 'Correspondence', icon: FileText },
-  { id: 'Photos', label: 'Photos', icon: FileImage },
-  { id: 'Reports', label: 'Reports', icon: FileText },
-  { id: 'Miscellaneous', label: 'Miscellaneous', icon: File },
+// Default document packages/folders for real estate
+const DEFAULT_PACKAGES = [
+  { id: 'all', name: 'All Documents', icon: FolderOpen },
+  { id: 'title-docs', name: 'Title Documents', icon: Folder },
+  { id: 'closing-purchaser', name: 'Closing - Purchaser', icon: Folder },
+  { id: 'closing-seller', name: 'Closing - Seller', icon: Folder },
+  { id: 'contracts', name: 'Contracts and Addendums', icon: Folder },
+  { id: 'lender-docs', name: 'Lender Documents', icon: Folder },
+  { id: 'invoices', name: 'Invoices and Payoffs', icon: Folder },
+  { id: 'correspondence', name: 'Correspondence', icon: Folder },
+  { id: 'photos', name: 'Photos', icon: Folder },
+  { id: 'reports', name: 'Reports', icon: Folder },
+  { id: 'miscellaneous', name: 'Miscellaneous', icon: Folder },
 ];
 
 const DocumentLibrary = ({
@@ -51,22 +55,23 @@ const DocumentLibrary = ({
   entityId,
   entityName,
   showHeader = true,
-  showCategories = true,
   showUpload = true,
-  compact = false,
-  maxHeight = null,
   onDocumentSelect = null,
 }) => {
   const [documents, setDocuments] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
+  const [packageSearch, setPackageSearch] = useState('');
+  const [selectedPackage, setSelectedPackage] = useState('all');
+  const [groupBy, setGroupBy] = useState('Package');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
-  const [expandedCategories, setExpandedCategories] = useState(['all']);
+  const [expandedFolders, setExpandedFolders] = useState(['all']);
+  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [sortBy, setSortBy] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
 
   useEffect(() => {
     loadDocuments();
@@ -87,42 +92,66 @@ const DocumentLibrary = ({
     if (data) setStats(data);
   };
 
-  const filteredDocuments = documents.filter(doc => {
-    // Category filter
-    if (category !== 'all' && doc.category !== category) return false;
-    
+  // Filter packages by search
+  const filteredPackages = useMemo(() => {
+    if (!packageSearch) return DEFAULT_PACKAGES;
+    return DEFAULT_PACKAGES.filter(p =>
+      p.name.toLowerCase().includes(packageSearch.toLowerCase())
+    );
+  }, [packageSearch]);
+
+  // Get document count per package
+  const getPackageCount = (packageId) => {
+    if (packageId === 'all') return documents.length;
+    return documents.filter(d => d.package === packageId || d.category === packageId).length;
+  };
+
+  // Filter and sort documents
+  const filteredDocuments = useMemo(() => {
+    let filtered = documents;
+
+    // Package filter
+    if (selectedPackage !== 'all') {
+      filtered = filtered.filter(d =>
+        d.package === selectedPackage || d.category === selectedPackage
+      );
+    }
+
     // Search filter
     if (search) {
       const searchLower = search.toLowerCase();
-      return (
-        doc.name?.toLowerCase().includes(searchLower) ||
-        doc.description?.toLowerCase().includes(searchLower) ||
-        doc.tags?.some(t => t.toLowerCase().includes(searchLower))
+      filtered = filtered.filter(d =>
+        d.name?.toLowerCase().includes(searchLower) ||
+        d.description?.toLowerCase().includes(searchLower)
       );
     }
-    
-    return true;
-  });
+
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      let aVal = a[sortBy] || '';
+      let bVal = b[sortBy] || '';
+      if (sortBy === 'updated_at' || sortBy === 'created_at') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+      if (sortDir === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      }
+      return aVal < bVal ? 1 : -1;
+    });
+
+    return filtered;
+  }, [documents, selectedPackage, search, sortBy, sortDir]);
 
   const handleDelete = async (docId, e) => {
     e?.stopPropagation();
     if (!confirm('Are you sure you want to delete this document?')) return;
-    
+
     setActionLoading(docId);
     const { success } = await deleteFile(docId);
     if (success) {
       setDocuments(docs => docs.filter(d => d.id !== docId));
       loadStats();
-    }
-    setActionLoading(null);
-  };
-
-  const handleOpenEdit = async (doc, e) => {
-    e?.stopPropagation();
-    setActionLoading(doc.id);
-    const { url } = await getEditLink(doc.id);
-    if (url) {
-      window.open(url, '_blank');
     }
     setActionLoading(null);
   };
@@ -141,270 +170,319 @@ const DocumentLibrary = ({
     if (onDocumentSelect) {
       onDocumentSelect(doc);
     } else {
-      setSelectedDocument(doc);
+      handleOpenView(doc);
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (!bytes) return '—';
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  const toggleFolder = (folderId) => {
+    setExpandedFolders(prev =>
+      prev.includes(folderId)
+        ? prev.filter(f => f !== folderId)
+        : [...prev, folderId]
+    );
   };
 
-  const getFileIcon = (fileType) => {
-    return FILE_ICONS[fileType] || FILE_ICONS.default;
+  const toggleDocSelection = (docId) => {
+    setSelectedDocs(prev =>
+      prev.includes(docId)
+        ? prev.filter(d => d !== docId)
+        : [...prev, docId]
+    );
   };
 
-  const getCategoryCount = (cat) => {
-    if (cat === 'all') return documents.length;
-    return documents.filter(d => d.category === cat).length;
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    // If same year, show month day format
+    if (date.getFullYear() === now.getFullYear()) {
+      return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${time}`;
+    }
+    return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${time}`;
+  };
+
+  const getFileIcon = (doc) => {
+    const Icon = FILE_ICONS[doc.file_type] || FILE_ICONS.default;
+    return Icon;
   };
 
   return (
-    <div className={cn("flex flex-col", maxHeight && `max-h-[${maxHeight}]`)}>
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      {showHeader && (
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Documents</h3>
-            {stats && (
-              <p className="text-sm text-gray-500">
-                {stats.total} files • {formatFileSize(stats.totalSize)}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadDocuments}>
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-            {showUpload && (
-              <Button 
-                size="sm"
-                onClick={() => setShowUploadModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload
-              </Button>
-            )}
-          </div>
+      <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center gap-3">
+          <FileText className="w-6 h-6 text-gray-600" />
+          <h2 className="text-xl font-semibold text-gray-900">Documents</h2>
         </div>
-      )}
-
-      {/* Search & Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search documents..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-        
-        <div className="flex items-center border rounded-lg">
-          <button
-            onClick={() => setViewMode('list')}
-            className={cn(
-              "p-2 transition-colors",
-              viewMode === 'list' ? "bg-gray-100" : "hover:bg-gray-50"
-            )}
-          >
-            <List className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={cn(
-              "p-2 transition-colors",
-              viewMode === 'grid' ? "bg-gray-100" : "hover:bg-gray-50"
-            )}
-          >
-            <Grid className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search..."
+              className="pl-9 pr-4 py-1.5 border rounded text-sm w-48 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+          <Button variant="outline" size="sm" onClick={loadDocuments}>
+            <RefreshCw className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
+      {/* Breadcrumb */}
+      <div className="px-6 py-2 border-b bg-gray-50">
+        <div className="flex items-center gap-2 text-sm">
+          <Folder className="w-4 h-4 text-gray-500" />
+          <span className="text-gray-600">All Documents</span>
+          {selectedPackage !== 'all' && (
+            <>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <span className="text-gray-900 font-medium">
+                {DEFAULT_PACKAGES.find(p => p.id === selectedPackage)?.name}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center gap-2 px-6 py-3 border-b">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => {/* Generate contract */}}
+        >
+          <FileSignature className="w-4 h-4" />
+          Generate
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => {/* Scan document */}}
+        >
+          <Scan className="w-4 h-4" />
+          Scan
+        </Button>
+        {showUpload && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={() => setShowUploadModal(true)}
+          >
+            <Upload className="w-4 h-4" />
+            Upload
+          </Button>
+        )}
+      </div>
+
       {/* Main Content */}
-      <div className="flex flex-1 gap-4 min-h-0">
-        {/* Category Sidebar */}
-        {showCategories && (
-          <div className="w-48 flex-shrink-0 border-r pr-4">
-            <div className="space-y-1">
-              {CATEGORIES.map(cat => {
-                const count = getCategoryCount(cat.id);
-                const Icon = cat.icon;
-                
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setCategory(cat.id)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors",
-                      category === cat.id 
-                        ? "bg-emerald-100 text-emerald-700" 
-                        : "hover:bg-gray-100"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4" />
-                      <span>{cat.label}</span>
-                    </div>
-                    <span className={cn(
-                      "text-xs px-1.5 py-0.5 rounded",
-                      category === cat.id ? "bg-emerald-200" : "bg-gray-100"
-                    )}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+      <div className="flex flex-1 min-h-0">
+        {/* Left Sidebar - Package/Folder Tree */}
+        <div className="w-64 border-r flex flex-col bg-gray-50">
+          {/* Grouping Dropdown */}
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+              <span>Grouping documents by</span>
+              <select
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value)}
+                className="font-medium text-gray-900 bg-transparent border-none focus:ring-0 cursor-pointer"
+              >
+                <option value="Package">Package</option>
+                <option value="Category">Category</option>
+                <option value="Date">Date</option>
+              </select>
+              <HelpCircle className="w-4 h-4 text-gray-400" />
+            </div>
+
+            {/* Package Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={packageSearch}
+                onChange={(e) => setPackageSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full pl-9 pr-3 py-2 border rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
             </div>
           </div>
-        )}
 
-        {/* Document List/Grid */}
-        <div className="flex-1 overflow-auto">
+          {/* Folder Tree */}
+          <div className="flex-1 overflow-y-auto p-2">
+            {filteredPackages.map(pkg => {
+              const Icon = pkg.icon;
+              const count = getPackageCount(pkg.id);
+              const isSelected = selectedPackage === pkg.id;
+              const isExpanded = expandedFolders.includes(pkg.id);
+
+              return (
+                <div key={pkg.id}>
+                  <button
+                    onClick={() => {
+                      setSelectedPackage(pkg.id);
+                      if (pkg.id !== 'all') {
+                        toggleFolder(pkg.id);
+                      }
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors",
+                      isSelected
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "hover:bg-gray-100 text-gray-700"
+                    )}
+                  >
+                    {pkg.id !== 'all' && (
+                      <ChevronRight
+                        className={cn(
+                          "w-4 h-4 text-gray-400 transition-transform",
+                          isExpanded && "rotate-90"
+                        )}
+                      />
+                    )}
+                    <Icon className={cn(
+                      "w-4 h-4",
+                      isSelected ? "text-emerald-600" : "text-amber-500"
+                    )} />
+                    <span className="flex-1 text-left truncate">{pkg.name}</span>
+                    {count > 0 && (
+                      <span className="text-xs text-gray-500">{count}</span>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Document List */}
+        <div className="flex-1 flex flex-col min-w-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center flex-1">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
           ) : filteredDocuments.length === 0 ? (
-            <div className="text-center py-12">
-              <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No documents found</p>
+            <div className="flex flex-col items-center justify-center flex-1 text-gray-500">
+              <FolderOpen className="w-16 h-16 text-gray-300 mb-4" />
+              <p className="text-lg font-medium">No documents found</p>
+              <p className="text-sm text-gray-400 mt-1">Upload documents to get started</p>
               {showUpload && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3"
+                <Button
+                  className="mt-4 bg-emerald-600 hover:bg-emerald-700"
                   onClick={() => setShowUploadModal(true)}
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  Upload First Document
+                  Upload Document
                 </Button>
               )}
             </div>
-          ) : viewMode === 'list' ? (
-            <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Category</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Size</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-28">Modified</th>
-                  <th className="w-24"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredDocuments.map(doc => {
-                  const FileIcon = getFileIcon(doc.file_type);
-                  
-                  return (
-                    <tr 
-                      key={doc.id}
-                      onClick={() => handleDocumentClick(doc)}
-                      className="hover:bg-gray-50 cursor-pointer"
-                    >
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                            <FileIcon className="w-4 h-4 text-gray-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium truncate max-w-[300px]">{doc.name}</p>
-                            {doc.description && (
-                              <p className="text-xs text-gray-500 truncate max-w-[300px]">{doc.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="text-xs px-2 py-1 bg-gray-100 rounded">{doc.category}</span>
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-500">
-                        {formatFileSize(doc.file_size)}
-                      </td>
-                      <td className="px-3 py-2 text-sm text-gray-500">
-                        {new Date(doc.updated_at || doc.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1 justify-end">
-                          <button
-                            onClick={(e) => handleOpenView(doc, e)}
-                            className="p-1.5 hover:bg-gray-100 rounded"
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4 text-gray-500" />
-                          </button>
-                          <button
-                            onClick={(e) => handleOpenEdit(doc, e)}
-                            className="p-1.5 hover:bg-gray-100 rounded"
-                            title="Edit in SharePoint"
-                            disabled={actionLoading === doc.id}
-                          >
-                            {actionLoading === doc.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Edit className="w-4 h-4 text-gray-500" />
-                            )}
-                          </button>
-                          <button
-                            onClick={(e) => handleDelete(doc.id, e)}
-                            className="p-1.5 hover:bg-red-50 rounded"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           ) : (
-            // Grid View
-            <div className="grid grid-cols-4 gap-4">
-              {filteredDocuments.map(doc => {
-                const FileIcon = getFileIcon(doc.file_type);
-                
-                return (
-                  <div
-                    key={doc.id}
-                    onClick={() => handleDocumentClick(doc)}
-                    className="border rounded-lg p-4 hover:border-emerald-500 hover:shadow-sm cursor-pointer transition-all"
-                  >
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                      <FileIcon className="w-6 h-6 text-gray-500" />
-                    </div>
-                    <p className="text-sm font-medium text-center truncate">{doc.name}</p>
-                    <p className="text-xs text-gray-500 text-center mt-1">{formatFileSize(doc.file_size)}</p>
-                    <div className="flex justify-center gap-1 mt-3" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={(e) => handleOpenView(doc, e)}
-                        className="p-1.5 hover:bg-gray-100 rounded"
+            <div className="flex-1 overflow-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr className="border-b">
+                    <th
+                      className="text-left px-4 py-3 text-xs font-medium text-emerald-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        NAME
+                        {sortBy === 'name' && (
+                          <span className="text-gray-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                      TYPE
+                    </th>
+                    <th
+                      className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-48 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('updated_at')}
+                    >
+                      <div className="flex items-center gap-1">
+                        MODIFIED
+                        {sortBy === 'updated_at' && (
+                          <span className="text-gray-400">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedDocs.length === filteredDocuments.length && filteredDocuments.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedDocs(filteredDocuments.map(d => d.id));
+                          } else {
+                            setSelectedDocs([]);
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredDocuments.map(doc => {
+                    const FileIcon = getFileIcon(doc);
+                    const isSelected = selectedDocs.includes(doc.id);
+
+                    return (
+                      <tr
+                        key={doc.id}
+                        className={cn(
+                          "hover:bg-gray-50 transition-colors",
+                          isSelected && "bg-emerald-50"
+                        )}
                       >
-                        <Eye className="w-4 h-4 text-gray-500" />
-                      </button>
-                      <button
-                        onClick={(e) => handleOpenEdit(doc, e)}
-                        className="p-1.5 hover:bg-gray-100 rounded"
-                      >
-                        <Edit className="w-4 h-4 text-gray-500" />
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(doc.id, e)}
-                        className="p-1.5 hover:bg-red-50 rounded"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                        <td className="px-4 py-3">
+                          <div
+                            className="flex items-center gap-3 cursor-pointer"
+                            onClick={() => handleDocumentClick(doc)}
+                          >
+                            <div className="w-5 h-5 flex items-center justify-center">
+                              <Folder className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <span className="text-emerald-600 hover:underline text-sm font-medium">
+                              {doc.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {doc.file_type?.split('/').pop()?.toUpperCase() || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {formatDate(doc.updated_at || doc.created_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleDocSelection(doc.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

@@ -1,11 +1,16 @@
-// AtlasDev - Create Project Modal with Budget Type Selection
-import React, { useState } from 'react';
-import { X, Building2, MapPin, Calendar, DollarSign, FileText, ChevronRight, Check } from 'lucide-react';
+// AtlasDev - Create Project Modal with Budget Type and Template Selection
+import React, { useState, useEffect } from 'react';
+import { X, Building2, MapPin, Calendar, DollarSign, FileText, ChevronRight, Check, Layers, FolderTree, CheckSquare, Users, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
+import { useAuth } from '@/contexts/AuthContext';
+import { getOrganizationTemplates, PROJECT_TYPES } from '@/services/projectTemplateService';
 
 const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
+  const { organization } = useAuth();
   const [step, setStep] = useState(1);
+  const [templates, setTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [formData, setFormData] = useState({
     // Basic Info
     projectName: '',
@@ -21,9 +26,10 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
     parcelId: '',
     acres: '',
     zoning: '',
-    // Project Type & Budget
+    // Project Type & Budget & Template
     projectType: '',
     budgetType: '',
+    templateId: '',
     // Units/Size
     units: 1,
     sqft: '',
@@ -31,6 +37,25 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
     startDate: '',
     targetCompletion: '',
   });
+
+  // Load templates when modal opens
+  useEffect(() => {
+    if (isOpen && organization?.id) {
+      loadTemplates();
+    }
+  }, [isOpen, organization]);
+
+  const loadTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const { data } = await getOrganizationTemplates(organization.id);
+      setTemplates(data || []);
+    } catch (err) {
+      console.error('Error loading templates:', err);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
 
   const projectTypes = [
     { id: 'spec-home', label: 'Spec Home', description: 'Single home build for sale', budgetType: 'spec-home' },
@@ -43,10 +68,14 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
   ];
 
   const handleProjectTypeSelect = (type) => {
+    // Find default template for this project type
+    const defaultTemplate = templates.find(t => t.project_type === type.id && t.is_default);
+
     setFormData(prev => ({
       ...prev,
       projectType: type.id,
       budgetType: type.budgetType,
+      templateId: defaultTemplate?.id || '',
     }));
   };
 
@@ -56,6 +85,18 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
       budgetType: budgetTypeId,
     }));
   };
+
+  const handleTemplateSelect = (templateId) => {
+    setFormData(prev => ({
+      ...prev,
+      templateId: templateId,
+    }));
+  };
+
+  // Get templates matching the selected project type
+  const filteredTemplates = templates.filter(t =>
+    !formData.projectType || t.project_type === formData.projectType
+  );
 
   const handleSubmit = () => {
     onSubmit(formData);
@@ -124,9 +165,85 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
 
               {formData.projectType && (
                 <>
+                  {/* Project Template Selection */}
+                  {filteredTemplates.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Project Template</h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Templates pre-configure folders, phases, tasks, budget items, and team roles for your project.
+                      </p>
+                      {loadingTemplates ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
+                          <button
+                            onClick={() => handleTemplateSelect('')}
+                            className={`p-4 border-2 rounded-lg text-left transition-all ${
+                              !formData.templateId
+                                ? 'border-[#047857] bg-emerald-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="font-medium text-gray-900">No Template</div>
+                            <div className="text-sm text-gray-500">Start with a blank project</div>
+                          </button>
+                          {filteredTemplates.map(template => {
+                            const typeInfo = Object.values(PROJECT_TYPES).find(t => t.id === template.project_type);
+                            return (
+                              <button
+                                key={template.id}
+                                onClick={() => handleTemplateSelect(template.id)}
+                                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                                  formData.templateId === template.id
+                                    ? 'border-[#047857] bg-emerald-50'
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-xl">
+                                    {typeInfo?.icon || '📁'}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-900">{template.name}</span>
+                                      {template.is_default && (
+                                        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Default</span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-500">{template.description}</div>
+                                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                                      <span className="flex items-center gap-1">
+                                        <FolderTree className="w-3 h-3" />
+                                        Folders
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Layers className="w-3 h-3" />
+                                        Phases
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <CheckSquare className="w-3 h-3" />
+                                        Tasks
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Users className="w-3 h-3" />
+                                        Team
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Budget Template</h3>
                   <p className="text-sm text-gray-500 mb-4">
-                    Based on your project type, we recommend the <strong>{budgetTypes.find(b => b.id === formData.budgetType)?.name}</strong> budget. 
+                    Based on your project type, we recommend the <strong>{budgetTypes.find(b => b.id === formData.budgetType)?.name}</strong> budget.
                     You can also choose a different template:
                   </p>
                   <div className="grid grid-cols-2 gap-3">
@@ -135,8 +252,8 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
                         key={bt.id}
                         onClick={() => handleBudgetTypeSelect(bt.id)}
                         className={`p-4 border-2 rounded-lg text-left transition-all ${
-                          formData.budgetType === bt.id 
-                            ? 'border-[#047857] bg-emerald-50' 
+                          formData.budgetType === bt.id
+                            ? 'border-[#047857] bg-emerald-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -336,7 +453,13 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
 
         {/* Footer */}
         <div className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
-          <div>
+          <div className="space-y-1">
+            {formData.templateId && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Project Template:</span>
+                <span className="font-medium text-[#047857]">{templates.find(t => t.id === formData.templateId)?.name}</span>
+              </div>
+            )}
             {formData.budgetType && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span>Budget Template:</span>

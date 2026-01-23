@@ -8,6 +8,7 @@ import { PermissionProvider } from '@/contexts/PermissionContext';
 import { TransactionEntryProvider } from '@/contexts/TransactionEntryContext';
 import TopNavigation from '@/components/TopNavigation';
 import LoadingState from '@/components/LoadingState';
+import { ChatButton } from '@/components/chat';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 
@@ -19,6 +20,8 @@ const LoginPage = lazy(() => import('@/pages/Auth/Login'));
 const SignUpPage = lazy(() => import('@/pages/SignUpPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/Auth/ForgotPassword'));
 const ResetPasswordPage = lazy(() => import('@/pages/Auth/ResetPassword'));
+const SharePointCallback = lazy(() => import('@/pages/auth/SharePointCallback'));
+const OutlookCallback = lazy(() => import('@/pages/auth/OutlookCallback'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
@@ -90,6 +93,7 @@ const MilestoneTemplatesPage = lazy(() => import('@/pages/admin/MilestoneTemplat
 const AdminProjectTemplatesPage = lazy(() => import('@/pages/admin/ProjectTemplatesPage'));
 const COATemplatesPage = lazy(() => import('@/pages/admin/COATemplatesPage'));
 const UsersManagementPage = lazy(() => import('@/pages/admin/UsersManagementPage'));
+const IntegrationsPage = lazy(() => import('@/pages/admin/IntegrationsPage'));
 
 // New Admin Pages (TypeScript)
 const AdminSettingsPage = lazy(() => import('@/pages/Admin/Settings'));
@@ -187,12 +191,16 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-const AppLayout = ({ children }) => (
-  <div className="min-h-screen bg-gray-50 flex flex-col">
-    <TopNavigation />
-    <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
-  </div>
-);
+const AppLayout = ({ children }) => {
+  const { user } = useAuth();
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <TopNavigation />
+      <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
+      <ChatButton currentUser={user} />
+    </div>
+  );
+};
 
 const AdminLayout = ({ children }) => (
   <div className="flex h-[calc(100vh-40px)]">
@@ -223,6 +231,10 @@ const AppContent = () => (
     <Route path="/signup" element={<Suspense fallback={<LoadingState />}><SignUpPage /></Suspense>} />
     <Route path="/forgot-password" element={<Suspense fallback={<LoadingState />}><ForgotPasswordPage /></Suspense>} />
     <Route path="/reset-password" element={<Suspense fallback={<LoadingState />}><ResetPasswordPage /></Suspense>} />
+
+    {/* OAuth Callback Routes */}
+    <Route path="/auth/sharepoint/callback" element={<Suspense fallback={<LoadingState />}><SharePointCallback /></Suspense>} />
+    <Route path="/auth/outlook/callback" element={<Suspense fallback={<LoadingState />}><OutlookCallback /></Suspense>} />
 
     {/* Core Routes */}
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
@@ -417,6 +429,7 @@ const AppContent = () => (
     <Route path="/admin/milestone-templates" element={<ProtectedRoute><AppLayout><AdminLayout><MilestoneTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/project-templates" element={<ProtectedRoute><AppLayout><AdminLayout><AdminProjectTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/coa-templates" element={<ProtectedRoute><AppLayout><AdminLayout><COATemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/integrations" element={<ProtectedRoute><AppLayout><AdminLayout><IntegrationsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}

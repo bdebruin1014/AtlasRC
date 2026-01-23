@@ -731,11 +731,520 @@ export const ProjectTemplateService = {
   }
 };
 
+// ============================================
+// DATABASE-BACKED TEMPLATE OPERATIONS
+// ============================================
+
+import { supabase } from '@/lib/supabase';
+import { addTemplateFoldersToProject } from './sharepointService';
+
+/**
+ * Get all templates for an organization from database
+ */
+export async function getOrganizationTemplates(organizationId) {
+  const { data, error } = await supabase
+    .from('project_templates')
+    .select(`
+      *,
+      created_by_user:created_by(email, raw_user_meta_data)
+    `)
+    .eq('organization_id', organizationId)
+    .eq('is_active', true)
+    .order('name');
+
+  return { data, error };
+}
+
+/**
+ * Get a single template with all its components from database
+ */
+export async function getTemplateById(templateId) {
+  const { data, error } = await supabase
+    .from('project_templates')
+    .select('*')
+    .eq('id', templateId)
+    .single();
+
+  if (error) return { data: null, error };
+
+  // Fetch all related data in parallel
+  const [folders, phases, milestones, tasks, budgetCategories, budgetItems, teamRoles, checklists] = await Promise.all([
+    supabase.from('project_template_folders').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_phases').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_milestones').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_tasks').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_budget_categories').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_budget_items').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_team_roles').select('*').eq('template_id', templateId).order('sort_order'),
+    supabase.from('project_template_checklists').select(`
+      *,
+      items:project_template_checklist_items(*)
+    `).eq('template_id', templateId).order('sort_order'),
+  ]);
+
+  return {
+    data: {
+      ...data,
+      folders: folders.data || [],
+      phases: phases.data || [],
+      milestones: milestones.data || [],
+      tasks: tasks.data || [],
+      budgetCategories: budgetCategories.data || [],
+      budgetItems: budgetItems.data || [],
+      teamRoles: teamRoles.data || [],
+      checklists: checklists.data || [],
+    },
+    error: null,
+  };
+}
+
+/**
+ * Create a new project template in database
+ */
+export async function createTemplate(organizationId, templateData) {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data, error } = await supabase
+    .from('project_templates')
+    .insert({
+      organization_id: organizationId,
+      name: templateData.name,
+      description: templateData.description,
+      project_type: templateData.project_type,
+      is_default: templateData.is_default || false,
+      estimated_duration_days: templateData.estimated_duration_days,
+      created_by: user?.id,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Update a template in database
+ */
+export async function updateTemplate(templateId, updates) {
+  const { data, error } = await supabase
+    .from('project_templates')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', templateId)
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Delete a template (soft delete by setting is_active = false)
+ */
+export async function deleteTemplate(templateId) {
+  const { error } = await supabase
+    .from('project_templates')
+    .update({ is_active: false })
+    .eq('id', templateId);
+
+  return { success: !error, error };
+}
+
+/**
+ * Add folder to template
+ */
+export async function addTemplateFolder(templateId, folderData) {
+  const { data, error } = await supabase
+    .from('project_template_folders')
+    .insert({
+      template_id: templateId,
+      parent_folder_id: folderData.parent_folder_id,
+      name: folderData.name,
+      description: folderData.description,
+      sort_order: folderData.sort_order || 0,
+      is_required: folderData.is_required ?? true,
+      default_permissions: folderData.default_permissions || 'team',
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Update template folder
+ */
+export async function updateTemplateFolder(folderId, updates) {
+  const { data, error } = await supabase
+    .from('project_template_folders')
+    .update(updates)
+    .eq('id', folderId)
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Delete template folder
+ */
+export async function deleteTemplateFolder(folderId) {
+  const { error } = await supabase
+    .from('project_template_folders')
+    .delete()
+    .eq('id', folderId);
+
+  return { success: !error, error };
+}
+
+/**
+ * Add phase to template
+ */
+export async function addTemplatePhase(templateId, phaseData) {
+  const { data, error } = await supabase
+    .from('project_template_phases')
+    .insert({
+      template_id: templateId,
+      name: phaseData.name,
+      description: phaseData.description,
+      sort_order: phaseData.sort_order || 0,
+      duration_days: phaseData.duration_days,
+      offset_days: phaseData.offset_days || 0,
+      color: phaseData.color || '#3B82F6',
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Add milestone to template
+ */
+export async function addTemplateMilestone(templateId, milestoneData) {
+  const { data, error } = await supabase
+    .from('project_template_milestones')
+    .insert({
+      template_id: templateId,
+      phase_id: milestoneData.phase_id,
+      name: milestoneData.name,
+      description: milestoneData.description,
+      sort_order: milestoneData.sort_order || 0,
+      offset_days: milestoneData.offset_days || 0,
+      is_critical: milestoneData.is_critical || false,
+      notify_days_before: milestoneData.notify_days_before || 7,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Add task to template
+ */
+export async function addTemplateTask(templateId, taskData) {
+  const { data, error } = await supabase
+    .from('project_template_tasks')
+    .insert({
+      template_id: templateId,
+      phase_id: taskData.phase_id,
+      milestone_id: taskData.milestone_id,
+      parent_task_id: taskData.parent_task_id,
+      name: taskData.name,
+      description: taskData.description,
+      sort_order: taskData.sort_order || 0,
+      priority: taskData.priority || 'medium',
+      estimated_hours: taskData.estimated_hours,
+      duration_days: taskData.duration_days,
+      offset_days: taskData.offset_days || 0,
+      assigned_role: taskData.assigned_role,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Add budget category to template
+ */
+export async function addTemplateBudgetCategory(templateId, categoryData) {
+  const { data, error } = await supabase
+    .from('project_template_budget_categories')
+    .insert({
+      template_id: templateId,
+      parent_category_id: categoryData.parent_category_id,
+      name: categoryData.name,
+      description: categoryData.description,
+      code: categoryData.code,
+      sort_order: categoryData.sort_order || 0,
+      is_contingency: categoryData.is_contingency || false,
+      default_percentage: categoryData.default_percentage,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Add team role to template
+ */
+export async function addTemplateTeamRole(templateId, roleData) {
+  const { data, error } = await supabase
+    .from('project_template_team_roles')
+    .insert({
+      template_id: templateId,
+      role_name: roleData.role_name,
+      role_type: roleData.role_type || 'internal',
+      description: roleData.description,
+      sort_order: roleData.sort_order || 0,
+      is_required: roleData.is_required || false,
+      permissions: roleData.permissions || 'member',
+      default_entity_id: roleData.default_entity_id,
+      default_entity_type: roleData.default_entity_type,
+    })
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Apply a database template to a new project
+ */
+export async function applyTemplateToProject(projectId, templateId, options = {}) {
+  const { startDate = new Date(), organizationId } = options;
+
+  const { data: template, error: templateError } = await getTemplateById(templateId);
+  if (templateError || !template) {
+    return { success: false, error: templateError || new Error('Template not found') };
+  }
+
+  const result = {
+    success: true,
+    phases: [],
+    milestones: [],
+    tasks: [],
+    budgetItems: [],
+    teamRoles: [],
+    folders: null,
+  };
+
+  try {
+    // Update project with template reference
+    await supabase
+      .from('projects')
+      .update({ template_id: templateId })
+      .eq('id', projectId);
+
+    const idMappings = { phases: {}, milestones: {}, categories: {} };
+
+    // 1. Create phases
+    if (template.phases?.length) {
+      let currentStartDate = new Date(startDate);
+
+      for (const phase of template.phases) {
+        const phaseStartDate = new Date(currentStartDate);
+        phaseStartDate.setDate(phaseStartDate.getDate() + (phase.offset_days || 0));
+
+        const phaseEndDate = new Date(phaseStartDate);
+        if (phase.duration_days) {
+          phaseEndDate.setDate(phaseEndDate.getDate() + phase.duration_days);
+        }
+
+        const { data: newPhase } = await supabase
+          .from('project_phases')
+          .insert({
+            project_id: projectId,
+            name: phase.name,
+            description: phase.description,
+            start_date: phaseStartDate.toISOString().split('T')[0],
+            end_date: phaseEndDate.toISOString().split('T')[0],
+            color: phase.color,
+            sort_order: phase.sort_order,
+          })
+          .select()
+          .single();
+
+        if (newPhase) {
+          idMappings.phases[phase.id] = newPhase.id;
+          result.phases.push(newPhase);
+          currentStartDate = phaseEndDate;
+        }
+      }
+    }
+
+    // 2. Create milestones
+    if (template.milestones?.length) {
+      for (const milestone of template.milestones) {
+        const milestoneDate = new Date(startDate);
+        milestoneDate.setDate(milestoneDate.getDate() + (milestone.offset_days || 0));
+
+        const { data: newMilestone } = await supabase
+          .from('project_milestones')
+          .insert({
+            project_id: projectId,
+            phase_id: milestone.phase_id ? idMappings.phases[milestone.phase_id] : null,
+            name: milestone.name,
+            description: milestone.description,
+            target_date: milestoneDate.toISOString().split('T')[0],
+            is_critical: milestone.is_critical,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (newMilestone) {
+          idMappings.milestones[milestone.id] = newMilestone.id;
+          result.milestones.push(newMilestone);
+        }
+      }
+    }
+
+    // 3. Create tasks
+    if (template.tasks?.length) {
+      const taskIdMappings = {};
+      const tasksSorted = [...template.tasks].sort((a, b) => (a.parent_task_id ? 1 : -1));
+
+      for (const task of tasksSorted) {
+        const taskDueDate = new Date(startDate);
+        taskDueDate.setDate(taskDueDate.getDate() + (task.offset_days || 0) + (task.duration_days || 7));
+
+        const { data: newTask } = await supabase
+          .from('tasks')
+          .insert({
+            project_id: projectId,
+            phase_id: task.phase_id ? idMappings.phases[task.phase_id] : null,
+            milestone_id: task.milestone_id ? idMappings.milestones[task.milestone_id] : null,
+            parent_task_id: task.parent_task_id ? taskIdMappings[task.parent_task_id] : null,
+            title: task.name,
+            description: task.description,
+            priority: task.priority,
+            estimated_hours: task.estimated_hours,
+            due_date: taskDueDate.toISOString().split('T')[0],
+            status: 'todo',
+          })
+          .select()
+          .single();
+
+        if (newTask) {
+          taskIdMappings[task.id] = newTask.id;
+          result.tasks.push(newTask);
+        }
+      }
+    }
+
+    // 4. Create budget items
+    if (template.budgetItems?.length) {
+      for (const item of template.budgetItems) {
+        const { data: newItem } = await supabase
+          .from('budget_items')
+          .insert({
+            project_id: projectId,
+            category_id: item.category_id ? idMappings.categories[item.category_id] : null,
+            name: item.name,
+            description: item.description,
+            unit: item.unit,
+            unit_cost: item.unit_cost,
+            quantity: item.default_quantity,
+            estimated_cost: (item.unit_cost || 0) * (item.default_quantity || 1),
+          })
+          .select()
+          .single();
+
+        if (newItem) {
+          result.budgetItems.push(newItem);
+        }
+      }
+    }
+
+    // 5. Create team roles
+    if (template.teamRoles?.length) {
+      for (const role of template.teamRoles) {
+        const { data: newRole } = await supabase
+          .from('project_team_members')
+          .insert({
+            project_id: projectId,
+            role: role.role_name,
+            role_type: role.role_type,
+            permissions: role.permissions,
+            entity_id: role.default_entity_id,
+            entity_type: role.default_entity_type,
+          })
+          .select()
+          .single();
+
+        if (newRole) {
+          result.teamRoles.push(newRole);
+        }
+      }
+    }
+
+    // 6. Create SharePoint folders from template (if connected)
+    if (organizationId && template.folders?.length) {
+      try {
+        const { data: folders } = await addTemplateFoldersToProject(projectId, templateId);
+        result.folders = folders;
+      } catch (folderError) {
+        console.warn('Could not create SharePoint folders:', folderError);
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error applying template to project:', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Get default template for an organization and project type
+ */
+export async function getDefaultTemplate(organizationId, projectType = null) {
+  let query = supabase
+    .from('project_templates')
+    .select('*')
+    .eq('organization_id', organizationId)
+    .eq('is_active', true)
+    .eq('is_default', true);
+
+  if (projectType) {
+    query = query.eq('project_type', projectType);
+  }
+
+  const { data, error } = await query.single();
+
+  return { data, error };
+}
+
+// ============================================
+// EXPORTS
+// ============================================
+
 export default {
   PROJECT_TYPES,
   PROJECT_MODULES,
   WORKFLOW_TEMPLATES,
   TakedownScheduleService,
   UnitManagementService,
-  ProjectTemplateService
+  ProjectTemplateService,
+
+  // Database-backed operations
+  getOrganizationTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  addTemplateFolder,
+  updateTemplateFolder,
+  deleteTemplateFolder,
+  addTemplatePhase,
+  addTemplateMilestone,
+  addTemplateTask,
+  addTemplateBudgetCategory,
+  addTemplateTeamRole,
+  applyTemplateToProject,
+  getDefaultTemplate,
 };

@@ -88,6 +88,212 @@ export async function getDocuSealTemplates() {
 }
 
 // ============================================
+// CREATE TEMPLATE FROM PDF (In-App Generation)
+// ============================================
+
+/**
+ * Create a DocuSeal template from PDF content generated in Atlas
+ * This allows generating contracts in Atlas and sending for e-sign
+ */
+export async function createTemplateFromPDF(pdfBase64, templateName, signerRoles = ['Signer']) {
+  try {
+    // Build signature fields for each role
+    const fields = signerRoles.map((role, index) => ({
+      name: `signature_${role.toLowerCase().replace(/\s/g, '_')}`,
+      role: role,
+      type: 'signature',
+      required: true
+    }));
+
+    // Add date fields for each signer
+    signerRoles.forEach(role => {
+      fields.push({
+        name: `date_${role.toLowerCase().replace(/\s/g, '_')}`,
+        role: role,
+        type: 'date',
+        required: true
+      });
+    });
+
+    const response = await fetch(`${DOCUSEAL_URL}/api/templates/pdf`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: templateName,
+        documents: [{
+          name: `${templateName}.pdf`,
+          file: pdfBase64
+        }],
+        fields
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`DocuSeal template creation failed: ${errorText}`);
+    }
+
+    const template = await response.json();
+    return { data: template, error: null };
+  } catch (error) {
+    console.error('Error creating template from PDF:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Create a DocuSeal template from HTML content
+ */
+export async function createTemplateFromHTML(htmlContent, templateName, signerRoles = ['Signer']) {
+  try {
+    const response = await fetch(`${DOCUSEAL_URL}/api/templates/html`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: templateName,
+        html: htmlContent,
+        fields: signerRoles.map(role => ({
+          name: role.toLowerCase().replace(/\s/g, '_'),
+          role: role,
+          type: 'signature',
+          required: true
+        }))
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`DocuSeal template creation failed: ${errorText}`);
+    }
+
+    const template = await response.json();
+    return { data: template, error: null };
+  } catch (error) {
+    console.error('Error creating template from HTML:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Send document for signature using in-app generated content
+ * Creates a template on-the-fly and sends for signature
+ */
+export async function sendGeneratedDocument({
+  entityType,
+  entityId,
+  entityName,
+  documentName,
+  pdfBase64,
+  signers,
+  prefillData = {},
+  sendEmail = true,
+  notes = ''
+}) {
+  try {
+    // 1. Match signers to contacts
+    const matchedSigners = await matchSignersToContacts(signers);
+    const signerRoles = matchedSigners.map(s => s.role || 'Signer');
+
+    // 2. Create DocuSeal template from PDF
+    const { data: template, error: templateError } = await createTemplateFromPDF(
+      pdfBase64,
+      documentName,
+      signerRoles
+    );
+
+    if (templateError) {
+      throw templateError;
+    }
+
+    // 3. Create submission with the new template
+    const submissionPayload = {
+      template_id: template.id,
+      send_email: sendEmail,
+      submitters: matchedSigners.map((signer, index) => ({
+        role: signer.role || signerRoles[index] || `Signer ${index + 1}`,
+        email: signer.email,
+        name: signer.name,
+        phone: signer.phone || undefined,
+        fields: prefillData
+      }))
+    };
+
+    const submissionResponse = await fetch(`${DOCUSEAL_URL}/api/submissions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(submissionPayload)
+    });
+
+    if (!submissionResponse.ok) {
+      const errorText = await submissionResponse.text();
+      throw new Error(`DocuSeal submission failed: ${errorText}`);
+    }
+
+    const submission = await submissionResponse.json();
+
+    // 4. Create signing request record in database
+    const { data: signingRequest, error: requestError } = await supabase
+      .from('document_signing_requests')
+      .insert({
+        entity_type: entityType,
+        entity_id: entityId || null,
+        entity_name: entityName,
+        template_id: `generated-${Date.now()}`,
+        docuseal_submission_id: submission.id || submission[0]?.submission_id,
+        docuseal_template_id: template.id,
+        document_name: documentName,
+        status: 'sent',
+        prefill_data: prefillData,
+        sent_at: new Date().toISOString(),
+        notes
+      })
+      .select()
+      .single();
+
+    if (requestError) throw requestError;
+
+    // 5. Create signer records
+    const signerRecords = matchedSigners.map((signer, index) => ({
+      signing_request_id: signingRequest.id,
+      role: signer.role || `Signer ${index + 1}`,
+      name: signer.name,
+      email: signer.email,
+      phone: signer.phone,
+      company: signer.company,
+      contact_id: signer.contact_id,
+      contact_auto_matched: signer.contact_auto_matched,
+      docuseal_submitter_id: Array.isArray(submission)
+        ? submission[index]?.id
+        : submission.submitters?.[index]?.id,
+      embed_src: Array.isArray(submission)
+        ? submission[index]?.embed_src
+        : submission.submitters?.[index]?.embed_src,
+      status: 'sent',
+      signing_order: index + 1
+    }));
+
+    await supabase.from('document_signers').insert(signerRecords);
+
+    // 6. Create document_contacts junction records
+    for (const signer of matchedSigners) {
+      if (signer.contact_id) {
+        await supabase.from('document_contacts').upsert({
+          document_type: entityType,
+          document_id: signingRequest.id,
+          contact_id: signer.contact_id,
+          role: signer.role
+        }, { onConflict: 'document_type,document_id,contact_id' });
+      }
+    }
+
+    return { data: signingRequest, error: null };
+  } catch (error) {
+    console.error('Error sending generated document:', error);
+    return { data: null, error };
+  }
+}
+
+// ============================================
 // CONTACT MATCHING
 // ============================================
 
@@ -608,6 +814,9 @@ export default {
   getTemplatesForModule,
   getAllTemplates,
   getDocuSealTemplates,
+  createTemplateFromPDF,
+  createTemplateFromHTML,
+  sendGeneratedDocument,
   searchContacts,
   sendForSignature,
   processCompletedDocument,
