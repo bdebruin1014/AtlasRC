@@ -1,6 +1,6 @@
 // OpportunitiesPage.jsx - List and manage opportunities
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useOpportunities, useOpportunityActions, useOpportunitySummary, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
 import OpportunityModal from '@/components/OpportunityModal';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,21 @@ const OpportunitiesPage = () => {
   const [editingOpportunity, setEditingOpportunity] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stageFilter = searchParams.get('stage') || '';
+
+  // Filter opportunities by stage if URL param is present
+  const filteredOpportunities = useMemo(() => {
+    if (!stageFilter) return opportunities;
+    return opportunities.filter(opp =>
+      opp.stage?.toLowerCase().replace(/\s+/g, '_') === stageFilter.toLowerCase()
+    );
+  }, [opportunities, stageFilter]);
+
+  const clearStageFilter = () => {
+    searchParams.delete('stage');
+    setSearchParams(searchParams);
+  };
 
   const handleCreate = () => {
     setEditingOpportunity(null);
@@ -127,15 +142,27 @@ const OpportunitiesPage = () => {
         ))}
       </div>
 
+      {/* Stage Filter Indicator */}
+      {stageFilter && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm text-blue-700">
+            Filtered by stage: <span className="font-semibold capitalize">{stageFilter.replace(/_/g, ' ')}</span>
+          </span>
+          <button onClick={clearStageFilter} className="text-blue-500 hover:text-blue-700 text-sm underline ml-2">
+            Clear filter
+          </button>
+        </div>
+      )}
+
       {/* Opportunities List/Grid View */}
       <Card>
         <CardHeader>
-          <CardTitle>All Opportunities ({opportunities.length})</CardTitle>
+          <CardTitle>{stageFilter ? `Filtered Opportunities (${filteredOpportunities.length})` : `All Opportunities (${opportunities.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          {opportunities.length === 0 ? (
+          {filteredOpportunities.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No opportunities yet. Click "New Opportunity" to add one.
+              {stageFilter ? 'No opportunities in this stage.' : 'No opportunities yet. Click "New Opportunity" to add one.'}
             </div>
           ) : viewMode === 'list' ? (
             <div className="overflow-x-auto">
@@ -152,7 +179,7 @@ const OpportunitiesPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {opportunities.map((opp) => (
+                  {filteredOpportunities.map((opp) => (
                     <tr
                       key={opp.id}
                       className="border-b hover:bg-gray-50 cursor-pointer"
@@ -198,7 +225,7 @@ const OpportunitiesPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {opportunities.map((opp) => (
+              {filteredOpportunities.map((opp) => (
                 <Card
                   key={opp.id}
                   className="cursor-pointer hover:shadow-lg transition"
