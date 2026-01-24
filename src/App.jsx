@@ -151,7 +151,7 @@ const ClosingChecklistPage = lazy(() => import('@/pages/projects/ClosingChecklis
 
 // Construction Section
 const BudgetPage = lazy(() => import('@/pages/projects/Budget/BudgetPage'));
-const SchedulePage = lazy(() => import('@/pages/projects/SchedulePage'));
+const SchedulePage = lazy(() => import('@/pages/projects/Schedule/SchedulePage'));
 const ActualsVsBudgetPage = lazy(() => import('@/pages/projects/ActualsVsBudgetPage'));
 const InsurancePage = lazy(() => import('@/pages/projects/InsurancePage'));
 
