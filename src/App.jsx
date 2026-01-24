@@ -179,6 +179,20 @@ const DispositionPage = lazy(() => import('@/pages/projects/DispositionPage'));
 const ContractRecordPage = lazy(() => import('@/pages/projects/ContractRecordPage'));
 const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementStatementPage'));
 
+// New Project Pages (Phase 9)
+const BasicInfoPage = lazy(() => import('@/pages/projects/BasicInfoPage'));
+const PropertyInfoPage = lazy(() => import('@/pages/projects/PropertyInfoPage'));
+const PurchaseContractPage = lazy(() => import('@/pages/projects/PurchaseContractPage'));
+const DueDiligencePage = lazy(() => import('@/pages/projects/DueDiligencePage'));
+const ClosingPage = lazy(() => import('@/pages/projects/ClosingPage'));
+
+// New Admin Pages (Phase 9)
+const TeamsListPage = lazy(() => import('@/pages/admin/TeamsListPage'));
+
+// Enhanced Contacts Pages (Phase 9)
+const ContactDetailPageEnhanced = lazy(() => import('@/pages/Contacts/ContactDetail'));
+const ContactFormPageEnhanced = lazy(() => import('@/pages/Contacts/ContactForm'));
+
 const BudgetModuleRouter = lazy(() => import('@/features/budgets/components/BudgetModuleRouter'));
 
 // ============================================
@@ -279,6 +293,13 @@ const AppContent = () => (
     <Route path="/project/:projectId/documents/communications" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/documents/esigned" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     
+    {/* New Project Pages (Phase 9) */}
+    <Route path="/project/:projectId/basic-info" element={<ProtectedRoute><AppLayout><BasicInfoPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/property-info" element={<ProtectedRoute><AppLayout><PropertyInfoPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/purchase-contract" element={<ProtectedRoute><AppLayout><PurchaseContractPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/due-diligence" element={<ProtectedRoute><AppLayout><DueDiligencePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/closing" element={<ProtectedRoute><AppLayout><ClosingPage /></AppLayout></ProtectedRoute>} />
+
     {/* Additional Project Routes */}
     <Route path="/project/:projectId/tasks" element={<ProtectedRoute><AppLayout><TasksPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/units" element={<ProtectedRoute><AppLayout><UnitsManagementPage /></AppLayout></ProtectedRoute>} />
@@ -332,7 +353,9 @@ const AppContent = () => (
     {/* ============================================ */}
     <Route path="/contacts" element={<ProtectedRoute><AppLayout><ContactsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/contacts/list" element={<ProtectedRoute><AppLayout><ContactsListPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/contacts/new" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/new" element={<ProtectedRoute><AppLayout><ContactFormPageEnhanced /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/:contactId" element={<ProtectedRoute><AppLayout><ContactDetailPageEnhanced /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPageEnhanced /></AppLayout></ProtectedRoute>} />
     <Route path="/contact/:contactId" element={<ProtectedRoute><AppLayout><ContactDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/contact/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
 
@@ -430,6 +453,7 @@ const AppContent = () => (
     <Route path="/admin/project-templates" element={<ProtectedRoute><AppLayout><AdminLayout><AdminProjectTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/coa-templates" element={<ProtectedRoute><AppLayout><AdminLayout><COATemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/integrations" element={<ProtectedRoute><AppLayout><AdminLayout><IntegrationsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/teams" element={<ProtectedRoute><AppLayout><AdminLayout><TeamsListPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}
