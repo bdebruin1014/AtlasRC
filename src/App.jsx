@@ -159,10 +159,10 @@ const BidsPage = lazy(() => import('@/pages/projects/Bids/BidsPage'));
 const ExpensesPage = lazy(() => import('@/pages/projects/Expenses/ExpensesPage'));
 
 // Finance Section
-const CashFlowPage = lazy(() => import('@/pages/projects/CashFlowPage'));
+const CashFlowPage = lazy(() => import('@/pages/projects/CashFlow/CashFlowPage'));
 const VendorsPage = lazy(() => import('@/pages/projects/VendorsPage'));
-const SalesPage = lazy(() => import('@/pages/projects/SalesPage'));
-const ProjectLoansPage = lazy(() => import('@/pages/projects/ProjectLoansPage'));
+const SalesPage = lazy(() => import('@/pages/projects/Sales/SalesPage'));
+const ProjectLoansPage = lazy(() => import('@/pages/projects/Loans/LoansPage'));
 const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequests/DrawRequestsPage'));
 const ChangeOrdersPage = lazy(() => import('@/pages/projects/ChangeOrders/ChangeOrdersPage'));
 const ProFormaPage = lazy(() => import('@/pages/projects/ProForma/ProFormaPage'));
