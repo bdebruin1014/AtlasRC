@@ -43,7 +43,27 @@ const OpportunityDetailPage = () => {
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
 
-<<<<<<< HEAD
+  // Fetch opportunity from database
+  const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
+  const { updateOpportunity } = useOpportunityActions();
+
+  // Auto-save hook
+  const {
+    formData,
+    setField,
+    saveStatus,
+    lastSaved,
+    error: saveError
+  } = useAutoSave(
+    rawOpportunity,
+    async (data) => {
+      if (opportunityId && data) {
+        await updateOpportunity(opportunityId, data);
+      }
+    },
+    1500
+  );
+
   // Document management state
   const [mailingRecords, setMailingRecords] = useState([
     { id: '1', type: 'Letter', template: 'Initial Contact Letter', sentDate: '2024-12-15', status: 'delivered', trackingId: 'USPS-123456789' },
@@ -71,30 +91,6 @@ const OpportunityDetailPage = () => {
   const [newComm, setNewComm] = useState({ type: 'phone', direction: 'outbound', contact: '', summary: '', duration: '' });
 
   // Updated stages per requirements
-=======
-  // Fetch opportunity from database
-  const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
-  const { updateOpportunity } = useOpportunityActions();
-
-  // Auto-save hook
-  const {
-    formData,
-    setField,
-    saveStatus,
-    lastSaved,
-    error: saveError
-  } = useAutoSave(
-    rawOpportunity,
-    async (data) => {
-      if (opportunityId && data) {
-        await updateOpportunity(opportunityId, data);
-      }
-    },
-    1500
-  );
-
-  // Stages config
->>>>>>> origin/main
   const stages = [
     { id: 'Prospecting', label: 'Prospecting', color: '#6B7280' },
     { id: 'Contacted', label: 'Contacted', color: '#3B82F6' },
@@ -198,7 +194,7 @@ const OpportunityDetailPage = () => {
       type: newComm.type,
       direction: newComm.direction,
       date: new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
-      contact: newComm.contact || opportunity.seller.name,
+      contact: newComm.contact || formData?.seller_name || 'Unknown',
       summary: newComm.summary,
       duration: newComm.type === 'phone' ? newComm.duration : undefined,
     };
@@ -754,7 +750,6 @@ const OpportunityDetailPage = () => {
             <PipelineDealAnalyzer />
           </div>
         );
-<<<<<<< HEAD
       
       case 'tasks':
         return <OpportunityTasks opportunity={opportunity} />;
@@ -960,7 +955,7 @@ const OpportunityDetailPage = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label>Contact</Label>
-                    <Input value={newComm.contact} onChange={(e) => setNewComm({ ...newComm, contact: e.target.value })} placeholder={opportunity.seller.name} />
+                    <Input value={newComm.contact} onChange={(e) => setNewComm({ ...newComm, contact: e.target.value })} placeholder={formData?.seller_name || 'Contact name'} />
                   </div>
                   {newComm.type === 'phone' && (
                     <div className="grid gap-2">
@@ -1067,15 +1062,6 @@ const OpportunityDetailPage = () => {
                   </p>
                 </div>
               </div>
-=======
-
-      case 'notes':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Notes & Activity</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
->>>>>>> origin/main
             </div>
             <div className="bg-white border rounded-lg p-6">
               <div>
