@@ -154,6 +154,9 @@ const BudgetPage = lazy(() => import('@/pages/projects/Budget/BudgetPage'));
 const SchedulePage = lazy(() => import('@/pages/projects/Schedule/SchedulePage'));
 const ActualsVsBudgetPage = lazy(() => import('@/pages/projects/ActualsVsBudgetPage'));
 const InsurancePage = lazy(() => import('@/pages/projects/InsurancePage'));
+const PermitsPage = lazy(() => import('@/pages/projects/Permits/PermitsPage'));
+const BidsPage = lazy(() => import('@/pages/projects/Bids/BidsPage'));
+const ExpensesPage = lazy(() => import('@/pages/projects/Expenses/ExpensesPage'));
 
 // Finance Section
 const CashFlowPage = lazy(() => import('@/pages/projects/CashFlowPage'));
@@ -162,7 +165,7 @@ const SalesPage = lazy(() => import('@/pages/projects/SalesPage'));
 const ProjectLoansPage = lazy(() => import('@/pages/projects/ProjectLoansPage'));
 const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequests/DrawRequestsPage'));
 const ChangeOrdersPage = lazy(() => import('@/pages/projects/ChangeOrders/ChangeOrdersPage'));
-const ProformaPage = lazy(() => import('@/pages/projects/ProformaPage'));
+const ProFormaPage = lazy(() => import('@/pages/projects/ProForma/ProFormaPage'));
 
 // Documents Section
 const DocumentsPage = lazy(() => import('@/pages/projects/DocumentsPage'));
@@ -278,15 +281,17 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/budget-vs-actual" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
 
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/summary" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/revenue" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/draws" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/finance/proforma" element={<ProtectedRoute><AppLayout><ProformaPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/proforma" element={<ProtectedRoute><AppLayout><ProFormaPage /></AppLayout></ProtectedRoute>} />
     
     {/* Documents Section */}
     <Route path="/project/:projectId/documents" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
@@ -324,11 +329,14 @@ const AppContent = () => (
     <Route path="/project/:projectId/budget" element={<ProtectedRoute><AppLayout><BudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/actuals-vs-budget" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/proforma" element={<ProtectedRoute><AppLayout><ProformaPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/proforma" element={<ProtectedRoute><AppLayout><ProFormaPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/vendors" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/draw-requests" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/sales" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/cash-flow" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
