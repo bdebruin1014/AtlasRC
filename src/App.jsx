@@ -150,7 +150,7 @@ const ProjectContactsPage = lazy(() => import('@/pages/projects/ContactsPage'));
 const ClosingChecklistPage = lazy(() => import('@/pages/projects/ClosingChecklistPage'));
 
 // Construction Section
-const BudgetPage = lazy(() => import('@/pages/projects/BudgetPage'));
+const BudgetPage = lazy(() => import('@/pages/projects/Budget/BudgetPage'));
 const SchedulePage = lazy(() => import('@/pages/projects/SchedulePage'));
 const ActualsVsBudgetPage = lazy(() => import('@/pages/projects/ActualsVsBudgetPage'));
 const InsurancePage = lazy(() => import('@/pages/projects/InsurancePage'));
