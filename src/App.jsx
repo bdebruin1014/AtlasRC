@@ -160,7 +160,7 @@ const CashFlowPage = lazy(() => import('@/pages/projects/CashFlowPage'));
 const VendorsPage = lazy(() => import('@/pages/projects/VendorsPage'));
 const SalesPage = lazy(() => import('@/pages/projects/SalesPage'));
 const ProjectLoansPage = lazy(() => import('@/pages/projects/ProjectLoansPage'));
-const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequestsPage'));
+const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequests/DrawRequestsPage'));
 const ProformaPage = lazy(() => import('@/pages/projects/ProformaPage'));
 
 // Documents Section
