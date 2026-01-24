@@ -161,6 +161,7 @@ const VendorsPage = lazy(() => import('@/pages/projects/VendorsPage'));
 const SalesPage = lazy(() => import('@/pages/projects/SalesPage'));
 const ProjectLoansPage = lazy(() => import('@/pages/projects/ProjectLoansPage'));
 const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequests/DrawRequestsPage'));
+const ChangeOrdersPage = lazy(() => import('@/pages/projects/ChangeOrders/ChangeOrdersPage'));
 const ProformaPage = lazy(() => import('@/pages/projects/ProformaPage'));
 
 // Documents Section
@@ -276,7 +277,8 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/schedule" element={<ProtectedRoute><AppLayout><SchedulePage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/budget-vs-actual" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
-    
+    <Route path="/project/:projectId/construction/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
+
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/summary" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
@@ -326,6 +328,7 @@ const AppContent = () => (
     <Route path="/project/:projectId/vendors" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/draw-requests" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/sales" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/cash-flow" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
