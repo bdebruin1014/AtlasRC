@@ -58,7 +58,9 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
         deal_number: year + '-001',
       }));
     }
-  }, [opportunity, open]);
+  }, [opportunity, 
+    
+    open]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
