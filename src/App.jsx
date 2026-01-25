@@ -112,6 +112,10 @@ const ProjectActivityFeed = lazy(() => import('@/components/ProjectActivityFeed'
 const VendorPerformanceTracker = lazy(() => import('@/components/VendorPerformanceTracker'));
 const ProjectHealthDashboard = lazy(() => import('@/components/ProjectHealthDashboard'));
 const RecurringTasksManager = lazy(() => import('@/components/RecurringTasksManager'));
+const RFITracker = lazy(() => import('@/components/RFITracker'));
+const PunchList = lazy(() => import('@/components/PunchList'));
+const MeetingMinutes = lazy(() => import('@/components/MeetingMinutes'));
+const PhotoProgressTracker = lazy(() => import('@/components/PhotoProgressTracker'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -299,6 +303,10 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/rfis" element={<ProtectedRoute><AppLayout><RFITracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/punch-list" element={<ProtectedRoute><AppLayout><PunchList /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/photos" element={<ProtectedRoute><AppLayout><PhotoProgressTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/meetings" element={<ProtectedRoute><AppLayout><MeetingMinutes /></AppLayout></ProtectedRoute>} />
 
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
