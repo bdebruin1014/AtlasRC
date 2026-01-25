@@ -116,6 +116,10 @@ const RFITracker = lazy(() => import('@/components/RFITracker'));
 const PunchList = lazy(() => import('@/components/PunchList'));
 const MeetingMinutes = lazy(() => import('@/components/MeetingMinutes'));
 const PhotoProgressTracker = lazy(() => import('@/components/PhotoProgressTracker'));
+const ContactTimeline = lazy(() => import('@/components/ContactTimeline'));
+const DocumentTemplates = lazy(() => import('@/components/DocumentTemplates'));
+const ApprovalWorkflow = lazy(() => import('@/components/ApprovalWorkflow'));
+const AdvancedSearch = lazy(() => import('@/components/AdvancedSearch'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -397,6 +401,7 @@ const AppContent = () => (
     <Route path="/contacts/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPageEnhanced /></AppLayout></ProtectedRoute>} />
     <Route path="/contact/:contactId" element={<ProtectedRoute><AppLayout><ContactDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/contact/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/:contactId/timeline" element={<ProtectedRoute><AppLayout><ContactTimeline /></AppLayout></ProtectedRoute>} />
 
     {/* Calendar & Settings */}
     <Route path="/calendar" element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>} />
@@ -506,6 +511,9 @@ const AppContent = () => (
     <Route path="/operations/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/vendors" element={<ProtectedRoute><AppLayout><VendorPerformanceTracker /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/recurring-tasks" element={<ProtectedRoute><AppLayout><RecurringTasksManager /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/approvals" element={<ProtectedRoute><AppLayout><ApprovalWorkflow /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/templates" element={<ProtectedRoute><AppLayout><DocumentTemplates /></AppLayout></ProtectedRoute>} />
+    <Route path="/search" element={<ProtectedRoute><AppLayout><AdvancedSearch /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
