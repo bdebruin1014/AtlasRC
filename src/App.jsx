@@ -105,6 +105,14 @@ const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
 // Admin Module Enhancements (Phase 11)
 const AuditLogsPage = lazy(() => import('@/pages/admin/AuditLogsPage'));
 const OrganizationSettingsPage = lazy(() => import('@/pages/admin/OrganizationSettingsPage'));
+const UserPermissionsMatrixPage = lazy(() => import('@/pages/admin/UserPermissionsMatrixPage'));
+
+// Opportunities Module Enhancements (Phase 11)
+const PipelineAnalyticsDashboardPage = lazy(() => import('@/pages/opportunities/PipelineAnalyticsDashboardPage'));
+const OpportunityComparisonPage = lazy(() => import('@/pages/opportunities/OpportunityComparisonPage'));
+
+// Projects Module Enhancements (Phase 11)
+const ResourceAllocationDashboardPage = lazy(() => import('@/pages/projects/ResourceAllocationDashboardPage'));
 
 // ============================================
 // OPERATIONS ENHANCEMENTS
@@ -319,6 +327,7 @@ const AppContent = () => (
     <Route path="/executive" element={<ProtectedRoute><AppLayout><ExecutiveDashboard /></AppLayout></ProtectedRoute>} />
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} />
     
     {/* ============================================ */}
     {/* PROJECT DETAIL ROUTES - Streamlined */}
@@ -420,6 +429,8 @@ const AppContent = () => (
     {/* ============================================ */}
     <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunities/new" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/*" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
@@ -543,6 +554,7 @@ const AppContent = () => (
     <Route path="/admin/teams" element={<ProtectedRoute><AppLayout><AdminLayout><TeamsListPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/audit-logs" element={<ProtectedRoute><AppLayout><AdminLayout><AuditLogsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/organization" element={<ProtectedRoute><AppLayout><AdminLayout><OrganizationSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/permissions" element={<ProtectedRoute><AppLayout><AdminLayout><UserPermissionsMatrixPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}

@@ -50,7 +50,7 @@ const AdminSidebar = () => {
         { label: 'Organization Settings', path: '/admin/organization', icon: Building2 },
         { label: 'Team Management', path: '/admin/team', icon: Users },
         { label: 'Teams', path: '/admin/teams', icon: Building },
-        { label: 'Roles & Permissions', path: '/admin/roles', icon: Shield },
+        { label: 'Permissions Matrix', path: '/admin/permissions', icon: Shield },
         { label: 'Companies', path: '/admin/companies', icon: Briefcase },
       ]
     },
