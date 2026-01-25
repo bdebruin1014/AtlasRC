@@ -47,7 +47,7 @@ const ChatButton = ({ currentUser }) => {
         <button
           onClick={() => setIsOpen(true)}
           className={cn(
-            "fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-40",
+            "fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-lg z-40",
             "bg-emerald-600 hover:bg-emerald-700 text-white",
             "flex items-center justify-center transition-all",
             "hover:scale-105"
