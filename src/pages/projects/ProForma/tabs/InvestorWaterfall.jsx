@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import {
   ChartBar, Users, DollarSign, TrendingUp, TrendingDown,
   ChevronDown, ChevronUp, Settings, Download, Eye, EyeOff,
+  Briefcase,
 } from 'lucide-react';
-import { calculateWaterfall, runWaterfallScenarios } from '@/utils/waterfallCalculator';
+import { calculateWaterfall, runWaterfallScenarios, calculateManagementFees } from '@/utils/waterfallCalculator';
 import { getDefaultWaterfallStructure } from '@/services/proformaService';
+import WaterfallChart from '../components/WaterfallChart';
 
 function formatCurrency(value) {
   if (value === null || value === undefined) return '-';
@@ -78,6 +80,19 @@ export default function InvestorWaterfall({
       gpEquity: totalEquity * gpPercent,
     });
   }, [proforma, calculations, structure]);
+
+  // Calculate management fees
+  const managementFees = useMemo(() => {
+    if (!proforma || !calculations || !structure.management_fees) return null;
+
+    return calculateManagementFees(
+      structure.management_fees,
+      calculations.totalCost || 0,
+      calculations.totalEquity || 0,
+      calculations.totalRevenue || 0,
+      (calculations.termMonths || 18) / 12
+    );
+  }, [proforma, calculations, structure.management_fees]);
 
   if (!waterfallResults) {
     return (
@@ -237,74 +252,10 @@ export default function InvestorWaterfall({
         </div>
       )}
 
-      {/* Distribution Split Visualization */}
+      {/* Waterfall Distribution Chart */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Distribution Split</h4>
-        <div className="space-y-4">
-          {/* Total Distribution Bar */}
-          <div>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Total Distributions</span>
-              <span className="font-medium">{formatCurrency(lp.total_distributed + gp.total_distributed)}</span>
-            </div>
-            <div className="h-8 flex rounded-lg overflow-hidden">
-              {lp.total_distributed > 0 && (
-                <div
-                  className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium"
-                  style={{
-                    width: `${(lp.total_distributed / (lp.total_distributed + gp.total_distributed)) * 100}%`,
-                  }}
-                >
-                  LP {formatPercent(lp.total_distributed / (lp.total_distributed + gp.total_distributed))}
-                </div>
-              )}
-              {gp.total_distributed > 0 && (
-                <div
-                  className="bg-emerald-500 flex items-center justify-center text-white text-xs font-medium"
-                  style={{
-                    width: `${(gp.total_distributed / (lp.total_distributed + gp.total_distributed)) * 100}%`,
-                  }}
-                >
-                  GP {formatPercent(gp.total_distributed / (lp.total_distributed + gp.total_distributed))}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>LP: {formatCurrency(lp.total_distributed)}</span>
-              <span>GP: {formatCurrency(gp.total_distributed)}</span>
-            </div>
-          </div>
-
-          {/* Profit Split (excluding return of capital) */}
-          <div>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Profit Split (After ROC)</span>
-              <span className="font-medium">{formatCurrency(lp.profit + gp.profit)}</span>
-            </div>
-            <div className="h-8 flex rounded-lg overflow-hidden">
-              {lp.profit > 0 && (
-                <div
-                  className="bg-blue-400 flex items-center justify-center text-white text-xs font-medium"
-                  style={{
-                    width: `${Math.max(0, (lp.profit / (lp.profit + gp.profit)) * 100)}%`,
-                  }}
-                >
-                  LP {formatPercent(lp.profit / (lp.profit + gp.profit))}
-                </div>
-              )}
-              {gp.profit > 0 && (
-                <div
-                  className="bg-emerald-400 flex items-center justify-center text-white text-xs font-medium"
-                  style={{
-                    width: `${Math.max(0, (gp.profit / (lp.profit + gp.profit)) * 100)}%`,
-                  }}
-                >
-                  GP {formatPercent(gp.profit / (lp.profit + gp.profit))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <h4 className="font-semibold text-gray-900 mb-4">Distribution Waterfall</h4>
+        <WaterfallChart tierResults={tier_results} />
       </div>
 
       {/* Tier-by-Tier Breakdown */}
@@ -477,6 +428,34 @@ export default function InvestorWaterfall({
         </div>
       </div>
 
+      {/* Management Fees Section */}
+      {managementFees && managementFees.total_fees > 0 && (
+        <div className="bg-amber-50 rounded-lg p-5 border border-amber-200">
+          <div className="flex items-center gap-2 mb-4">
+            <Briefcase className="h-5 w-5 text-amber-600" />
+            <h4 className="font-semibold text-amber-900">Management Fees</h4>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {managementFees.acquisition_fee > 0 && (
+              <FeeBox label="Acquisition Fee" value={managementFees.acquisition_fee} />
+            )}
+            {managementFees.asset_management_fee > 0 && (
+              <FeeBox label="Asset Management" value={managementFees.asset_management_fee} />
+            )}
+            {managementFees.construction_management_fee > 0 && (
+              <FeeBox label="Construction Mgmt" value={managementFees.construction_management_fee} />
+            )}
+            {managementFees.disposition_fee > 0 && (
+              <FeeBox label="Disposition Fee" value={managementFees.disposition_fee} />
+            )}
+          </div>
+          <div className="flex justify-between items-center border-t border-amber-200 pt-3 mt-4">
+            <span className="font-medium text-amber-900">Total GP Fees</span>
+            <span className="text-lg font-bold text-amber-900">{formatCurrency(managementFees.total_fees)}</span>
+          </div>
+        </div>
+      )}
+
       {/* Structure Summary */}
       <div className="bg-gray-50 rounded-lg p-5 border">
         <h4 className="font-semibold text-gray-900 mb-4">Waterfall Structure</h4>
@@ -530,6 +509,16 @@ function MetricBox({ label, value, format = 'number' }) {
     <div className="text-center">
       <p className="text-sm text-gray-500">{label}</p>
       <p className="text-lg font-bold text-gray-900">{displayValue}</p>
+    </div>
+  );
+}
+
+// Fee Box Component for Management Fees
+function FeeBox({ label, value }) {
+  return (
+    <div className="bg-white rounded-lg p-3 border border-amber-100">
+      <p className="text-xs text-amber-700">{label}</p>
+      <p className="text-lg font-bold text-amber-900">{formatCurrency(value)}</p>
     </div>
   );
 }
