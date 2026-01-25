@@ -397,21 +397,21 @@ const AccountingDashboard: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="overflow-hidden">
               <div className="flex items-end justify-between h-48 gap-1">
                 {monthlyData.map((data, index) => (
                   <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full flex flex-col items-center gap-0.5">
+                    <div className="w-full flex gap-0.5 items-end justify-center h-40">
                       {/* Income bar */}
                       <div
-                        className="w-3/5 bg-green-500 rounded-t"
-                        style={{ height: `${(data.income / maxValue) * 180}px` }}
+                        className="w-2/5 bg-green-500 rounded-t"
+                        style={{ height: `${Math.min((data.income / maxValue) * 140, 140)}px` }}
                         title={`Income: ${formatCurrency(data.income)}`}
                       />
                       {/* Expense bar */}
                       <div
-                        className="w-3/5 bg-red-400 rounded-t"
-                        style={{ height: `${(data.expenses / maxValue) * 180}px` }}
+                        className="w-2/5 bg-red-400 rounded-t"
+                        style={{ height: `${Math.min((data.expenses / maxValue) * 140, 140)}px` }}
                         title={`Expenses: ${formatCurrency(data.expenses)}`}
                       />
                     </div>
