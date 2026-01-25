@@ -102,6 +102,10 @@ const AdminSettingsPage = lazy(() => import('@/pages/Admin/Settings'));
 const TeamManagementPage = lazy(() => import('@/pages/Admin/TeamManagement'));
 const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
 
+// Admin Module Enhancements (Phase 11)
+const AuditLogsPage = lazy(() => import('@/pages/admin/AuditLogsPage'));
+const OrganizationSettingsPage = lazy(() => import('@/pages/admin/OrganizationSettingsPage'));
+
 // ============================================
 // OPERATIONS ENHANCEMENTS
 // ============================================
@@ -223,6 +227,9 @@ const ProjectMilestonesPage = lazy(() => import('@/pages/projects/ProjectMilesto
 const TaskWorkflowTemplatesPage = lazy(() => import('@/pages/operations/TaskWorkflowTemplatesPage'));
 const WorkflowTaskIntegrationPage = lazy(() => import('@/pages/operations/WorkflowTaskIntegrationPage'));
 
+// Project KPI Dashboard (Phase 11)
+const ProjectKPIDashboardPage = lazy(() => import('@/pages/projects/ProjectKPIDashboardPage'));
+
 // Additional Project Pages (for legacy support)
 const DealAnalysisPage = lazy(() => import('@/pages/projects/DealAnalysisPage'));
 const ProjectSettingsPage = lazy(() => import('@/pages/projects/SettingsPage'));
@@ -311,6 +318,7 @@ const AppContent = () => (
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
     <Route path="/executive" element={<ProtectedRoute><AppLayout><ExecutiveDashboard /></AppLayout></ProtectedRoute>} />
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} />
     
     {/* ============================================ */}
     {/* PROJECT DETAIL ROUTES - Streamlined */}
@@ -533,6 +541,8 @@ const AppContent = () => (
     <Route path="/admin/coa-templates" element={<ProtectedRoute><AppLayout><AdminLayout><COATemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/integrations" element={<ProtectedRoute><AppLayout><AdminLayout><IntegrationsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/teams" element={<ProtectedRoute><AppLayout><AdminLayout><TeamsListPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/audit-logs" element={<ProtectedRoute><AppLayout><AdminLayout><AuditLogsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/organization" element={<ProtectedRoute><AppLayout><AdminLayout><OrganizationSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}

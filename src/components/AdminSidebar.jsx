@@ -47,8 +47,9 @@ const AdminSidebar = () => {
     {
       title: 'Organization',
       items: [
+        { label: 'Organization Settings', path: '/admin/organization', icon: Building2 },
         { label: 'Team Management', path: '/admin/team', icon: Users },
-        { label: 'Teams', path: '/admin/teams', icon: Building2 },
+        { label: 'Teams', path: '/admin/teams', icon: Building },
         { label: 'Roles & Permissions', path: '/admin/roles', icon: Shield },
         { label: 'Companies', path: '/admin/companies', icon: Briefcase },
       ]
@@ -66,7 +67,7 @@ const AdminSidebar = () => {
       title: 'System',
       items: [
         { label: 'Activity Log', path: '/admin/activity-log', icon: ClipboardList },
-        { label: 'Audit Log', path: '/admin/audit-log', icon: Database },
+        { label: 'System Audit Logs', path: '/admin/audit-logs', icon: Database },
         { label: 'Data Management', path: '/admin/data', icon: Database },
       ]
     },
