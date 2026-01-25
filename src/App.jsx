@@ -102,6 +102,14 @@ const TeamManagementPage = lazy(() => import('@/pages/Admin/TeamManagement'));
 const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
 
 // ============================================
+// OPERATIONS ENHANCEMENTS
+// ============================================
+const DocumentExpirationTracker = lazy(() => import('@/components/DocumentExpirationTracker'));
+const WorkOrderSystem = lazy(() => import('@/components/WorkOrderSystem'));
+const GanttChart = lazy(() => import('@/components/GanttChart'));
+const AuditTrail = lazy(() => import('@/components/AuditTrail'));
+
+// ============================================
 // OPERATIONS & REPORTS
 // ============================================
 const OperationsDashboard = lazy(() => import('@/pages/OperationsDashboard'));
@@ -285,6 +293,8 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
 
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
@@ -301,6 +311,8 @@ const AppContent = () => (
     <Route path="/project/:projectId/documents/mailing" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/documents/communications" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/documents/esigned" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/documents/expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/audit" element={<ProtectedRoute><AppLayout><AuditTrail /></AppLayout></ProtectedRoute>} />
     
     {/* New Project Pages (Phase 9) */}
     <Route path="/project/:projectId/basic-info" element={<ProtectedRoute><AppLayout><BasicInfoPage /></AppLayout></ProtectedRoute>} />
@@ -446,6 +458,7 @@ const AppContent = () => (
     <Route path="/admin/team" element={<ProtectedRoute><AppLayout><AdminLayout><TeamManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/settings" element={<ProtectedRoute><AppLayout><AdminLayout><AdminSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/activity-log" element={<ProtectedRoute><AppLayout><AdminLayout><ActivityLogPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/audit-trail" element={<ProtectedRoute><AppLayout><AdminLayout><AuditTrail /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/plans" element={<ProtectedRoute><AppLayout><AdminLayout><FloorPlansPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     
     {/* Pricing Library Routes */}
@@ -475,6 +488,8 @@ const AppContent = () => (
     <Route path="/operations/teams" element={<ProtectedRoute><AppLayout><TeamsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/esign" element={<ProtectedRoute><AppLayout><ESignPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/documents" element={<ProtectedRoute><AppLayout><DocumentLibraryPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/document-expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
