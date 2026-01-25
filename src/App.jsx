@@ -135,6 +135,11 @@ const CommentsNotes = lazy(() => import('@/components/CommentsNotes'));
 const ContractManagement = lazy(() => import('@/components/ContractManagement'));
 const ComparativeMarketAnalysis = lazy(() => import('@/components/ComparativeMarketAnalysis'));
 const DealPipelineKanban = lazy(() => import('@/components/DealPipelineKanban'));
+const TeamWorkloadDashboard = lazy(() => import('@/components/TeamWorkloadDashboard'));
+const PropertyComparisonTool = lazy(() => import('@/components/PropertyComparisonTool'));
+const SavedViewsManager = lazy(() => import('@/components/SavedViewsManager'));
+const UserActivityTimeTracker = lazy(() => import('@/components/UserActivityTimeTracker'));
+const MilestoneTracker = lazy(() => import('@/components/MilestoneTracker'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -544,6 +549,11 @@ const AppContent = () => (
     <Route path="/operations/contracts" element={<ProtectedRoute><AppLayout><ContractManagement /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/cma" element={<ProtectedRoute><AppLayout><ComparativeMarketAnalysis /></AppLayout></ProtectedRoute>} />
     <Route path="/pipeline" element={<ProtectedRoute><AppLayout><DealPipelineKanban /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/team-workload" element={<ProtectedRoute><AppLayout><TeamWorkloadDashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/property-compare" element={<ProtectedRoute><AppLayout><PropertyComparisonTool /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/saved-views" element={<ProtectedRoute><AppLayout><SavedViewsManager /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/activity-tracker" element={<ProtectedRoute><AppLayout><UserActivityTimeTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/milestones" element={<ProtectedRoute><AppLayout><MilestoneTracker /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
