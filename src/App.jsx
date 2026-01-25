@@ -9,6 +9,7 @@ import { TransactionEntryProvider } from '@/contexts/TransactionEntryContext';
 import TopNavigation from '@/components/TopNavigation';
 import LoadingState from '@/components/LoadingState';
 import { ChatButton } from '@/components/chat';
+import ReminderWidget from '@/components/ReminderWidget';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 
@@ -130,6 +131,10 @@ const BulkActions = lazy(() => import('@/components/BulkActions'));
 const UserActivityAnalytics = lazy(() => import('@/components/UserActivityAnalytics'));
 const CustomFieldsManager = lazy(() => import('@/components/CustomFieldsManager'));
 const WebhookManager = lazy(() => import('@/components/WebhookManager'));
+const CommentsNotes = lazy(() => import('@/components/CommentsNotes'));
+const ContractManagement = lazy(() => import('@/components/ContractManagement'));
+const ComparativeMarketAnalysis = lazy(() => import('@/components/ComparativeMarketAnalysis'));
+const DealPipelineKanban = lazy(() => import('@/components/DealPipelineKanban'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -246,6 +251,7 @@ const AppLayout = ({ children }) => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <TopNavigation />
       <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
+      <ReminderWidget />
       <ChatButton currentUser={user} />
     </div>
   );
@@ -534,6 +540,10 @@ const AppContent = () => (
     <Route path="/admin/analytics" element={<ProtectedRoute><AppLayout><AdminLayout><UserActivityAnalytics /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/custom-fields" element={<ProtectedRoute><AppLayout><AdminLayout><CustomFieldsManager /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/webhooks" element={<ProtectedRoute><AppLayout><AdminLayout><WebhookManager /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/comments" element={<ProtectedRoute><AppLayout><CommentsNotes /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/contracts" element={<ProtectedRoute><AppLayout><ContractManagement /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/cma" element={<ProtectedRoute><AppLayout><ComparativeMarketAnalysis /></AppLayout></ProtectedRoute>} />
+    <Route path="/pipeline" element={<ProtectedRoute><AppLayout><DealPipelineKanban /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
