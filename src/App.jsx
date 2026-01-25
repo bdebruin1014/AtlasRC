@@ -212,6 +212,12 @@ const ProFormaPage = lazy(() => import('@/pages/projects/ProForma/ProFormaPage')
 const DocumentsPage = lazy(() => import('@/pages/projects/DocumentsPage'));
 const TasksPage = lazy(() => import('@/pages/projects/TasksPage'));
 
+// Task Management System (Phase 10)
+const TaskManagementPage = lazy(() => import('@/pages/projects/TaskManagementPage'));
+const ProjectMilestonesPage = lazy(() => import('@/pages/projects/ProjectMilestonesPage'));
+const TaskWorkflowTemplatesPage = lazy(() => import('@/pages/operations/TaskWorkflowTemplatesPage'));
+const WorkflowTaskIntegrationPage = lazy(() => import('@/pages/operations/WorkflowTaskIntegrationPage'));
+
 // Additional Project Pages (for legacy support)
 const DealAnalysisPage = lazy(() => import('@/pages/projects/DealAnalysisPage'));
 const ProjectSettingsPage = lazy(() => import('@/pages/projects/SettingsPage'));
@@ -362,6 +368,8 @@ const AppContent = () => (
 
     {/* Additional Project Routes */}
     <Route path="/project/:projectId/tasks" element={<ProtectedRoute><AppLayout><TasksPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/task-management" element={<ProtectedRoute><AppLayout><TaskManagementPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/milestones" element={<ProtectedRoute><AppLayout><ProjectMilestonesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/units" element={<ProtectedRoute><AppLayout><UnitsManagementPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/takedown" element={<ProtectedRoute><AppLayout><TakedownSchedulePage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/lease-up" element={<ProtectedRoute><AppLayout><LeaseUpPage /></AppLayout></ProtectedRoute>} />
@@ -554,6 +562,10 @@ const AppContent = () => (
     <Route path="/operations/saved-views" element={<ProtectedRoute><AppLayout><SavedViewsManager /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/activity-tracker" element={<ProtectedRoute><AppLayout><UserActivityTimeTracker /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/milestones" element={<ProtectedRoute><AppLayout><MilestoneTracker /></AppLayout></ProtectedRoute>} />
+
+    {/* Task Management System (Phase 10) */}
+    <Route path="/operations/tasks/templates" element={<ProtectedRoute><AppLayout><TaskWorkflowTemplatesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/tasks/workflow-integration" element={<ProtectedRoute><AppLayout><WorkflowTaskIntegrationPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
