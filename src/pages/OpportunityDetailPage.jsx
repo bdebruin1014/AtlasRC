@@ -1101,12 +1101,332 @@ const OpportunityDetailPage = () => {
           </div>
         );
 
+      case 'stage-prospecting':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Prospecting Stage</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Contacted')}>
+                Move to Contacted
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Prospecting Checklist</h3>
+                <div className="space-y-3">
+                  {[
+                    'Property details verified',
+                    'Ownership confirmed',
+                    'Initial property research complete',
+                    'Comparable sales reviewed',
+                    'Potential value estimated',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Lead Source Info</h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Source</p>
+                    <p className="font-medium">{formData?.source || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Date Added</p>
+                    <p className="font-medium">{formData?.created_at ? new Date(formData.created_at).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Days in Pipeline</p>
+                    <p className="font-medium">{formData?.created_at ? Math.floor((Date.now() - new Date(formData.created_at)) / (1000 * 60 * 60 * 24)) : 0} days</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'stage-contacted':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Contacted Stage</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Qualified')}>
+                Move to Qualified
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Contact Checklist</h3>
+                <div className="space-y-3">
+                  {[
+                    'Initial contact made',
+                    'Seller motivation discussed',
+                    'Property condition reviewed',
+                    'Timeline established',
+                    'Follow-up scheduled',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Contact History</h3>
+                {communications.length > 0 ? (
+                  <div className="space-y-2">
+                    {communications.slice(0, 5).map((comm, idx) => (
+                      <div key={idx} className="p-2 bg-gray-50 rounded text-sm">
+                        <div className="flex justify-between">
+                          <span className="font-medium">{comm.type}</span>
+                          <span className="text-gray-500 text-xs">{comm.date}</span>
+                        </div>
+                        <p className="text-gray-600 text-xs mt-1">{comm.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No contact history yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'stage-qualified':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Qualified Stage</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Negotiating')}>
+                Move to Negotiating
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Qualification Checklist</h3>
+                <div className="space-y-3">
+                  {[
+                    'Seller is motivated',
+                    'Price expectations are reasonable',
+                    'Property meets investment criteria',
+                    'Clear title (preliminary)',
+                    'No major property issues',
+                    'Financing path identified',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Deal Summary</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between p-2 bg-gray-50 rounded">
+                    <span className="text-sm text-gray-600">Asking Price</span>
+                    <span className="font-medium">${(formData?.asking_price || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-gray-50 rounded">
+                    <span className="text-sm text-gray-600">Estimated Value</span>
+                    <span className="font-medium">${(formData?.estimated_value || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-green-50 rounded">
+                    <span className="text-sm text-green-700">Potential Profit</span>
+                    <span className="font-medium text-green-700">${((formData?.estimated_value || 0) - (formData?.asking_price || 0)).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'stage-negotiating':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Negotiating Stage</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Under Contract')}>
+                Move to Under Contract
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Negotiation Tracker</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Initial Offer</Label>
+                    <Input
+                      type="number"
+                      value={formData?.initial_offer || ''}
+                      onChange={(e) => setField('initial_offer', e.target.value)}
+                      className="mt-1"
+                      placeholder="Your initial offer"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Counter Offer</Label>
+                    <Input
+                      type="number"
+                      value={formData?.counter_offer || ''}
+                      onChange={(e) => setField('counter_offer', e.target.value)}
+                      className="mt-1"
+                      placeholder="Seller's counter"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Final Agreed Price</Label>
+                    <Input
+                      type="number"
+                      value={formData?.final_price || ''}
+                      onChange={(e) => setField('final_price', e.target.value)}
+                      className="mt-1"
+                      placeholder="Agreed price"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Negotiation Notes</h3>
+                <Textarea
+                  value={formData?.negotiation_notes || ''}
+                  onChange={(e) => setField('negotiation_notes', e.target.value)}
+                  rows={8}
+                  placeholder="Track negotiation details, seller concerns, terms discussed..."
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'stage-under-contract':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Under Contract</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">
+                Convert to Project
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Contract Details</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Contract Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.contract_date || ''}
+                      onChange={(e) => setField('contract_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.earnest_money || ''}
+                      onChange={(e) => setField('earnest_money', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Due Diligence Deadline</Label>
+                    <Input
+                      type="date"
+                      value={formData?.dd_deadline || ''}
+                      onChange={(e) => setField('dd_deadline', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Closing Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.closing_date || ''}
+                      onChange={(e) => setField('closing_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Closing Checklist</h3>
+                <div className="space-y-3">
+                  {[
+                    'Title search ordered',
+                    'Survey completed',
+                    'Inspections done',
+                    'Financing approved',
+                    'Insurance obtained',
+                    'Closing scheduled',
+                    'Funds wired',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'notes':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Notes & Activity</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Notes</h3>
+                <Textarea
+                  value={formData?.notes || ''}
+                  onChange={(e) => setField('notes', e.target.value)}
+                  rows={12}
+                  placeholder="Add notes about this opportunity..."
+                />
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Activity Timeline</h3>
+                <div className="space-y-3">
+                  {[
+                    ...communications.map(c => ({ type: 'comm', ...c })),
+                    ...mailings.map(m => ({ type: 'mail', ...m })),
+                  ].sort((a, b) => new Date(b.date || b.sentDate) - new Date(a.date || a.sentDate)).slice(0, 10).map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-2 bg-gray-50 rounded">
+                      <div className={`w-2 h-2 rounded-full mt-1.5 ${item.type === 'comm' ? 'bg-blue-500' : 'bg-purple-500'}`} />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{item.type === 'comm' ? item.type : item.template}</p>
+                        <p className="text-xs text-gray-500">{item.date || item.sentDate}</p>
+                        {item.summary && <p className="text-xs text-gray-600 mt-1">{item.summary}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  {communications.length === 0 && mailings.length === 0 && (
+                    <p className="text-gray-500 text-sm text-center py-4">No activity recorded yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="p-6">
             <div className="bg-white border rounded-lg p-12 text-center">
               <p className="text-gray-600 capitalize font-medium">{activeSection.replace(/-/g, ' ')}</p>
-              <p className="text-gray-400 text-sm mt-2">Content coming soon</p>
+              <p className="text-gray-400 text-sm mt-2">Section loading...</p>
             </div>
           </div>
         );
