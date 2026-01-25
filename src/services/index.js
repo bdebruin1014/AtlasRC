@@ -13,3 +13,10 @@ export { default as esignService } from './esignService';
 export { default as documentService } from './documentService';
 export { default as inspectionService } from './inspectionService';
 export { default as permissionService } from './permissionService';
+
+// Entity & Accounting Architecture Services
+export { default as coaTemplateService } from './coaTemplateService';
+export { default as accountService } from './accountService';
+export { default as entityRelationshipService } from './entityRelationshipService';
+export { default as duplicateDetectionService } from './duplicateDetectionService';
+export { default as consolidationService } from './consolidationService';

@@ -1,15 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
+import {
   Building2, GitBranch, ChevronRight, ChevronDown, Users, Percent,
-  ArrowUp, ArrowDown, ExternalLink, DollarSign, TrendingUp
+  ArrowUp, ArrowDown, ExternalLink, DollarSign, TrendingUp, Plus, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { entityRelationshipService } from '@/services/entityRelationshipService';
+import { entityService } from '@/services/entityService';
+import { useToast } from '@/components/ui/use-toast';
 
 const EntityOwnershipPage = () => {
   const { entityId } = useParams();
-  const [expandedNodes, setExpandedNodes] = useState(['parent', 'current', 'children']);
+  const { toast } = useToast();
+  const [expandedNodes, setExpandedNodes] = useState(['parent', 'current', 'children', 'siblings', 'investors']);
+  const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addingRelationship, setAddingRelationship] = useState(false);
+  const [availableEntities, setAvailableEntities] = useState([]);
+  const [availableOwnership, setAvailableOwnership] = useState(100);
+  const [newRelationship, setNewRelationship] = useState({
+    parentEntityId: '',
+    ownershipPercentage: '',
+    effectiveDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
 
   // Mock entity data - in real app would come from context/API
   const currentEntity = {
@@ -93,6 +112,68 @@ const EntityOwnershipPage = () => {
     { id: 'inv-003', name: 'Acme Investments LLC', type: 'llc', ownership: 8.5, invested: 400000 },
   ];
 
+  // Load available entities for adding relationships
+  useEffect(() => {
+    const loadAvailableData = async () => {
+      try {
+        // Load all entities for dropdown
+        const allEntities = await entityService.getAll();
+        if (allEntities) {
+          setAvailableEntities(allEntities.filter(e => e.id !== entityId));
+        }
+
+        // Load available ownership percentage
+        const { data: available } = await entityRelationshipService.getAvailableOwnership(entityId);
+        setAvailableOwnership(available ?? 100);
+      } catch (error) {
+        console.error('Error loading entity data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAvailableData();
+  }, [entityId]);
+
+  const handleAddRelationship = async () => {
+    if (!newRelationship.parentEntityId || !newRelationship.ownershipPercentage) {
+      toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
+      return;
+    }
+
+    const percentage = parseFloat(newRelationship.ownershipPercentage);
+    if (percentage > availableOwnership) {
+      toast({ title: 'Error', description: `Only ${availableOwnership}% ownership is available`, variant: 'destructive' });
+      return;
+    }
+
+    setAddingRelationship(true);
+    try {
+      const { data, error } = await entityRelationshipService.create({
+        parent_entity_id: newRelationship.parentEntityId,
+        child_entity_id: entityId,
+        ownership_percentage: percentage,
+        relationship_type: 'ownership',
+        effective_date: newRelationship.effectiveDate,
+        notes: newRelationship.notes,
+      });
+
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'Ownership relationship added' });
+        setShowAddDialog(false);
+        setNewRelationship({ parentEntityId: '', ownershipPercentage: '', effectiveDate: new Date().toISOString().split('T')[0], notes: '' });
+        // Refresh available ownership
+        const { data: available } = await entityRelationshipService.getAvailableOwnership(entityId);
+        setAvailableOwnership(available ?? 100);
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to add relationship', variant: 'destructive' });
+    } finally {
+      setAddingRelationship(false);
+    }
+  };
+
   const getTypeConfig = (type) => ({
     holding: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300', label: 'Holding' },
     project: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', label: 'Project SPV' },
@@ -123,11 +204,16 @@ const EntityOwnershipPage = () => {
           <h1 className="text-2xl font-bold">Ownership Structure</h1>
           <p className="text-sm text-gray-500">View the ownership hierarchy for {currentEntity.name}</p>
         </div>
-        <Link to="/accounting/hierarchy">
-          <Button variant="outline">
-            <GitBranch className="w-4 h-4 mr-2" />View Full Hierarchy
+        <div className="flex gap-2">
+          <Link to="/accounting/hierarchy">
+            <Button variant="outline">
+              <GitBranch className="w-4 h-4 mr-2" />View Full Hierarchy
+            </Button>
+          </Link>
+          <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowAddDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />Add Owner
           </Button>
-        </Link>
+        </div>
       </div>
 
       {/* Current Entity Card */}
@@ -356,12 +442,86 @@ const EntityOwnershipPage = () => {
             <p className="text-xs text-gray-400">{investors.length} investors</p>
           </div>
           <div className="bg-white rounded-lg p-3 border">
-            <p className="text-sm text-gray-500">GP/Sponsor Ownership</p>
-            <p className="font-semibold">{(100 - investors.reduce((s, i) => s + i.ownership, 0)).toFixed(1)}%</p>
-            <p className="text-xs text-gray-400">VanRock Holdings LLC</p>
+            <p className="text-sm text-gray-500">Available Ownership</p>
+            <p className="font-semibold">{availableOwnership.toFixed(1)}%</p>
+            <p className="text-xs text-gray-400">Not yet allocated</p>
           </div>
         </div>
       </div>
+
+      {/* Add Ownership Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Ownership Relationship</DialogTitle>
+            <DialogDescription>
+              Add a new owner for this entity. Available ownership: {availableOwnership.toFixed(1)}%
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Owner Entity *</Label>
+              <Select
+                value={newRelationship.parentEntityId}
+                onValueChange={(v) => setNewRelationship(prev => ({ ...prev, parentEntityId: v }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select owner entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableEntities.map(entity => (
+                    <SelectItem key={entity.id} value={entity.id}>
+                      {entity.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Ownership Percentage *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max={availableOwnership}
+                value={newRelationship.ownershipPercentage}
+                onChange={(e) => setNewRelationship(prev => ({ ...prev, ownershipPercentage: e.target.value }))}
+                placeholder={`Max ${availableOwnership}%`}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Effective Date</Label>
+              <Input
+                type="date"
+                value={newRelationship.effectiveDate}
+                onChange={(e) => setNewRelationship(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Input
+                value={newRelationship.notes}
+                onChange={(e) => setNewRelationship(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional notes about this relationship"
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleAddRelationship}
+              disabled={addingRelationship}
+              className="bg-[#047857] hover:bg-[#065f46]"
+            >
+              {addingRelationship ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Add Ownership
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

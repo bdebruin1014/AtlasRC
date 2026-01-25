@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Save, Loader2, Building2, FileText, MapPin, Wallet
+  ArrowLeft, Save, Loader2, Building2, FileText, MapPin, Wallet, Users, Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { entityService } from '@/services/entityService';
 
@@ -32,20 +33,47 @@ const US_STATES = [
   { value: 'WI', label: 'Wisconsin' }, { value: 'WY', label: 'Wyoming' }
 ];
 
-const ENTITY_TYPES = [
-  { value: 'holding', label: 'Holding Company', description: 'Parent entity that owns other companies' },
-  { value: 'operating', label: 'Operating Company', description: 'Active business operations' },
-  { value: 'project', label: 'Project Entity', description: 'Single-purpose entity for a specific project' },
+// Entity Purpose - Operational Role
+const ENTITY_PURPOSES = [
+  { value: 'holding_company', label: 'Holding Company', description: 'Parent entity that owns other companies' },
+  { value: 'operating_company', label: 'Operating Company', description: 'Active business operations' },
+  { value: 'spe', label: 'Single Purpose Entity (SPE)', description: 'Single-purpose entity for a specific project' },
 ];
 
-const LEGAL_STRUCTURES = [
-  { value: 'LLC', label: 'LLC' },
-  { value: 'Corporation', label: 'Corporation' },
-  { value: 'Partnership', label: 'Partnership' },
-  { value: 'Sole Proprietorship', label: 'Sole Proprietorship' },
-  { value: 'Trust', label: 'Trust' },
-  { value: 'Other', label: 'Other' },
+// Entity Type - Legal Structure
+const ENTITY_TYPES = [
+  { value: 'llc', label: 'LLC', description: 'Limited Liability Company' },
+  { value: 's_corp', label: 'S-Corporation', description: 'Pass-through taxation corporation' },
+  { value: 'c_corp', label: 'C-Corporation', description: 'Standard corporation' },
+  { value: 'partnership', label: 'Partnership', description: 'General or limited partnership' },
+  { value: 'lp', label: 'Limited Partnership (LP)', description: 'Partnership with limited partners' },
+  { value: 'sole_proprietorship', label: 'Sole Proprietorship', description: 'Individual ownership' },
+  { value: 'trust', label: 'Trust', description: 'Legal trust arrangement' },
+  { value: 'individual', label: 'Individual', description: 'Natural person' },
+  { value: 'other', label: 'Other', description: 'Other legal structure' },
 ];
+
+// Project Types for SPE entities
+const PROJECT_TYPES = [
+  { value: 'lot_development', label: 'Lot Development', description: 'Land subdivision & lot sales' },
+  { value: 'btr', label: 'Build-to-Rent (BTR)', description: 'Rental community development' },
+  { value: 'fix_and_flip', label: 'Fix & Flip', description: 'Property renovation & resale' },
+  { value: 'spec_build', label: 'Spec Build', description: 'Speculative home construction' },
+  { value: 'community_development', label: 'Community Development', description: 'Master-planned community' },
+  { value: 'none', label: 'None / General', description: 'General purpose SPE' },
+];
+
+// SEC Exemptions for syndication
+const SEC_EXEMPTIONS = [
+  { value: '506b', label: 'Reg D 506(b)', description: 'Up to 35 non-accredited investors' },
+  { value: '506c', label: 'Reg D 506(c)', description: 'Accredited investors only, general solicitation allowed' },
+  { value: 'reg_a', label: 'Regulation A', description: 'Mini-IPO, up to $75M' },
+  { value: 'reg_cf', label: 'Regulation CF', description: 'Crowdfunding, up to $5M' },
+  { value: 'other', label: 'Other', description: 'Other SEC exemption' },
+];
+
+// Legacy LEGAL_STRUCTURES for backward compatibility
+const LEGAL_STRUCTURES = ENTITY_TYPES;
 
 // Default entities for fallback
 const defaultParentEntities = [
@@ -55,9 +83,12 @@ const defaultParentEntities = [
 
 interface FormData {
   name: string;
-  type: string;
+  type: string; // Legacy field - maps to entity_purpose
+  entityType: string; // Legal structure (LLC, S-Corp, etc.)
+  entityPurpose: string; // Operational role (holding_company, operating_company, spe)
+  projectType: string; // For SPE entities only
   parentEntityId: string;
-  legalStructure: string;
+  legalStructure: string; // Legacy - now uses entityType
   taxId: string;
   stateOfFormation: string;
   formationDate: string;
@@ -73,6 +104,9 @@ interface FormData {
   accountNumber: string;
   routingNumber: string;
   notes: string;
+  // Syndication fields
+  isSyndication: boolean;
+  secExemption: string;
 }
 
 interface FormErrors {
@@ -92,9 +126,12 @@ const EntityForm: React.FC = () => {
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    type: '',
+    type: '', // Legacy
+    entityType: '',
+    entityPurpose: '',
+    projectType: '',
     parentEntityId: '',
-    legalStructure: '',
+    legalStructure: '', // Legacy
     taxId: '',
     stateOfFormation: 'SC',
     formationDate: '',
@@ -110,6 +147,8 @@ const EntityForm: React.FC = () => {
     accountNumber: '',
     routingNumber: '',
     notes: '',
+    isSyndication: false,
+    secExemption: '',
   });
 
   // Load parent entities for dropdown
@@ -140,9 +179,12 @@ const EntityForm: React.FC = () => {
           if (data) {
             setFormData({
               name: data.name || '',
-              type: data.type || '',
+              type: data.type || '', // Legacy
+              entityType: data.entity_type || data.legal_structure || '',
+              entityPurpose: data.entity_purpose || data.type || '',
+              projectType: data.project_type || '',
               parentEntityId: data.parent_entity_id || '',
-              legalStructure: data.legal_structure || '',
+              legalStructure: data.legal_structure || data.entity_type || '', // Legacy
               taxId: data.tax_id || '',
               stateOfFormation: data.state_of_formation || 'SC',
               formationDate: data.formation_date || '',
@@ -158,6 +200,8 @@ const EntityForm: React.FC = () => {
               accountNumber: '', // Don't load sensitive data
               routingNumber: data.routing_number || '',
               notes: data.notes || '',
+              isSyndication: data.is_syndication || false,
+              secExemption: data.sec_exemption || '',
             });
           }
         } catch (error) {
@@ -175,10 +219,20 @@ const EntityForm: React.FC = () => {
     }
   }, [isEditing, id, toast]);
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+
+    // Clear project type if entity purpose is not SPE
+    if (field === 'entityPurpose' && value !== 'spe') {
+      setFormData(prev => ({ ...prev, [field]: value, projectType: '' }));
+    }
+
+    // Clear SEC exemption if not a syndication
+    if (field === 'isSyndication' && value === false) {
+      setFormData(prev => ({ ...prev, [field]: value, secExemption: '' }));
     }
   };
 
@@ -213,8 +267,19 @@ const EntityForm: React.FC = () => {
     if (!formData.name || formData.name.length < 2) {
       newErrors.name = 'Entity name is required (min 2 characters)';
     }
-    if (!formData.type) {
-      newErrors.type = 'Entity type is required';
+    if (!formData.entityPurpose) {
+      newErrors.entityPurpose = 'Entity purpose is required';
+    }
+    if (!formData.entityType) {
+      newErrors.entityType = 'Entity type (legal structure) is required';
+    }
+    // Require project type for SPE entities
+    if (formData.entityPurpose === 'spe' && !formData.projectType) {
+      newErrors.projectType = 'Project type is required for SPE entities';
+    }
+    // Require SEC exemption if syndication
+    if (formData.isSyndication && !formData.secExemption) {
+      newErrors.secExemption = 'SEC exemption is required for syndications';
     }
     if (formData.taxId && !/^\d{2}-\d{7}$/.test(formData.taxId)) {
       newErrors.taxId = 'Tax ID must be in format XX-XXXXXXX';
@@ -243,11 +308,21 @@ const EntityForm: React.FC = () => {
     setSaving(true);
 
     try {
+      // Map entity_purpose to legacy type field for backward compatibility
+      const legacyTypeMap: { [key: string]: string } = {
+        'holding_company': 'holding',
+        'operating_company': 'operating',
+        'spe': 'project',
+      };
+
       const entityData = {
         name: formData.name,
-        type: formData.type,
+        type: legacyTypeMap[formData.entityPurpose] || formData.entityPurpose, // Legacy field
+        entity_type: formData.entityType,
+        entity_purpose: formData.entityPurpose,
+        project_type: formData.entityPurpose === 'spe' ? formData.projectType : null,
         parent_entity_id: formData.parentEntityId || null,
-        legal_structure: formData.legalStructure,
+        legal_structure: formData.entityType, // Map entityType to legacy field
         tax_id: formData.taxId,
         state_of_formation: formData.stateOfFormation,
         formation_date: formData.formationDate,
@@ -262,6 +337,8 @@ const EntityForm: React.FC = () => {
         bank_name: formData.bankName,
         routing_number: formData.routingNumber,
         notes: formData.notes,
+        is_syndication: formData.isSyndication,
+        sec_exemption: formData.isSyndication ? formData.secExemption : null,
       };
 
       if (isEditing && id) {
@@ -360,12 +437,33 @@ const EntityForm: React.FC = () => {
               {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
             </div>
             <div>
-              <Label htmlFor="type">
-                Entity Type <span className="text-red-500">*</span>
+              <Label htmlFor="entityPurpose">
+                Entity Purpose <span className="text-red-500">*</span>
               </Label>
-              <Select value={formData.type} onValueChange={(v) => handleInputChange('type', v)}>
-                <SelectTrigger className={errors.type ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select type" />
+              <Select value={formData.entityPurpose} onValueChange={(v) => handleInputChange('entityPurpose', v)}>
+                <SelectTrigger className={errors.entityPurpose ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ENTITY_PURPOSES.map(purpose => (
+                    <SelectItem key={purpose.value} value={purpose.value}>
+                      <div>
+                        <div className="font-medium">{purpose.label}</div>
+                        <div className="text-xs text-gray-500">{purpose.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.entityPurpose && <p className="text-sm text-red-500 mt-1">{errors.entityPurpose}</p>}
+            </div>
+            <div>
+              <Label htmlFor="entityType">
+                Legal Structure <span className="text-red-500">*</span>
+              </Label>
+              <Select value={formData.entityType} onValueChange={(v) => handleInputChange('entityType', v)}>
+                <SelectTrigger className={errors.entityType ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select legal structure" />
                 </SelectTrigger>
                 <SelectContent>
                   {ENTITY_TYPES.map(type => (
@@ -378,8 +476,31 @@ const EntityForm: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              {errors.type && <p className="text-sm text-red-500 mt-1">{errors.type}</p>}
+              {errors.entityType && <p className="text-sm text-red-500 mt-1">{errors.entityType}</p>}
             </div>
+            {formData.entityPurpose === 'spe' && (
+              <div>
+                <Label htmlFor="projectType">
+                  Project Type <span className="text-red-500">*</span>
+                </Label>
+                <Select value={formData.projectType} onValueChange={(v) => handleInputChange('projectType', v)}>
+                  <SelectTrigger className={errors.projectType ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select project type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROJECT_TYPES.map(type => (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div>
+                          <div className="font-medium">{type.label}</div>
+                          <div className="text-xs text-gray-500">{type.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.projectType && <p className="text-sm text-red-500 mt-1">{errors.projectType}</p>}
+              </div>
+            )}
             <div>
               <Label htmlFor="parentEntityId">Parent Entity</Label>
               <Select value={formData.parentEntityId} onValueChange={(v) => handleInputChange('parentEntityId', v)}>
@@ -398,6 +519,53 @@ const EntityForm: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Section 1b: Syndication Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-600" />
+              Syndication Settings
+            </CardTitle>
+            <CardDescription>Configure if this entity involves outside investors</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="isSyndication" className="text-base">Syndication / Capital Raise</Label>
+                <p className="text-sm text-gray-500">This entity includes outside investors or a capital raise</p>
+              </div>
+              <Switch
+                id="isSyndication"
+                checked={formData.isSyndication}
+                onCheckedChange={(checked) => handleInputChange('isSyndication', checked)}
+              />
+            </div>
+            {formData.isSyndication && (
+              <div>
+                <Label htmlFor="secExemption">
+                  SEC Exemption <span className="text-red-500">*</span>
+                </Label>
+                <Select value={formData.secExemption} onValueChange={(v) => handleInputChange('secExemption', v)}>
+                  <SelectTrigger className={errors.secExemption ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select SEC exemption" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEC_EXEMPTIONS.map(exemption => (
+                      <SelectItem key={exemption.value} value={exemption.value}>
+                        <div>
+                          <div className="font-medium">{exemption.label}</div>
+                          <div className="text-xs text-gray-500">{exemption.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.secExemption && <p className="text-sm text-red-500 mt-1">{errors.secExemption}</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Section 2: Legal Information */}
         <Card>
           <CardHeader>
@@ -407,19 +575,6 @@ const EntityForm: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="legalStructure">Legal Structure</Label>
-              <Select value={formData.legalStructure} onValueChange={(v) => handleInputChange('legalStructure', v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select structure" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LEGAL_STRUCTURES.map(structure => (
-                    <SelectItem key={structure.value} value={structure.value}>{structure.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <Label htmlFor="taxId">Tax ID / EIN</Label>
               <Input
