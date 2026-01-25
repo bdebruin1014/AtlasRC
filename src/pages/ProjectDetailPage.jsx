@@ -821,7 +821,34 @@ const ProjectDetailPage = () => {
             </div>
             <div className="bg-white border rounded-lg p-6">
               <h3 className="font-medium mb-4">Phase Schedule</h3>
-              <p className="text-gray-500 text-sm">Phase scheduling with editable milestones coming soon.</p>
+              <div className="space-y-3">
+                {[
+                  { phase: 'Pre-Construction', status: 'completed', start: '2024-01-15', end: '2024-02-01', progress: 100 },
+                  { phase: 'Site Preparation', status: 'completed', start: '2024-02-01', end: '2024-02-15', progress: 100 },
+                  { phase: 'Foundation', status: 'active', start: '2024-02-15', end: '2024-03-15', progress: 75 },
+                  { phase: 'Framing', status: 'upcoming', start: '2024-03-15', end: '2024-04-30', progress: 0 },
+                  { phase: 'Rough-In (MEP)', status: 'upcoming', start: '2024-04-30', end: '2024-05-31', progress: 0 },
+                  { phase: 'Insulation & Drywall', status: 'upcoming', start: '2024-05-31', end: '2024-06-30', progress: 0 },
+                  { phase: 'Finishes', status: 'upcoming', start: '2024-06-30', end: '2024-08-15', progress: 0 },
+                  { phase: 'Final Inspection', status: 'upcoming', start: '2024-08-15', end: '2024-08-31', progress: 0 },
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50">
+                    <div className={`w-3 h-3 rounded-full ${item.status === 'completed' ? 'bg-green-500' : item.status === 'active' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{item.phase}</p>
+                      <p className="text-xs text-gray-500">{item.start} - {item.end}</p>
+                    </div>
+                    <div className="w-32">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className={`h-2 rounded-full ${item.status === 'completed' ? 'bg-green-500' : item.status === 'active' ? 'bg-blue-500' : 'bg-gray-300'}`} style={{ width: `${item.progress}%` }} />
+                      </div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded ${item.status === 'completed' ? 'bg-green-100 text-green-700' : item.status === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {item.progress}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -870,6 +897,363 @@ const ProjectDetailPage = () => {
           </div>
         );
 
+      case 'change-orders':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Change Orders</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">New Change Order</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total COs</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Approved Amount</p>
+                <p className="text-2xl font-semibold text-green-600">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-semibold text-amber-600">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Rejected</p>
+                <p className="text-2xl font-semibold text-red-600">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No change orders yet. Click "New Change Order" to create one.</p>
+            </div>
+          </div>
+        );
+
+      case 'permits':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Permits & Inspections</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Add Permit</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Permits</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Approved</p>
+                <p className="text-2xl font-semibold text-green-600">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-semibold text-amber-600">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Inspections Due</p>
+                <p className="text-2xl font-semibold text-blue-600">0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No permits tracked yet. Click "Add Permit" to add one.</p>
+            </div>
+          </div>
+        );
+
+      case 'bids':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Bids & Subcontracts</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Create Bid Package</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Bid Packages</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Bids Received</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Awarded</p>
+                <p className="text-2xl font-semibold text-green-600">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Contract Value</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No bid packages yet. Click "Create Bid Package" to start.</p>
+            </div>
+          </div>
+        );
+
+      case 'budget-vs-actual':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Budget vs Actual</h2>
+              <Button variant="outline">Export Report</Button>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Budget</p>
+                <p className="text-2xl font-semibold">${budget.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Actual Spent</p>
+                <p className="text-2xl font-semibold">${spent.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Variance</p>
+                <p className={`text-2xl font-semibold ${budget - spent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${Math.abs(budget - spent).toLocaleString()} {budget - spent >= 0 ? 'under' : 'over'}
+                </p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <table className="w-full">
+                <thead className="text-xs text-gray-500 uppercase border-b">
+                  <tr>
+                    <th className="text-left p-3">Category</th>
+                    <th className="text-right p-3">Budget</th>
+                    <th className="text-right p-3">Actual</th>
+                    <th className="text-right p-3">Variance</th>
+                    <th className="text-right p-3">% Used</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {[
+                    { category: 'Land Acquisition', budget: budget * 0.30, actual: spent * 0.40 },
+                    { category: 'Site Work', budget: budget * 0.10, actual: spent * 0.15 },
+                    { category: 'Foundation', budget: budget * 0.15, actual: spent * 0.20 },
+                    { category: 'Framing', budget: budget * 0.20, actual: spent * 0.15 },
+                    { category: 'MEP', budget: budget * 0.15, actual: spent * 0.10 },
+                    { category: 'Finishes', budget: budget * 0.10, actual: 0 },
+                  ].map((item, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="p-3 font-medium">{item.category}</td>
+                      <td className="p-3 text-right">${item.budget.toLocaleString()}</td>
+                      <td className="p-3 text-right">${item.actual.toLocaleString()}</td>
+                      <td className={`p-3 text-right ${item.budget - item.actual >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${Math.abs(item.budget - item.actual).toLocaleString()}
+                      </td>
+                      <td className="p-3 text-right">{item.budget > 0 ? Math.round(item.actual / item.budget * 100) : 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'expenses':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Expenses</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Record Expense</Button>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Expenses</p>
+                <p className="text-2xl font-semibold">${spent.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">This Month</p>
+                <p className="text-2xl font-semibold">${Math.round(spent * 0.15).toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Pending Approval</p>
+                <p className="text-2xl font-semibold text-amber-600">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No expenses recorded yet. Click "Record Expense" to add one.</p>
+            </div>
+          </div>
+        );
+
+      case 'revenue':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Revenue & Sales</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Record Sale</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Projected Sale</p>
+                <p className="text-2xl font-semibold">${projectedSalePrice.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Actual Revenue</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Deposits Received</p>
+                <p className="text-2xl font-semibold text-green-600">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-semibold text-amber-600">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No sales recorded yet. Click "Record Sale" when property is sold.</p>
+            </div>
+          </div>
+        );
+
+      case 'loans':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Loans & Financing</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Add Loan</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Loan Amount</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Amount Drawn</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Available</p>
+                <p className="text-2xl font-semibold text-green-600">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Interest Accrued</p>
+                <p className="text-2xl font-semibold text-red-600">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No loans tracked yet. Click "Add Loan" to add financing details.</p>
+            </div>
+          </div>
+        );
+
+      case 'draws-finance':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Draw Schedule</h2>
+              <Button variant="outline">Export Schedule</Button>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Loan</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Drawn to Date</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Remaining</p>
+                <p className="text-2xl font-semibold text-green-600">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Add a loan first to set up the draw schedule.</p>
+            </div>
+          </div>
+        );
+
+      case 'cash-flow':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Cash Flow Analysis</h2>
+              <Button variant="outline">Export Report</Button>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Cash In</p>
+                <p className="text-2xl font-semibold text-green-600">$0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Cash Out</p>
+                <p className="text-2xl font-semibold text-red-600">${spent.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Net Cash Flow</p>
+                <p className="text-2xl font-semibold">${(-spent).toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium mb-4">Monthly Cash Flow Projection</h3>
+              <p className="text-gray-500 text-center py-8">Cash flow projections will appear here once transactions are recorded.</p>
+            </div>
+          </div>
+        );
+
+      case 'project-settings':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Project Settings</h2>
+              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Project Status</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Current Status</Label>
+                    <Select value={formData?.status || 'active'} onValueChange={(v) => setField('status', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="on-hold">On Hold</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Priority</Label>
+                    <Select value={formData?.priority || 'medium'} onValueChange={(v) => setField('priority', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Notifications</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" className="rounded" defaultChecked />
+                    <span className="text-sm">Budget threshold alerts</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" className="rounded" defaultChecked />
+                    <span className="text-sm">Schedule milestone reminders</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" className="rounded" defaultChecked />
+                    <span className="text-sm">Document expiration warnings</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" className="rounded" />
+                    <span className="text-sm">Weekly summary emails</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="p-6">
@@ -878,7 +1262,7 @@ const ProjectDetailPage = () => {
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">This section is being built out. Content coming soon.</p>
+              <p className="text-gray-500 text-center py-8">Section content loading...</p>
             </div>
           </div>
         );
