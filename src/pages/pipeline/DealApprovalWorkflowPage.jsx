@@ -2,13 +2,46 @@ import React, { useState, useMemo } from 'react';
 import {
   Building, CheckCircle, XCircle, Clock, AlertTriangle, User,
   DollarSign, Calendar, Filter, Search, Eye, ThumbsUp, ThumbsDown,
-  MessageSquare, FileText, TrendingUp, MapPin, ChevronRight
+  MessageSquare, FileText, TrendingUp, MapPin, ChevronRight, ArrowRight,
+  SkipForward, Scale, FileSignature, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 const mockDeals = [
+  {
+    id: 'DEAL-2024-0090',
+    property: 'Oak Ridge Scattered Lots (12 parcels)',
+    address: 'Various addresses, Houston, TX',
+    type: 'Scattered Lot',
+    askingPrice: 2400000,
+    proposedPrice: 2200000,
+    capRate: null,
+    sqft: 48000,
+    submittedDate: '2024-01-22',
+    submittedBy: 'Lisa Wang',
+    status: 'pending_ic',
+    currentStage: 'Investment Committee',
+    priority: 'high',
+    skipLOI: true,
+    loiSkipReason: 'Scattered lot acquisition - direct to contract',
+    nextStep: 'contract',
+    investmentThesis: 'Scattered infill lots for townhome development. Seller motivated, competitive market requires quick contract execution.',
+    keyMetrics: {
+      noi: null,
+      occupancy: null,
+      projectedIrr: 28,
+      holdPeriod: 2
+    },
+    approvalChain: [
+      { name: 'Lisa Wang', role: 'Acquisitions Analyst', action: 'submitted', date: '2024-01-22', comment: 'Scattered lot - recommend direct to PSA' },
+      { name: 'Sarah Johnson', role: 'Acquisitions Director', action: 'approved', date: '2024-01-22', comment: 'Approved skip LOI for scattered lot' },
+      { name: 'Investment Committee', role: 'IC', action: 'pending', date: null, comment: null },
+      { name: 'Mike Chen', role: 'CEO', action: 'pending', date: null, comment: null }
+    ],
+    documents: ['Investment Memo.pdf', 'Parcel Summary.xlsx', 'Title Reports.zip']
+  },
   {
     id: 'DEAL-2024-0089',
     property: 'Lakeside Business Park',
@@ -23,6 +56,9 @@ const mockDeals = [
     status: 'pending_ic',
     currentStage: 'Investment Committee',
     priority: 'high',
+    skipLOI: false,
+    loiSkipReason: null,
+    nextStep: 'loi',
     investmentThesis: 'Value-add opportunity in growing Austin submarket with below-market rents and deferred maintenance. 18-month repositioning plan with projected 25% IRR.',
     keyMetrics: {
       noi: 1242000,
@@ -52,6 +88,9 @@ const mockDeals = [
     status: 'approved',
     currentStage: 'LOI Sent',
     priority: 'high',
+    skipLOI: false,
+    loiSkipReason: null,
+    nextStep: 'loi',
     investmentThesis: 'Core-plus industrial acquisition in prime logistics corridor with Amazon distribution center as anchor tenant.',
     keyMetrics: {
       noi: 1982500,
@@ -81,6 +120,9 @@ const mockDeals = [
     status: 'rejected',
     currentStage: 'Rejected',
     priority: 'normal',
+    skipLOI: false,
+    loiSkipReason: null,
+    nextStep: 'loi',
     investmentThesis: 'Grocery-anchored retail center with stable tenancy and potential pad site development.',
     keyMetrics: {
       noi: 858000,
@@ -108,6 +150,12 @@ const mockDeals = [
     status: 'pending_director',
     currentStage: 'Director Review',
     priority: 'high',
+    skipLOI: false,
+    loiSkipReason: null,
+    loiSkipRequested: true,
+    loiSkipRequestedBy: 'John Smith',
+    loiSkipRequestReason: 'Seller requires quick response, competitive bidding situation',
+    nextStep: 'loi',
     investmentThesis: 'Class A multifamily in supply-constrained coastal market with strong demographic tailwinds.',
     keyMetrics: {
       noi: 2210000,
@@ -120,6 +168,38 @@ const mockDeals = [
       { name: 'Sarah Johnson', role: 'Acquisitions Director', action: 'pending', date: null, comment: null }
     ],
     documents: ['Investment Memo.pdf', 'Financial Model.xlsx', 'Rent Roll.xlsx']
+  },
+  {
+    id: 'DEAL-2024-0085',
+    property: 'Greenfield Scattered Lots (8 parcels)',
+    address: 'Various addresses, Austin, TX',
+    type: 'Scattered Lot',
+    askingPrice: 1600000,
+    proposedPrice: 1450000,
+    capRate: null,
+    sqft: 32000,
+    submittedDate: '2024-01-08',
+    submittedBy: 'Tom Davis',
+    status: 'approved',
+    currentStage: 'Contract Submitted',
+    priority: 'normal',
+    skipLOI: true,
+    loiSkipReason: 'Scattered lot acquisition - direct to contract',
+    nextStep: 'contract',
+    investmentThesis: 'Infill scattered lots for single-family build-to-rent development in high-growth Austin submarket.',
+    keyMetrics: {
+      noi: null,
+      occupancy: null,
+      projectedIrr: 22,
+      holdPeriod: 3
+    },
+    approvalChain: [
+      { name: 'Tom Davis', role: 'Acquisitions Analyst', action: 'submitted', date: '2024-01-08', comment: 'Scattered lot - direct to contract per policy' },
+      { name: 'Sarah Johnson', role: 'Acquisitions Director', action: 'approved', date: '2024-01-09', comment: 'Approved, proceed to PSA' },
+      { name: 'Investment Committee', role: 'IC', action: 'approved', date: '2024-01-10', comment: 'Approved for contract' },
+      { name: 'Mike Chen', role: 'CEO', action: 'approved', date: '2024-01-10', comment: 'Approved, submit contract' }
+    ],
+    documents: ['Investment Memo.pdf', 'Parcel Map.pdf', 'Title Reports.zip']
   }
 ];
 
@@ -136,7 +216,9 @@ const typeColors = {
   Office: 'bg-blue-100 text-blue-800',
   Industrial: 'bg-orange-100 text-orange-800',
   Retail: 'bg-purple-100 text-purple-800',
-  Multifamily: 'bg-green-100 text-green-800'
+  Multifamily: 'bg-green-100 text-green-800',
+  'Scattered Lot': 'bg-amber-100 text-amber-800',
+  Land: 'bg-lime-100 text-lime-800'
 };
 
 export default function DealApprovalWorkflowPage() {
@@ -297,6 +379,89 @@ export default function DealApprovalWorkflowPage() {
               <div className="p-6 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-2">Investment Thesis</h3>
                 <p className="text-gray-600 text-sm">{selectedDeal.investmentThesis}</p>
+              </div>
+
+              {/* Next Step & Skip LOI Section */}
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-900 mb-3">Post-Approval Workflow</h3>
+
+                {/* Scattered Lot - Always skips LOI */}
+                {selectedDeal.type === 'Scattered Lot' && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-100 rounded-lg">
+                        <SkipForward className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-amber-900">Scattered Lot - Direct to Contract</p>
+                        <p className="text-sm text-amber-700">LOI phase is automatically skipped for scattered lot acquisitions. Upon approval, proceed directly to PSA/Contract submission.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Skip LOI Request (for non-scattered lot) */}
+                {selectedDeal.type !== 'Scattered Lot' && selectedDeal.loiSkipRequested && !selectedDeal.skipLOI && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <AlertCircle className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-orange-900">Skip LOI Request Pending</p>
+                        <p className="text-sm text-orange-700 mb-2">Requested by: {selectedDeal.loiSkipRequestedBy}</p>
+                        <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded">{selectedDeal.loiSkipRequestReason}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+                            <XCircle className="w-4 h-4 mr-1" />Deny Skip
+                          </Button>
+                          <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
+                            <CheckCircle className="w-4 h-4 mr-1" />Approve Skip LOI
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Next Step Indicator */}
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 rounded-full">
+                      <CheckCircle className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Approval</span>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                  {selectedDeal.skipLOI || selectedDeal.type === 'Scattered Lot' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-green-100 rounded-lg">
+                      <FileSignature className="w-4 h-4 text-green-700" />
+                      <span className="font-medium text-green-800">Contract/PSA</span>
+                      <span className="text-xs text-green-600 bg-green-200 px-2 py-0.5 rounded">No LOI</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 rounded-lg">
+                        <Scale className="w-4 h-4 text-blue-700" />
+                        <span className="font-medium text-blue-800">LOI</span>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-gray-400" />
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                        <FileSignature className="w-4 h-4 text-gray-600" />
+                        <span className="font-medium text-gray-700">Contract/PSA</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Request Skip LOI Button (for non-scattered lot deals without skip) */}
+                {selectedDeal.type !== 'Scattered Lot' && !selectedDeal.skipLOI && !selectedDeal.loiSkipRequested && selectedDeal.status.startsWith('pending') && (
+                  <div className="mt-4 flex justify-end">
+                    <Button variant="outline" size="sm">
+                      <SkipForward className="w-4 h-4 mr-2" />Request Skip LOI (Manager Approval Required)
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 border-b border-gray-200">

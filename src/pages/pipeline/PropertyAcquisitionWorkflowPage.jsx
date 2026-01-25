@@ -2,13 +2,84 @@ import React, { useState, useMemo } from 'react';
 import {
   Building, CheckCircle, XCircle, Clock, AlertTriangle, User,
   DollarSign, Calendar, FileText, MapPin, ChevronRight, Play,
-  Pause, ArrowRight, Flag, ClipboardCheck, Scale, Key
+  Pause, ArrowRight, Flag, ClipboardCheck, Scale, Key, SkipForward,
+  FileSignature, Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 const mockAcquisitions = [
+  {
+    id: 'ACQ-2024-0013',
+    property: 'Oak Ridge Scattered Lots (12 parcels)',
+    address: 'Various addresses, Houston, TX',
+    type: 'Scattered Lot',
+    purchasePrice: 2200000,
+    status: 'in_progress',
+    currentPhase: 'contract_negotiation',
+    startDate: '2024-01-22',
+    targetCloseDate: '2024-02-28',
+    acquisitionTeam: ['Lisa Wang', 'Tom Davis', 'Legal Team'],
+    skipLOI: true,
+    loiSkipReason: 'Scattered lot acquisition - direct to contract per policy',
+    phases: [
+      {
+        name: 'Pre-Contract Approval',
+        status: 'completed',
+        startDate: '2024-01-22',
+        endDate: '2024-01-23',
+        skippedLOI: true,
+        tasks: [
+          { task: 'Investment Committee Presentation', status: 'completed', assignee: 'Lisa Wang', date: '2024-01-22' },
+          { task: 'IC Approval Obtained', status: 'completed', assignee: 'Mike Chen', date: '2024-01-23' },
+          { task: 'CEO Approval (Skip LOI)', status: 'completed', assignee: 'Mike Chen', date: '2024-01-23' }
+        ]
+      },
+      {
+        name: 'Contract & Due Diligence',
+        status: 'in_progress',
+        startDate: '2024-01-24',
+        endDate: '2024-02-15',
+        tasks: [
+          { task: 'PSA Drafted and Sent', status: 'completed', assignee: 'Legal Team', date: '2024-01-24' },
+          { task: 'PSA Executed', status: 'completed', assignee: 'Lisa Wang', date: '2024-01-25' },
+          { task: 'Earnest Money Deposit', status: 'completed', assignee: 'Finance Team', date: '2024-01-26' },
+          { task: 'Title Search (All Parcels)', status: 'in_progress', assignee: 'Legal Team', date: null },
+          { task: 'Environmental Review', status: 'in_progress', assignee: 'Environmental Consultant', date: null },
+          { task: 'Survey Review (All Parcels)', status: 'pending', assignee: 'Legal Team', date: null },
+          { task: 'Zoning Verification', status: 'pending', assignee: 'Legal Team', date: null }
+        ]
+      },
+      {
+        name: 'Financing',
+        status: 'pending',
+        startDate: '2024-02-01',
+        endDate: '2024-02-20',
+        tasks: [
+          { task: 'Lender Selection', status: 'pending', assignee: 'Finance Team', date: null },
+          { task: 'Loan Application', status: 'pending', assignee: 'Finance Team', date: null },
+          { task: 'Loan Commitment', status: 'pending', assignee: 'Lender', date: null }
+        ]
+      },
+      {
+        name: 'Closing',
+        status: 'pending',
+        startDate: '2024-02-20',
+        endDate: '2024-02-28',
+        tasks: [
+          { task: 'Final Walk-Through (All Parcels)', status: 'pending', assignee: 'Tom Davis', date: null },
+          { task: 'Closing & Funding', status: 'pending', assignee: 'All Teams', date: null },
+          { task: 'Deed Recordings', status: 'pending', assignee: 'Legal Team', date: null }
+        ]
+      }
+    ],
+    keyDates: [
+      { name: 'DD Period End', date: '2024-02-15', status: 'upcoming' },
+      { name: 'Financing Deadline', date: '2024-02-20', status: 'upcoming' },
+      { name: 'Target Close', date: '2024-02-28', status: 'upcoming' }
+    ]
+  },
   {
     id: 'ACQ-2024-0012',
     property: 'Metro Industrial Complex',
@@ -20,6 +91,7 @@ const mockAcquisitions = [
     startDate: '2024-01-18',
     targetCloseDate: '2024-03-15',
     acquisitionTeam: ['Sarah Johnson', 'John Smith', 'Legal Team'],
+    skipLOI: false,
     phases: [
       {
         name: 'LOI & IC Approval',
@@ -93,6 +165,10 @@ const mockAcquisitions = [
     startDate: '2024-01-20',
     targetCloseDate: '2024-04-01',
     acquisitionTeam: ['John Smith', 'Lisa Wang'],
+    skipLOI: false,
+    loiSkipRequested: true,
+    loiSkipRequestedBy: 'John Smith',
+    loiSkipRequestReason: 'Competitive bidding situation - seller prefers quick contract',
     phases: [
       {
         name: 'LOI & IC Approval',
@@ -116,9 +192,12 @@ const mockAcquisitions = [
 
 const phaseIcons = {
   'LOI & IC Approval': Scale,
+  'Pre-Contract Approval': CheckCircle,
+  'Contract & Due Diligence': FileSignature,
   'Due Diligence': ClipboardCheck,
   'Financing': DollarSign,
-  'PSA & Closing': Key
+  'PSA & Closing': Key,
+  'Closing': Key
 };
 
 const statusConfig = {
@@ -162,7 +241,7 @@ export default function PropertyAcquisitionWorkflowPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Property Acquisition Workflow</h1>
-          <p className="text-gray-600">Track acquisitions from LOI to close</p>
+          <p className="text-gray-600">Track acquisitions from approval to close</p>
         </div>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Play className="w-4 h-4 mr-2" />Start New Acquisition
@@ -235,10 +314,54 @@ export default function PropertyAcquisitionWorkflowPage() {
         <div className="col-span-3 space-y-4">
           {selectedAcquisition && (
             <>
+              {/* Skip LOI Indicator */}
+              {selectedAcquisition.skipLOI && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <SkipForward className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-amber-900">
+                        {selectedAcquisition.type === 'Scattered Lot' ? 'Scattered Lot - Direct to Contract' : 'LOI Skipped (Manager Approved)'}
+                      </p>
+                      <p className="text-sm text-amber-700">{selectedAcquisition.loiSkipReason}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Skip LOI Request Pending */}
+              {selectedAcquisition.loiSkipRequested && !selectedAcquisition.skipLOI && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-orange-900">Skip LOI Request Pending Approval</p>
+                      <p className="text-sm text-orange-700">Requested by: {selectedAcquisition.loiSkipRequestedBy}</p>
+                      <p className="text-sm text-orange-600 mt-1">{selectedAcquisition.loiSkipRequestReason}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="text-red-600">Deny</Button>
+                      <Button size="sm" className="bg-orange-600 hover:bg-orange-700">Approve Skip</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedAcquisition.property}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-gray-900">{selectedAcquisition.property}</h2>
+                      {selectedAcquisition.type === 'Scattered Lot' && (
+                        <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800 flex items-center gap-1">
+                          <Layers className="w-3 h-3" />Scattered Lot
+                        </span>
+                      )}
+                    </div>
                     <p className="text-gray-600 flex items-center gap-1"><MapPin className="w-4 h-4" />{selectedAcquisition.address}</p>
                   </div>
                   <div className="text-right">
