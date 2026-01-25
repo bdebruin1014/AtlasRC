@@ -179,6 +179,11 @@ const TrendsPage = lazy(() => import('@/pages/reports/TrendsPage'));
 const EOSMainPage = lazy(() => import('@/pages/eos/EOSMainPage'));
 const EOSDetailPage = lazy(() => import('@/pages/eos/EOSDetailPage'));
 
+// Team Cadence (Routine Meetings)
+const TeamCadenceDashboardPage = lazy(() => import('@/pages/eos/TeamCadenceDashboardPage'));
+const TeamCadenceDetailPage = lazy(() => import('@/pages/eos/TeamCadenceDetailPage'));
+const MeetingInstancePage = lazy(() => import('@/pages/eos/MeetingInstancePage'));
+
 // ============================================
 // PROJECT MODULE - Focused Pages
 // ============================================
@@ -577,6 +582,11 @@ const AppContent = () => (
     {/* EOS Module */}
     <Route path="/eos" element={<ProtectedRoute><AppLayout><EOSMainPage /></AppLayout></ProtectedRoute>} />
     <Route path="/eos/:programId/*" element={<ProtectedRoute><AppLayout><EOSDetailPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Team Cadence (Routine Meetings) */}
+    <Route path="/eos/cadence" element={<ProtectedRoute><AppLayout><TeamCadenceDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/eos/cadence/:seriesId" element={<ProtectedRoute><AppLayout><TeamCadenceDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/eos/cadence/:seriesId/meeting/:meetingId" element={<ProtectedRoute><AppLayout><MeetingInstancePage /></AppLayout></ProtectedRoute>} />
 
     {/* Budget Tools */}
     <Route path="/budgets/*" element={<ProtectedRoute><AppLayout><BudgetModuleRouter /></AppLayout></ProtectedRoute>} />

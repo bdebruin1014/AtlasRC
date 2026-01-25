@@ -4,7 +4,7 @@ import {
   Home, Building2, FolderKanban, Users, Calendar, Settings, DollarSign,
   Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2,
   BarChart3, Target, TrendingUp, Clock, BookOpen, Receipt, Plus,
-  FileSignature, FolderOpen, Calculator, GitBranch, Flag
+  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import NotificationCenter from './NotificationCenter';
@@ -53,6 +53,7 @@ const TopNavigation = () => {
       dropdown: [
         { label: 'Dashboard', path: '/operations', icon: ClipboardList, description: 'Operations overview' },
         { label: 'EOS', path: '/eos', icon: Target, description: 'Entrepreneurial Operating System' },
+        { label: 'Team Cadence', path: '/eos/cadence', icon: RefreshCw, description: 'Routine team meetings' },
         { label: 'Tasks', path: '/operations/tasks', icon: CheckSquare, description: 'Team task management' },
         { label: 'Workflow Templates', path: '/operations/tasks/templates', icon: GitBranch, description: 'Task workflow templates' },
         { label: 'Milestones', path: '/operations/milestones', icon: Flag, description: 'Global milestone tracking' },
