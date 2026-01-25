@@ -10,6 +10,7 @@ import {
   DollarSign, TrendingUp, PiggyBank, Building2, BarChart3,
   Calculator, LineChart, ArrowUpDown, Check, AlertTriangle,
   Landmark, Home, ArrowDown, ArrowUp, MapPin, Layers, Users,
+  Download, PieChart,
 } from 'lucide-react';
 import { useProjectProformas, useActiveProforma, useProformaActions } from '@/hooks/useProforma';
 import {
@@ -22,6 +23,8 @@ import {
   calculateWaterfall, getDefaultWaterfallStructure,
 } from '@/services/proformaService';
 import WaterfallModal from './WaterfallModal';
+import ExportModal, { ChartsPreviewModal } from './components/ExportModal';
+import { runWaterfallScenarios } from '@/utils/waterfallCalculator';
 
 const TEMPLATE_LABELS = {
   scattered_lot: 'Scattered Lot Build',
@@ -39,6 +42,8 @@ export default function ProFormaPage() {
   const [activeTab, setActiveTab] = useState('summary');
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [showWaterfallModal, setShowWaterfallModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showChartsModal, setShowChartsModal] = useState(false);
   const [waterfallStructure, setWaterfallStructure] = useState(null);
 
   const displayProforma = selectedVersion
@@ -83,6 +88,22 @@ export default function ProFormaPage() {
     return generateBTRAnnualProforma(displayProforma);
   }, [displayProforma, templateType]);
 
+  const waterfallScenarios = useMemo(() => {
+    if (!displayProforma || !displayMetrics) return null;
+    const structure = waterfallStructure || getDefaultWaterfallStructure();
+    const totalEquity = displayMetrics.totalEquity || 0;
+    const lpPercent = (structure.capital_structure?.lp_equity_percent || 90) / 100;
+    const gpPercent = (structure.capital_structure?.gp_equity_percent || 10) / 100;
+    return runWaterfallScenarios({
+      structure,
+      cashFlows: displayProforma.cash_flows || [],
+      totalDistributable: (displayMetrics.totalEquity || 0) + (displayMetrics.netProfit || 0),
+      holdPeriodYears: (displayMetrics.termMonths || 18) / 12,
+      lpEquity: totalEquity * lpPercent,
+      gpEquity: totalEquity * gpPercent,
+    });
+  }, [displayProforma, displayMetrics, waterfallStructure]);
+
   const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v || 0);
   const pct = (v) => `${((v || 0) * 100).toFixed(1)}%`;
   const pct2 = (v) => `${((v || 0) * 100).toFixed(2)}%`;
@@ -116,6 +137,24 @@ export default function ProFormaPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowChartsModal(true)}
+            title="View Charts"
+          >
+            <PieChart className="h-4 w-4 mr-1.5" />
+            Charts
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExportModal(true)}
+            title="Export Pro Forma"
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            Export
+          </Button>
           <Badge variant="outline" className={displayProforma.status === 'approved' ? 'bg-green-50 text-green-700 border-green-300' : 'bg-gray-100 text-gray-600'}>
             {displayProforma.status === 'approved' ? 'Approved' : displayProforma.status}
           </Badge>
@@ -188,6 +227,26 @@ export default function ProFormaPage() {
         proforma={displayProforma}
         initialStructure={waterfallStructure}
         onSave={setWaterfallStructure}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        proforma={displayProforma}
+        calculations={displayMetrics}
+        waterfallResults={advancedWaterfall}
+        scenarios={waterfallScenarios}
+      />
+
+      {/* Charts Preview Modal */}
+      <ChartsPreviewModal
+        isOpen={showChartsModal}
+        onClose={() => setShowChartsModal(false)}
+        proforma={displayProforma}
+        calculations={displayMetrics}
+        waterfallResults={advancedWaterfall}
+        scenarios={waterfallScenarios}
       />
     </div>
   );
