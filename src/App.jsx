@@ -108,6 +108,10 @@ const DocumentExpirationTracker = lazy(() => import('@/components/DocumentExpira
 const WorkOrderSystem = lazy(() => import('@/components/WorkOrderSystem'));
 const GanttChart = lazy(() => import('@/components/GanttChart'));
 const AuditTrail = lazy(() => import('@/components/AuditTrail'));
+const ProjectActivityFeed = lazy(() => import('@/components/ProjectActivityFeed'));
+const VendorPerformanceTracker = lazy(() => import('@/components/VendorPerformanceTracker'));
+const ProjectHealthDashboard = lazy(() => import('@/components/ProjectHealthDashboard'));
+const RecurringTasksManager = lazy(() => import('@/components/RecurringTasksManager'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -313,6 +317,8 @@ const AppContent = () => (
     <Route path="/project/:projectId/documents/esigned" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/documents/expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/audit" element={<ProtectedRoute><AppLayout><AuditTrail /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/activity" element={<ProtectedRoute><AppLayout><ProjectActivityFeed /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/health" element={<ProtectedRoute><AppLayout><ProjectHealthDashboard /></AppLayout></ProtectedRoute>} />
     
     {/* New Project Pages (Phase 9) */}
     <Route path="/project/:projectId/basic-info" element={<ProtectedRoute><AppLayout><BasicInfoPage /></AppLayout></ProtectedRoute>} />
@@ -490,6 +496,8 @@ const AppContent = () => (
     <Route path="/operations/documents" element={<ProtectedRoute><AppLayout><DocumentLibraryPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/document-expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/vendors" element={<ProtectedRoute><AppLayout><VendorPerformanceTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/recurring-tasks" element={<ProtectedRoute><AppLayout><RecurringTasksManager /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
