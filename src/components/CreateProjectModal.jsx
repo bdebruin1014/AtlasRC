@@ -1,10 +1,11 @@
 // AtlasDev - Create Project Modal with Budget Type and Template Selection
 import React, { useState, useEffect } from 'react';
-import { X, Building2, MapPin, Calendar, DollarSign, FileText, ChevronRight, Check, Layers, FolderTree, CheckSquare, Users, Loader2 } from 'lucide-react';
+import { X, Building2, MapPin, Calendar, DollarSign, FileText, ChevronRight, Check, Layers, FolderTree, CheckSquare, Users, Loader2, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrganizationTemplates, PROJECT_TYPES } from '@/services/projectTemplateService';
+import { generateProjectNumber } from '@/services/projectService';
 
 const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
   const { organization } = useAuth();
@@ -15,6 +16,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
     // Basic Info
     projectName: '',
     projectCode: '',
+    projectNumber: '',
     entity: '',
     description: '',
     // Property Details
@@ -38,12 +40,22 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
     targetCompletion: '',
   });
 
-  // Load templates when modal opens
+  // Load templates and generate project number when modal opens
   useEffect(() => {
     if (isOpen && organization?.id) {
       loadTemplates();
+      loadProjectNumber();
     }
   }, [isOpen, organization]);
+
+  const loadProjectNumber = async () => {
+    try {
+      const number = await generateProjectNumber(organization?.id);
+      setFormData(prev => ({ ...prev, projectNumber: number }));
+    } catch (err) {
+      console.error('Error generating project number:', err);
+    }
+  };
 
   const loadTemplates = async () => {
     setLoadingTemplates(true);
@@ -290,14 +302,17 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <span className="flex items-center gap-1"><Hash className="w-3 h-3" /> Project Number</span>
+                  </label>
                   <input
                     type="text"
-                    value={formData.projectCode}
-                    onChange={(e) => updateField('projectCode', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#047857] focus:border-transparent"
-                    placeholder="e.g., PRJ-001"
+                    value={formData.projectNumber}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-mono"
+                    placeholder="Auto-generated (YY-XXX)"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Auto-generated</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Entity *</label>

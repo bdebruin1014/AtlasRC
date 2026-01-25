@@ -1,4 +1,37 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
+
+// Track demo mode sequence numbers
+let demoSequence = 0;
+
+/**
+ * Generate a project number in YY-XXX format
+ * @param {string} organizationId - The organization ID
+ * @returns {string} Project number like "25-001"
+ */
+export async function generateProjectNumber(organizationId) {
+  if (isDemoMode || !organizationId) {
+    const year = new Date().getFullYear() % 100;
+    demoSequence += 1;
+    return `${String(year).padStart(2, '0')}-${String(demoSequence).padStart(3, '0')}`;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('generate_project_number', {
+      org_id: organizationId,
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn('Falling back to client-side project number generation:', err);
+    const year = new Date().getFullYear() % 100;
+    const { count } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true });
+    const num = (count || 0) + 1;
+    return `${String(year).padStart(2, '0')}-${String(num).padStart(3, '0')}`;
+  }
+}
 
 /**
  * Project Service - Handles all Supabase operations for projects

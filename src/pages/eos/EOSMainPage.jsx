@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, List, LayoutGrid, Columns, Eye, Edit2, Trash2, Building2, Users, Target, CheckCircle, Clock, AlertTriangle, Calendar, TrendingUp, MoreVertical, Link2 } from 'lucide-react';
+import { Plus, Search, List, LayoutGrid, Columns, Eye, Edit2, Trash2, Building2, Users, Target, CheckCircle, Clock, AlertTriangle, Calendar, TrendingUp, MoreVertical, Link2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -154,9 +154,14 @@ const EOSMainPage = () => {
             <h1 className="text-2xl font-bold">EOS® Implementation</h1>
             <p className="text-sm text-gray-500">Entrepreneur Operating System tracking across your entities</p>
           </div>
-          <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowNewModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />New EOS Program
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => navigate('/eos/cadence')}>
+              <RefreshCw className="w-4 h-4 mr-2" />Team Cadence
+            </Button>
+            <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowNewModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />New EOS Program
+            </Button>
+          </div>
         </div>
       </div>
 

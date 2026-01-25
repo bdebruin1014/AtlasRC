@@ -9,6 +9,7 @@ import { TransactionEntryProvider } from '@/contexts/TransactionEntryContext';
 import TopNavigation from '@/components/TopNavigation';
 import LoadingState from '@/components/LoadingState';
 import { ChatButton } from '@/components/chat';
+import ReminderWidget from '@/components/ReminderWidget';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 
@@ -23,6 +24,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/Auth/ResetPassword'));
 const SharePointCallback = lazy(() => import('@/pages/auth/SharePointCallback'));
 const OutlookCallback = lazy(() => import('@/pages/auth/OutlookCallback'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
+const ExecutiveDashboard = lazy(() => import('@/pages/ExecutiveDashboard'));
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
 const EntitiesPage = lazy(() => import('@/pages/EntitiesPage'));
@@ -100,6 +102,65 @@ const AdminSettingsPage = lazy(() => import('@/pages/Admin/Settings'));
 const TeamManagementPage = lazy(() => import('@/pages/Admin/TeamManagement'));
 const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
 
+// Admin Module Enhancements (Phase 11)
+const AuditLogsPage = lazy(() => import('@/pages/admin/AuditLogsPage'));
+const OrganizationSettingsPage = lazy(() => import('@/pages/admin/OrganizationSettingsPage'));
+const UserPermissionsMatrixPage = lazy(() => import('@/pages/admin/UserPermissionsMatrixPage'));
+
+// Opportunities Module Enhancements (Phase 11)
+const PipelineAnalyticsDashboardPage = lazy(() => import('@/pages/opportunities/PipelineAnalyticsDashboardPage'));
+const OpportunityComparisonPage = lazy(() => import('@/pages/opportunities/OpportunityComparisonPage'));
+
+// Projects Module Enhancements (Phase 11)
+const ResourceAllocationDashboardPage = lazy(() => import('@/pages/projects/ResourceAllocationDashboardPage'));
+
+// Operations Module Enhancements (Phase 12)
+const NotificationCenterPage = lazy(() => import('@/pages/operations/NotificationCenterPage'));
+const ContractTemplatesPage = lazy(() => import('@/pages/operations/ContractTemplatesPage'));
+
+// Accounting Module Enhancements (Phase 12)
+const FinancialForecastingPage = lazy(() => import('@/pages/accounting/FinancialForecastingPage'));
+const InvestorPortalPage = lazy(() => import('@/pages/accounting/InvestorPortalPage'));
+
+// ============================================
+// OPERATIONS ENHANCEMENTS
+// ============================================
+const DocumentExpirationTracker = lazy(() => import('@/components/DocumentExpirationTracker'));
+const WorkOrderSystem = lazy(() => import('@/components/WorkOrderSystem'));
+const GanttChart = lazy(() => import('@/components/GanttChart'));
+const AuditTrail = lazy(() => import('@/components/AuditTrail'));
+const ProjectActivityFeed = lazy(() => import('@/components/ProjectActivityFeed'));
+const VendorPerformanceTracker = lazy(() => import('@/components/VendorPerformanceTracker'));
+const ProjectHealthDashboard = lazy(() => import('@/components/ProjectHealthDashboard'));
+const RecurringTasksManager = lazy(() => import('@/components/RecurringTasksManager'));
+const RFITracker = lazy(() => import('@/components/RFITracker'));
+const PunchList = lazy(() => import('@/components/PunchList'));
+const MeetingMinutes = lazy(() => import('@/components/MeetingMinutes'));
+const PhotoProgressTracker = lazy(() => import('@/components/PhotoProgressTracker'));
+const ContactTimeline = lazy(() => import('@/components/ContactTimeline'));
+const DocumentTemplates = lazy(() => import('@/components/DocumentTemplates'));
+const ApprovalWorkflow = lazy(() => import('@/components/ApprovalWorkflow'));
+const AdvancedSearch = lazy(() => import('@/components/AdvancedSearch'));
+const EmailDashboard = lazy(() => import('@/components/EmailDashboard'));
+const DashboardBuilder = lazy(() => import('@/components/DashboardBuilder'));
+const DataImportExport = lazy(() => import('@/components/DataImportExport'));
+const NotificationPreferences = lazy(() => import('@/components/NotificationPreferences'));
+const ReportScheduler = lazy(() => import('@/components/ReportScheduler'));
+const TagManager = lazy(() => import('@/components/TagManager'));
+const BulkActions = lazy(() => import('@/components/BulkActions'));
+const UserActivityAnalytics = lazy(() => import('@/components/UserActivityAnalytics'));
+const CustomFieldsManager = lazy(() => import('@/components/CustomFieldsManager'));
+const WebhookManager = lazy(() => import('@/components/WebhookManager'));
+const CommentsNotes = lazy(() => import('@/components/CommentsNotes'));
+const ContractManagement = lazy(() => import('@/components/ContractManagement'));
+const ComparativeMarketAnalysis = lazy(() => import('@/components/ComparativeMarketAnalysis'));
+const DealPipelineKanban = lazy(() => import('@/components/DealPipelineKanban'));
+const TeamWorkloadDashboard = lazy(() => import('@/components/TeamWorkloadDashboard'));
+const PropertyComparisonTool = lazy(() => import('@/components/PropertyComparisonTool'));
+const SavedViewsManager = lazy(() => import('@/components/SavedViewsManager'));
+const UserActivityTimeTracker = lazy(() => import('@/components/UserActivityTimeTracker'));
+const MilestoneTracker = lazy(() => import('@/components/MilestoneTracker'));
+
 // ============================================
 // OPERATIONS & REPORTS
 // ============================================
@@ -138,6 +199,11 @@ const TrendsPage = lazy(() => import('@/pages/reports/TrendsPage'));
 const EOSMainPage = lazy(() => import('@/pages/eos/EOSMainPage'));
 const EOSDetailPage = lazy(() => import('@/pages/eos/EOSDetailPage'));
 
+// Team Cadence (Routine Meetings)
+const TeamCadenceDashboardPage = lazy(() => import('@/pages/eos/TeamCadenceDashboardPage'));
+const TeamCadenceDetailPage = lazy(() => import('@/pages/eos/TeamCadenceDetailPage'));
+const MeetingInstancePage = lazy(() => import('@/pages/eos/MeetingInstancePage'));
+
 // ============================================
 // PROJECT MODULE - Focused Pages
 // ============================================
@@ -150,22 +216,35 @@ const ProjectContactsPage = lazy(() => import('@/pages/projects/ContactsPage'));
 const ClosingChecklistPage = lazy(() => import('@/pages/projects/ClosingChecklistPage'));
 
 // Construction Section
-const BudgetPage = lazy(() => import('@/pages/projects/BudgetPage'));
-const SchedulePage = lazy(() => import('@/pages/projects/SchedulePage'));
+const BudgetPage = lazy(() => import('@/pages/projects/Budget/BudgetPage'));
+const SchedulePage = lazy(() => import('@/pages/projects/Schedule/SchedulePage'));
 const ActualsVsBudgetPage = lazy(() => import('@/pages/projects/ActualsVsBudgetPage'));
 const InsurancePage = lazy(() => import('@/pages/projects/InsurancePage'));
+const PermitsPage = lazy(() => import('@/pages/projects/Permits/PermitsPage'));
+const BidsPage = lazy(() => import('@/pages/projects/Bids/BidsPage'));
+const ExpensesPage = lazy(() => import('@/pages/projects/Expenses/ExpensesPage'));
 
 // Finance Section
-const CashFlowPage = lazy(() => import('@/pages/projects/CashFlowPage'));
+const CashFlowPage = lazy(() => import('@/pages/projects/CashFlow/CashFlowPage'));
 const VendorsPage = lazy(() => import('@/pages/projects/VendorsPage'));
-const SalesPage = lazy(() => import('@/pages/projects/SalesPage'));
-const ProjectLoansPage = lazy(() => import('@/pages/projects/ProjectLoansPage'));
-const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequestsPage'));
-const ProformaPage = lazy(() => import('@/pages/projects/ProformaPage'));
+const SalesPage = lazy(() => import('@/pages/projects/Sales/SalesPage'));
+const ProjectLoansPage = lazy(() => import('@/pages/projects/Loans/LoansPage'));
+const DrawRequestsPage = lazy(() => import('@/pages/projects/DrawRequests/DrawRequestsPage'));
+const ChangeOrdersPage = lazy(() => import('@/pages/projects/ChangeOrders/ChangeOrdersPage'));
+const ProFormaPage = lazy(() => import('@/pages/projects/ProForma/ProFormaPage'));
 
 // Documents Section
 const DocumentsPage = lazy(() => import('@/pages/projects/DocumentsPage'));
 const TasksPage = lazy(() => import('@/pages/projects/TasksPage'));
+
+// Task Management System (Phase 10)
+const TaskManagementPage = lazy(() => import('@/pages/projects/TaskManagementPage'));
+const ProjectMilestonesPage = lazy(() => import('@/pages/projects/ProjectMilestonesPage'));
+const TaskWorkflowTemplatesPage = lazy(() => import('@/pages/operations/TaskWorkflowTemplatesPage'));
+const WorkflowTaskIntegrationPage = lazy(() => import('@/pages/operations/WorkflowTaskIntegrationPage'));
+
+// Project KPI Dashboard (Phase 11)
+const ProjectKPIDashboardPage = lazy(() => import('@/pages/projects/ProjectKPIDashboardPage'));
 
 // Additional Project Pages (for legacy support)
 const DealAnalysisPage = lazy(() => import('@/pages/projects/DealAnalysisPage'));
@@ -178,6 +257,20 @@ const LeaseUpPage = lazy(() => import('@/pages/projects/LeaseUpPage'));
 const DispositionPage = lazy(() => import('@/pages/projects/DispositionPage'));
 const ContractRecordPage = lazy(() => import('@/pages/projects/ContractRecordPage'));
 const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementStatementPage'));
+
+// New Project Pages (Phase 9)
+const BasicInfoPage = lazy(() => import('@/pages/projects/BasicInfoPage'));
+const PropertyInfoPage = lazy(() => import('@/pages/projects/PropertyInfoPage'));
+const PurchaseContractPage = lazy(() => import('@/pages/projects/PurchaseContractPage'));
+const DueDiligencePage = lazy(() => import('@/pages/projects/DueDiligencePage'));
+const ClosingPage = lazy(() => import('@/pages/projects/ClosingPage'));
+
+// New Admin Pages (Phase 9)
+const TeamsListPage = lazy(() => import('@/pages/admin/TeamsListPage'));
+
+// Enhanced Contacts Pages (Phase 9)
+const ContactDetailPageEnhanced = lazy(() => import('@/pages/Contacts/ContactDetail'));
+const ContactFormPageEnhanced = lazy(() => import('@/pages/Contacts/ContactForm'));
 
 const BudgetModuleRouter = lazy(() => import('@/features/budgets/components/BudgetModuleRouter'));
 
@@ -197,6 +290,7 @@ const AppLayout = ({ children }) => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <TopNavigation />
       <main className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></main>
+      <ReminderWidget />
       <ChatButton currentUser={user} />
     </div>
   );
@@ -238,7 +332,10 @@ const AppContent = () => (
 
     {/* Core Routes */}
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/executive" element={<ProtectedRoute><AppLayout><ExecutiveDashboard /></AppLayout></ProtectedRoute>} />
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} />
     
     {/* ============================================ */}
     {/* PROJECT DETAIL ROUTES - Streamlined */}
@@ -262,15 +359,24 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/schedule" element={<ProtectedRoute><AppLayout><SchedulePage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/budget-vs-actual" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
-    
+    <Route path="/project/:projectId/construction/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/rfis" element={<ProtectedRoute><AppLayout><RFITracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/punch-list" element={<ProtectedRoute><AppLayout><PunchList /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/construction/photos" element={<ProtectedRoute><AppLayout><PhotoProgressTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/meetings" element={<ProtectedRoute><AppLayout><MeetingMinutes /></AppLayout></ProtectedRoute>} />
+
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/summary" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/revenue" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/draws" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/finance/proforma" element={<ProtectedRoute><AppLayout><ProformaPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/proforma" element={<ProtectedRoute><AppLayout><ProFormaPage /></AppLayout></ProtectedRoute>} />
     
     {/* Documents Section */}
     <Route path="/project/:projectId/documents" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
@@ -278,9 +384,22 @@ const AppContent = () => (
     <Route path="/project/:projectId/documents/mailing" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/documents/communications" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/documents/esigned" element={<ProtectedRoute><AppLayout><DocumentsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/documents/expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/audit" element={<ProtectedRoute><AppLayout><AuditTrail /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/activity" element={<ProtectedRoute><AppLayout><ProjectActivityFeed /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/health" element={<ProtectedRoute><AppLayout><ProjectHealthDashboard /></AppLayout></ProtectedRoute>} />
     
+    {/* New Project Pages (Phase 9) */}
+    <Route path="/project/:projectId/basic-info" element={<ProtectedRoute><AppLayout><BasicInfoPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/property-info" element={<ProtectedRoute><AppLayout><PropertyInfoPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/purchase-contract" element={<ProtectedRoute><AppLayout><PurchaseContractPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/due-diligence" element={<ProtectedRoute><AppLayout><DueDiligencePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/closing" element={<ProtectedRoute><AppLayout><ClosingPage /></AppLayout></ProtectedRoute>} />
+
     {/* Additional Project Routes */}
     <Route path="/project/:projectId/tasks" element={<ProtectedRoute><AppLayout><TasksPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/task-management" element={<ProtectedRoute><AppLayout><TaskManagementPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/milestones" element={<ProtectedRoute><AppLayout><ProjectMilestonesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/units" element={<ProtectedRoute><AppLayout><UnitsManagementPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/takedown" element={<ProtectedRoute><AppLayout><TakedownSchedulePage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/lease-up" element={<ProtectedRoute><AppLayout><LeaseUpPage /></AppLayout></ProtectedRoute>} />
@@ -301,10 +420,14 @@ const AppContent = () => (
     <Route path="/project/:projectId/budget" element={<ProtectedRoute><AppLayout><BudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/actuals-vs-budget" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/insurance" element={<ProtectedRoute><AppLayout><InsurancePage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/proforma" element={<ProtectedRoute><AppLayout><ProformaPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/proforma" element={<ProtectedRoute><AppLayout><ProFormaPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/vendors" element={<ProtectedRoute><AppLayout><VendorsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/draw-requests" element={<ProtectedRoute><AppLayout><DrawRequestsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/sales" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/cash-flow" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
@@ -314,6 +437,8 @@ const AppContent = () => (
     {/* ============================================ */}
     <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunities/new" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/*" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
@@ -332,9 +457,12 @@ const AppContent = () => (
     {/* ============================================ */}
     <Route path="/contacts" element={<ProtectedRoute><AppLayout><ContactsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/contacts/list" element={<ProtectedRoute><AppLayout><ContactsListPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/contacts/new" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/new" element={<ProtectedRoute><AppLayout><ContactFormPageEnhanced /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/:contactId" element={<ProtectedRoute><AppLayout><ContactDetailPageEnhanced /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPageEnhanced /></AppLayout></ProtectedRoute>} />
     <Route path="/contact/:contactId" element={<ProtectedRoute><AppLayout><ContactDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/contact/:contactId/edit" element={<ProtectedRoute><AppLayout><ContactFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/contacts/:contactId/timeline" element={<ProtectedRoute><AppLayout><ContactTimeline /></AppLayout></ProtectedRoute>} />
 
     {/* Calendar & Settings */}
     <Route path="/calendar" element={<ProtectedRoute><AppLayout><CalendarPage /></AppLayout></ProtectedRoute>} />
@@ -357,6 +485,10 @@ const AppContent = () => (
     {/* Ledger Routes */}
     <Route path="/accounting/entity-ledger/:entityId" element={<ProtectedRoute><AppLayout><EntityLedgerPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/project-ledger/:projectId" element={<ProtectedRoute><AppLayout><ProjectLedgerPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Accounting Enhancements (Phase 12) */}
+    <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
     
     {/* Entity-Specific Accounting Routes */}
     <Route path="/accounting/:entityId" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
@@ -410,6 +542,7 @@ const AppContent = () => (
     <Route path="/admin/team" element={<ProtectedRoute><AppLayout><AdminLayout><TeamManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/settings" element={<ProtectedRoute><AppLayout><AdminLayout><AdminSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/activity-log" element={<ProtectedRoute><AppLayout><AdminLayout><ActivityLogPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/audit-trail" element={<ProtectedRoute><AppLayout><AdminLayout><AuditTrail /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/plans" element={<ProtectedRoute><AppLayout><AdminLayout><FloorPlansPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     
     {/* Pricing Library Routes */}
@@ -430,6 +563,10 @@ const AppContent = () => (
     <Route path="/admin/project-templates" element={<ProtectedRoute><AppLayout><AdminLayout><AdminProjectTemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/coa-templates" element={<ProtectedRoute><AppLayout><AdminLayout><COATemplatesPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/integrations" element={<ProtectedRoute><AppLayout><AdminLayout><IntegrationsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/teams" element={<ProtectedRoute><AppLayout><AdminLayout><TeamsListPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/audit-logs" element={<ProtectedRoute><AppLayout><AdminLayout><AuditLogsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/organization" element={<ProtectedRoute><AppLayout><AdminLayout><OrganizationSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/permissions" element={<ProtectedRoute><AppLayout><AdminLayout><UserPermissionsMatrixPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}
@@ -438,6 +575,40 @@ const AppContent = () => (
     <Route path="/operations/teams" element={<ProtectedRoute><AppLayout><TeamsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/esign" element={<ProtectedRoute><AppLayout><ESignPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/documents" element={<ProtectedRoute><AppLayout><DocumentLibraryPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/document-expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/vendors" element={<ProtectedRoute><AppLayout><VendorPerformanceTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/recurring-tasks" element={<ProtectedRoute><AppLayout><RecurringTasksManager /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/approvals" element={<ProtectedRoute><AppLayout><ApprovalWorkflow /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/templates" element={<ProtectedRoute><AppLayout><DocumentTemplates /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/emails" element={<ProtectedRoute><AppLayout><EmailDashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/import-export" element={<ProtectedRoute><AppLayout><DataImportExport /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/report-scheduler" element={<ProtectedRoute><AppLayout><ReportScheduler /></AppLayout></ProtectedRoute>} />
+    <Route path="/search" element={<ProtectedRoute><AppLayout><AdvancedSearch /></AppLayout></ProtectedRoute>} />
+    <Route path="/dashboard-builder" element={<ProtectedRoute><AppLayout><DashboardBuilder /></AppLayout></ProtectedRoute>} />
+    <Route path="/settings/notifications" element={<ProtectedRoute><AppLayout><NotificationPreferences /></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/tags" element={<ProtectedRoute><AppLayout><AdminLayout><TagManager /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/bulk-actions" element={<ProtectedRoute><AppLayout><AdminLayout><BulkActions /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/analytics" element={<ProtectedRoute><AppLayout><AdminLayout><UserActivityAnalytics /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/custom-fields" element={<ProtectedRoute><AppLayout><AdminLayout><CustomFieldsManager /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/webhooks" element={<ProtectedRoute><AppLayout><AdminLayout><WebhookManager /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/comments" element={<ProtectedRoute><AppLayout><CommentsNotes /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/contracts" element={<ProtectedRoute><AppLayout><ContractManagement /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/cma" element={<ProtectedRoute><AppLayout><ComparativeMarketAnalysis /></AppLayout></ProtectedRoute>} />
+    <Route path="/pipeline" element={<ProtectedRoute><AppLayout><DealPipelineKanban /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/team-workload" element={<ProtectedRoute><AppLayout><TeamWorkloadDashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/property-compare" element={<ProtectedRoute><AppLayout><PropertyComparisonTool /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/saved-views" element={<ProtectedRoute><AppLayout><SavedViewsManager /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/activity-tracker" element={<ProtectedRoute><AppLayout><UserActivityTimeTracker /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/milestones" element={<ProtectedRoute><AppLayout><MilestoneTracker /></AppLayout></ProtectedRoute>} />
+
+    {/* Task Management System (Phase 10) */}
+    <Route path="/operations/tasks/templates" element={<ProtectedRoute><AppLayout><TaskWorkflowTemplatesPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/tasks/workflow-integration" element={<ProtectedRoute><AppLayout><WorkflowTaskIntegrationPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Operations Enhancements (Phase 12) */}
+    <Route path="/operations/notifications" element={<ProtectedRoute><AppLayout><NotificationCenterPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/contract-templates" element={<ProtectedRoute><AppLayout><ContractTemplatesPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
@@ -449,6 +620,11 @@ const AppContent = () => (
     {/* EOS Module */}
     <Route path="/eos" element={<ProtectedRoute><AppLayout><EOSMainPage /></AppLayout></ProtectedRoute>} />
     <Route path="/eos/:programId/*" element={<ProtectedRoute><AppLayout><EOSDetailPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Team Cadence (Routine Meetings) */}
+    <Route path="/eos/cadence" element={<ProtectedRoute><AppLayout><TeamCadenceDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/eos/cadence/:seriesId" element={<ProtectedRoute><AppLayout><TeamCadenceDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/eos/cadence/:seriesId/meeting/:meetingId" element={<ProtectedRoute><AppLayout><MeetingInstancePage /></AppLayout></ProtectedRoute>} />
 
     {/* Budget Tools */}
     <Route path="/budgets/*" element={<ProtectedRoute><AppLayout><BudgetModuleRouter /></AppLayout></ProtectedRoute>} />
