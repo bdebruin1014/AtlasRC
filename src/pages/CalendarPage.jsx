@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 /*
@@ -364,10 +365,10 @@ const CalendarPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-40px)] bg-gray-50">
+    <div className="flex h-[calc(100vh-40px)] bg-gray-50 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 bg-[#1e2a3a] flex-shrink-0 flex flex-col">
-        <div className="p-4">
+      <div className="w-64 bg-white border-r flex-shrink-0 flex flex-col overflow-hidden">
+        <div className="p-4 border-b">
           <Button
             className="w-full bg-emerald-600 hover:bg-emerald-700"
             onClick={() => {
@@ -380,25 +381,18 @@ const CalendarPage = () => {
           </Button>
         </div>
 
-        {/* Mini Calendar */}
-        <div className="px-4 pb-4">
-          <div className="bg-white/5 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-white">
-                {monthNames[currentDate.getMonth()].slice(0, 3)} {currentDate.getFullYear()}
+        {/* Sidebar Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Mini Calendar */}
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-gray-900">
+                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </span>
-              <div className="flex gap-1">
-                <button onClick={prevPeriod} className="p-0.5 hover:bg-white/10 rounded">
-                  <ChevronLeft className="w-3 h-3 text-gray-400" />
-                </button>
-                <button onClick={nextPeriod} className="p-0.5 hover:bg-white/10 rounded">
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
-                </button>
-              </div>
             </div>
             <div className="grid grid-cols-7 gap-0.5 text-center">
               {daysOfWeekShort.map(d => (
-                <div key={d} className="text-[10px] text-gray-500 py-1">{d.charAt(0)}</div>
+                <div key={d} className="text-[10px] text-gray-500 py-1 font-medium">{d.charAt(0)}</div>
               ))}
               {getDaysInMonth(currentDate).slice(0, 35).map((d, i) => (
                 <button
@@ -408,10 +402,10 @@ const CalendarPage = () => {
                     setViewMode('day');
                   }}
                   className={cn(
-                    'text-[10px] py-1 rounded',
-                    d.currentMonth ? 'text-white' : 'text-gray-600',
-                    isToday(d.date) && 'bg-emerald-600 text-white',
-                    getEventsForDate(d.date).length > 0 && !isToday(d.date) && 'font-bold'
+                    'text-xs py-1 rounded hover:bg-gray-100',
+                    d.currentMonth ? 'text-gray-900' : 'text-gray-400',
+                    isToday(d.date) && 'bg-emerald-600 text-white hover:bg-emerald-700',
+                    getEventsForDate(d.date).length > 0 && !isToday(d.date) && 'font-bold text-emerald-600'
                   )}
                 >
                   {d.day}
@@ -419,72 +413,81 @@ const CalendarPage = () => {
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Category Filters */}
-        <div className="px-4 pb-4">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Categories</h3>
-          <div className="space-y-1">
-            <button
-              onClick={() => setFilterCategory('all')}
-              className={cn(
-                'w-full text-left px-3 py-2 text-xs rounded flex items-center justify-between',
-                filterCategory === 'all' ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'
-              )}
-            >
-              <span>All Events</span>
-              <span className="text-gray-500">{eventCounts.all}</span>
-            </button>
-            {Object.entries(eventCategories).map(([key, cat]) => {
-              const Icon = cat.icon;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setFilterCategory(key)}
-                  className={cn(
-                    'w-full text-left px-3 py-2 text-xs rounded flex items-center justify-between',
-                    filterCategory === key ? 'text-white bg-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className={cn('w-2 h-2 rounded-full', cat.color)} />
-                    {cat.label}
-                  </span>
-                  <span className="text-gray-500">{eventCounts[key] || 0}</span>
-                </button>
-              );
-            })}
+          {/* Category Filters - Expandable */}
+          <div className="p-4 border-b">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Categories</h3>
+            <div className="space-y-1">
+              <button
+                onClick={() => setFilterCategory('all')}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-sm rounded-lg flex items-center justify-between transition-colors',
+                  filterCategory === 'all'
+                    ? 'bg-emerald-50 text-emerald-700 border-l-2 border-l-emerald-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  <span className="font-medium">All Events</span>
+                </span>
+                <Badge variant="outline" className="text-xs">{eventCounts.all}</Badge>
+              </button>
+              {Object.entries(eventCategories).map(([key, cat]) => {
+                const Icon = cat.icon;
+                const count = eventCounts[key] || 0;
+                const isActive = filterCategory === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilterCategory(key)}
+                    className={cn(
+                      'w-full text-left px-3 py-2 text-sm rounded-lg flex items-center justify-between transition-colors',
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-700 border-l-2 border-l-emerald-600'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={cn('w-2 h-2 rounded-full', cat.color)} />
+                      <span className="font-medium">{cat.label}</span>
+                    </span>
+                    <Badge variant="outline" className="text-xs">{count}</Badge>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Upcoming Events */}
-        <div className="flex-1 px-4 pb-4 overflow-auto">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Upcoming</h3>
-          <div className="space-y-2">
-            {upcomingEvents.map((event) => {
-              const cat = eventCategories[event.category];
-              return (
-                <div
-                  key={event.id}
-                  onClick={(e) => handleEventClick(event, e)}
-                  className="p-2 bg-white/5 rounded cursor-pointer hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-start gap-2">
-                    <span className={cn('w-2 h-2 rounded-full mt-1 flex-shrink-0', cat.color)} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-xs font-medium truncate">{event.title}</p>
-                      <p className="text-gray-500 text-[10px]">
-                        {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        {event.startTime && ` at ${formatTime(event.startTime)}`}
-                      </p>
+          {/* Upcoming Events */}
+          <div className="p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Upcoming</h3>
+            <div className="space-y-2">
+              {upcomingEvents.map((event) => {
+                const cat = eventCategories[event.category];
+                return (
+                  <div
+                    key={event.id}
+                    onClick={(e) => handleEventClick(event, e)}
+                    className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors border border-gray-100"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className={cn('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', cat.color)} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-900 text-sm font-medium truncate">{event.title}</p>
+                        <p className="text-gray-500 text-xs mt-0.5">
+                          {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {event.startTime && ` at ${formatTime(event.startTime)}`}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-            {upcomingEvents.length === 0 && (
-              <p className="text-xs text-gray-500 text-center py-4">No upcoming events</p>
-            )}
+                );
+              })}
+              {upcomingEvents.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No upcoming events</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
