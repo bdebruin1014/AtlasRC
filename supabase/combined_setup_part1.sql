@@ -2382,7 +2382,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000103', 'Letter of Intent (LOI)', 'Non-binding letter of intent', 'pre-contract', ARRAY['opportunity']),
   ('00000000-0000-0000-0000-000000000104', 'Due Diligence Extension', 'Request for DD period extension', 'amendment', ARRAY['project', 'opportunity']),
   ('00000000-0000-0000-0000-000000000105', 'Earnest Money Release', 'Release of earnest money deposit', 'closing', ARRAY['project', 'opportunity'])
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 -- Team Chat Tables Migration
 -- Creates tables for internal team messaging
 
@@ -2596,7 +2596,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE team_members;
 -- Insert default general channel
 INSERT INTO chat_channels (id, name, description, type)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'General team discussion', 'channel')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 -- Migration: Enhanced global contacts with flexible schema
 
 -- Add new columns to contacts table if they don't exist
