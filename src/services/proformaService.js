@@ -1116,6 +1116,394 @@ export function generateBTRAnnualProforma(proforma) {
   return years;
 }
 
+// ─── Waterfall Calculation Engine ──────────────────────────────────────────
+
+/**
+ * Default waterfall structure for a 90/10 LP/GP split with standard tiers
+ */
+export function getDefaultWaterfallStructure() {
+  return {
+    name: 'Standard 90/10 Waterfall',
+    structure_type: 'american',
+    capital_structure: {
+      lp_equity_percent: 90,
+      gp_equity_percent: 10,
+      gp_co_invest_required: true,
+      gp_co_invest_percent: 10,
+    },
+    preferred_return: {
+      enabled: true,
+      rate: 0.08,
+      type: 'cumulative',
+      compounding_frequency: 'annual',
+      accrues_during_construction: true,
+      payment_frequency: 'at_exit',
+      lp_pref_rate: 0.08,
+      gp_pref_rate: 0.08,
+      catch_up_enabled: true,
+      catch_up_percent: 1.0,
+      catch_up_target: 0.20,
+    },
+    promote_tiers: [
+      {
+        tier_number: 1,
+        name: 'Return of Capital + Pref',
+        hurdle_type: 'irr',
+        irr_hurdle: 0.08,
+        multiple_hurdle: 1.0,
+        lp_share: 0.90,
+        gp_share: 0.10,
+      },
+      {
+        tier_number: 2,
+        name: 'First Promote (12% IRR)',
+        hurdle_type: 'irr',
+        irr_hurdle: 0.12,
+        multiple_hurdle: 1.25,
+        lp_share: 0.80,
+        gp_share: 0.20,
+      },
+      {
+        tier_number: 3,
+        name: 'Second Promote (18% IRR)',
+        hurdle_type: 'irr',
+        irr_hurdle: 0.18,
+        multiple_hurdle: 1.75,
+        lp_share: 0.70,
+        gp_share: 0.30,
+      },
+      {
+        tier_number: 4,
+        name: 'Final Promote (25%+ IRR)',
+        hurdle_type: 'irr',
+        irr_hurdle: 0.25,
+        multiple_hurdle: 2.0,
+        lp_share: 0.60,
+        gp_share: 0.40,
+      },
+    ],
+    clawback_provisions: {
+      gp_clawback_enabled: true,
+      lp_clawback_enabled: false,
+      true_up_frequency: 'at_exit',
+      escrow_percent: 0.10,
+    },
+    management_fees: {
+      acquisition_fee_percent: 0.01,
+      asset_management_fee_percent: 0.02,
+      disposition_fee_percent: 0.01,
+      construction_management_fee_percent: 0.05,
+      fees_paid_from: 'operating_cash_flow',
+    },
+  };
+}
+
+/**
+ * Calculate LP preferred return based on structure and hold period
+ */
+function calculatePreferredReturn(lpEquity, holdPeriodYears, prefConfig) {
+  if (!prefConfig.enabled) return 0;
+
+  const rate = prefConfig.lp_pref_rate || prefConfig.rate || 0.08;
+
+  if (prefConfig.type === 'compounding') {
+    const periods = prefConfig.compounding_frequency === 'monthly' ? 12 :
+      prefConfig.compounding_frequency === 'quarterly' ? 4 : 1;
+    return lpEquity * (Math.pow(1 + rate / periods, periods * holdPeriodYears) - 1);
+  }
+
+  // Simple cumulative
+  return lpEquity * rate * holdPeriodYears;
+}
+
+/**
+ * Calculate IRR for a cash flow stream to determine tier eligibility
+ */
+function calculateStreamIRR(investment, distributions, holdPeriodYears) {
+  if (!investment || investment <= 0) return 0;
+
+  // Simple annualized return for tier checking
+  const totalReturn = distributions / investment;
+  if (totalReturn <= 1) return -1 + totalReturn;
+
+  // Approximate annual IRR: (1 + totalReturn)^(1/years) - 1
+  return Math.pow(totalReturn, 1 / holdPeriodYears) - 1;
+}
+
+/**
+ * Calculate waterfall distribution for a pro forma
+ * Returns tier-by-tier results and final LP/GP splits
+ */
+export function calculateWaterfall(proforma, waterfallStructure, scenario = 'base') {
+  const structure = waterfallStructure || getDefaultWaterfallStructure();
+  const metrics = calculateProFormaMetrics(proforma);
+  const assumptions = proforma.assumptions || {};
+
+  const totalEquity = metrics.totalEquity || 0;
+  const lpPercent = (structure.capital_structure.lp_equity_percent || 90) / 100;
+  const gpPercent = (structure.capital_structure.gp_equity_percent || 10) / 100;
+
+  const lpEquity = totalEquity * lpPercent;
+  const gpEquity = totalEquity * gpPercent;
+
+  const holdPeriodYears = (metrics.termMonths || 18) / 12;
+  const totalProfit = metrics.netProfit || 0;
+  const totalDistributable = totalEquity + totalProfit;
+
+  const results = {
+    inputs: {
+      total_equity_invested: totalEquity,
+      lp_equity_invested: lpEquity,
+      gp_equity_invested: gpEquity,
+      hold_period_years: holdPeriodYears,
+      total_distributable: totalDistributable,
+      net_profit: totalProfit,
+    },
+    tier_results: [],
+    final_results: {
+      lp: { total_invested: lpEquity, total_distributed: 0, profit: 0, irr: 0, equity_multiple: 0 },
+      gp: { total_invested: gpEquity, total_distributed: 0, profit: 0, irr: 0, equity_multiple: 0, promote_earned: 0 },
+      project: {
+        total_cost: metrics.totalCosts,
+        total_equity: totalEquity,
+        total_debt: metrics.totalDebt,
+        gross_revenue: metrics.totalRevenue,
+        net_revenue: metrics.netRevenue,
+        gross_profit: metrics.grossProfit,
+        net_profit: metrics.netProfit,
+        project_irr: metrics.projectIRR,
+        equity_multiple: metrics.equityMultiple,
+      },
+    },
+  };
+
+  if (totalDistributable <= 0) return results;
+
+  let remainingDistribution = totalDistributable;
+  let lpCumulative = 0;
+  let gpCumulative = 0;
+
+  // Tier 0: Return of Capital
+  const lpReturnOfCapital = Math.min(lpEquity, remainingDistribution * lpPercent);
+  const gpReturnOfCapital = Math.min(gpEquity, remainingDistribution * gpPercent);
+  const rocTotal = lpReturnOfCapital + gpReturnOfCapital;
+
+  results.tier_results.push({
+    tier_number: 0,
+    tier_name: 'Return of Capital',
+    lp_distribution: lpReturnOfCapital,
+    gp_distribution: gpReturnOfCapital,
+    total_distribution: rocTotal,
+    cumulative_lp: lpReturnOfCapital,
+    cumulative_gp: gpReturnOfCapital,
+    lp_multiple_at_tier: lpEquity > 0 ? lpReturnOfCapital / lpEquity : 0,
+  });
+
+  remainingDistribution -= rocTotal;
+  lpCumulative = lpReturnOfCapital;
+  gpCumulative = gpReturnOfCapital;
+
+  // Tier 1: Preferred Return
+  if (structure.preferred_return.enabled && remainingDistribution > 0) {
+    const lpPref = calculatePreferredReturn(lpEquity, holdPeriodYears, structure.preferred_return);
+    const gpPref = calculatePreferredReturn(gpEquity, holdPeriodYears, structure.preferred_return);
+
+    const lpPrefDist = Math.min(lpPref, remainingDistribution * 0.9); // LP gets pref first
+    const gpPrefDist = Math.min(gpPref, remainingDistribution - lpPrefDist);
+    const prefTotal = lpPrefDist + gpPrefDist;
+
+    lpCumulative += lpPrefDist;
+    gpCumulative += gpPrefDist;
+
+    results.tier_results.push({
+      tier_number: 1,
+      tier_name: 'Preferred Return',
+      lp_distribution: lpPrefDist,
+      gp_distribution: gpPrefDist,
+      total_distribution: prefTotal,
+      cumulative_lp: lpCumulative,
+      cumulative_gp: gpCumulative,
+      lp_irr_at_tier: structure.preferred_return.lp_pref_rate || 0.08,
+      lp_multiple_at_tier: lpEquity > 0 ? lpCumulative / lpEquity : 0,
+    });
+
+    remainingDistribution -= prefTotal;
+
+    // GP Catch-up (if enabled)
+    if (structure.preferred_return.catch_up_enabled && remainingDistribution > 0) {
+      const catchUpTarget = structure.preferred_return.catch_up_target || 0.20;
+      const totalDistributedSoFar = lpCumulative + gpCumulative;
+      const gpTargetShare = totalDistributedSoFar * catchUpTarget;
+      const gpNeedsForCatchUp = Math.max(0, gpTargetShare - gpCumulative);
+      const catchUpDist = Math.min(gpNeedsForCatchUp, remainingDistribution);
+
+      if (catchUpDist > 0) {
+        gpCumulative += catchUpDist;
+        results.tier_results.push({
+          tier_number: 1.5,
+          tier_name: 'GP Catch-Up',
+          lp_distribution: 0,
+          gp_distribution: catchUpDist,
+          total_distribution: catchUpDist,
+          cumulative_lp: lpCumulative,
+          cumulative_gp: gpCumulative,
+          lp_multiple_at_tier: lpEquity > 0 ? lpCumulative / lpEquity : 0,
+        });
+        remainingDistribution -= catchUpDist;
+      }
+    }
+  }
+
+  // Promote Tiers (2+)
+  const tiers = structure.promote_tiers || [];
+  const sortedTiers = [...tiers].sort((a, b) => (a.tier_number || 0) - (b.tier_number || 0));
+
+  for (let i = 0; i < sortedTiers.length && remainingDistribution > 0; i++) {
+    const tier = sortedTiers[i];
+    const nextTier = sortedTiers[i + 1];
+
+    // Calculate how much can be distributed at this tier
+    let tierDistribution = remainingDistribution;
+
+    // If there's a next tier, limit distribution to amount that reaches next hurdle
+    if (nextTier && nextTier.irr_hurdle) {
+      // Simplified: distribute proportionally to next hurdle
+      const currentMultiple = lpEquity > 0 ? lpCumulative / lpEquity : 0;
+      const nextMultiple = nextTier.multiple_hurdle || (1 + nextTier.irr_hurdle * holdPeriodYears);
+      const lpNeededForNext = lpEquity * nextMultiple - lpCumulative;
+
+      if (lpNeededForNext > 0) {
+        const lpShareThisTier = tier.lp_share || 0.80;
+        tierDistribution = Math.min(remainingDistribution, lpNeededForNext / lpShareThisTier);
+      }
+    }
+
+    const lpShare = tier.lp_share || 0.80;
+    const gpShare = tier.gp_share || 0.20;
+
+    const lpDist = tierDistribution * lpShare;
+    const gpDist = tierDistribution * gpShare;
+
+    lpCumulative += lpDist;
+    gpCumulative += gpDist;
+
+    results.tier_results.push({
+      tier_number: tier.tier_number || (i + 2),
+      tier_name: tier.name || `Tier ${tier.tier_number || (i + 2)}`,
+      hurdle_irr: tier.irr_hurdle,
+      hurdle_multiple: tier.multiple_hurdle,
+      lp_share: lpShare,
+      gp_share: gpShare,
+      lp_distribution: lpDist,
+      gp_distribution: gpDist,
+      total_distribution: tierDistribution,
+      cumulative_lp: lpCumulative,
+      cumulative_gp: gpCumulative,
+      lp_multiple_at_tier: lpEquity > 0 ? lpCumulative / lpEquity : 0,
+    });
+
+    remainingDistribution -= tierDistribution;
+  }
+
+  // Final results
+  const lpProfit = lpCumulative - lpEquity;
+  const gpProfit = gpCumulative - gpEquity;
+  const gpPromote = gpProfit - (gpEquity > 0 ? (totalProfit * gpPercent) : 0);
+
+  results.final_results.lp = {
+    total_invested: lpEquity,
+    total_distributed: lpCumulative,
+    profit: lpProfit,
+    irr: calculateStreamIRR(lpEquity, lpCumulative, holdPeriodYears),
+    equity_multiple: lpEquity > 0 ? lpCumulative / lpEquity : 0,
+    cash_on_cash_avg: lpEquity > 0 ? lpProfit / lpEquity / holdPeriodYears : 0,
+    peak_equity: lpEquity,
+  };
+
+  results.final_results.gp = {
+    total_invested: gpEquity,
+    total_distributed: gpCumulative,
+    profit: gpProfit,
+    irr: calculateStreamIRR(gpEquity, gpCumulative, holdPeriodYears),
+    equity_multiple: gpEquity > 0 ? gpCumulative / gpEquity : 0,
+    promote_earned: Math.max(0, gpPromote),
+    co_invest_return: gpEquity > 0 ? (gpCumulative - gpPromote) : 0,
+  };
+
+  return results;
+}
+
+/**
+ * Run waterfall analysis across multiple scenarios
+ */
+export function runWaterfallScenarios(proforma, waterfallStructure) {
+  const structure = waterfallStructure || getDefaultWaterfallStructure();
+
+  // Base case
+  const baseResult = calculateWaterfall(proforma, structure, 'base');
+
+  // Create upside scenario (+20% revenue)
+  const upsideProforma = adjustProforma(proforma, { revenue_adjustment: 0.20 });
+  const upsideResult = calculateWaterfall(upsideProforma, structure, 'upside');
+
+  // Create downside scenario (-20% revenue)
+  const downsideProforma = adjustProforma(proforma, { revenue_adjustment: -0.20 });
+  const downsideResult = calculateWaterfall(downsideProforma, structure, 'downside');
+
+  return {
+    base: baseResult,
+    upside: upsideResult,
+    downside: downsideResult,
+    summary: {
+      lp_irr_range: {
+        low: downsideResult.final_results.lp.irr,
+        base: baseResult.final_results.lp.irr,
+        high: upsideResult.final_results.lp.irr,
+      },
+      gp_promote_range: {
+        low: downsideResult.final_results.gp.promote_earned,
+        base: baseResult.final_results.gp.promote_earned,
+        high: upsideResult.final_results.gp.promote_earned,
+      },
+      lp_multiple_range: {
+        low: downsideResult.final_results.lp.equity_multiple,
+        base: baseResult.final_results.lp.equity_multiple,
+        high: upsideResult.final_results.lp.equity_multiple,
+      },
+    },
+  };
+}
+
+/**
+ * Calculate management fees based on structure
+ */
+export function calculateManagementFees(proforma, waterfallStructure) {
+  const structure = waterfallStructure || getDefaultWaterfallStructure();
+  const fees = structure.management_fees || {};
+  const metrics = calculateProFormaMetrics(proforma);
+  const uf = proforma.uses_of_funds || proforma.costs || {};
+
+  const totalCosts = metrics.totalCosts || 0;
+  const hardCosts = uf.hard_costs?.total_hard_costs || uf.hard_costs || 0;
+  const totalEquity = metrics.totalEquity || 0;
+  const holdPeriodYears = (metrics.termMonths || 18) / 12;
+  const netRevenue = metrics.netRevenue || 0;
+
+  const acquisitionFee = totalCosts * (fees.acquisition_fee_percent || 0);
+  const constructionMgmtFee = hardCosts * (fees.construction_management_fee_percent || 0);
+  const assetMgmtFee = totalEquity * (fees.asset_management_fee_percent || 0) * holdPeriodYears;
+  const dispositionFee = netRevenue * (fees.disposition_fee_percent || 0);
+
+  return {
+    acquisition_fee: acquisitionFee,
+    construction_management_fee: constructionMgmtFee,
+    asset_management_fee: assetMgmtFee,
+    disposition_fee: dispositionFee,
+    total_fees: acquisitionFee + constructionMgmtFee + assetMgmtFee + dispositionFee,
+    fees_paid_from: fees.fees_paid_from || 'operating_cash_flow',
+  };
+}
+
 // ─── Demo Data (Scattered Lot Template) ─────────────────────────────────────
 
 const DEMO_PROFORMAS = [

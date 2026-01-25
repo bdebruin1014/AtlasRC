@@ -19,7 +19,9 @@ import {
   generateCommunityForSaleCashFlows, generateBTRCashFlows,
   generateBTRAnnualProforma, getTemplateType,
   runSensitivityAnalysis, calculateInvestorWaterfall,
+  calculateWaterfall, getDefaultWaterfallStructure,
 } from '@/services/proformaService';
+import WaterfallModal from './WaterfallModal';
 
 const TEMPLATE_LABELS = {
   scattered_lot: 'Scattered Lot Build',
@@ -36,6 +38,8 @@ export default function ProFormaPage() {
   const { setActive } = useProformaActions(pid);
   const [activeTab, setActiveTab] = useState('summary');
   const [selectedVersion, setSelectedVersion] = useState(null);
+  const [showWaterfallModal, setShowWaterfallModal] = useState(false);
+  const [waterfallStructure, setWaterfallStructure] = useState(null);
 
   const displayProforma = selectedVersion
     ? proformas.find(p => p.id === selectedVersion) || proforma
@@ -68,6 +72,11 @@ export default function ProFormaPage() {
     if (!displayProforma) return null;
     return calculateInvestorWaterfall(displayProforma);
   }, [displayProforma]);
+
+  const advancedWaterfall = useMemo(() => {
+    if (!displayProforma) return null;
+    return calculateWaterfall(displayProforma, waterfallStructure || getDefaultWaterfallStructure());
+  }, [displayProforma, waterfallStructure]);
 
   const annualProforma = useMemo(() => {
     if (!displayProforma || templateType !== 'build_to_rent') return null;
@@ -157,12 +166,29 @@ export default function ProFormaPage() {
           <CashFlowTab cashFlows={cashFlows} templateType={templateType} fmt={fmt} />
         </TabsContent>
         <TabsContent value="returns" className="mt-4">
-          <ReturnsTab metrics={displayMetrics} waterfall={waterfall} templateType={templateType} fmt={fmt} pct={pct} />
+          <ReturnsTab
+            metrics={displayMetrics}
+            waterfall={waterfall}
+            advancedWaterfall={advancedWaterfall}
+            templateType={templateType}
+            fmt={fmt}
+            pct={pct}
+            onOpenWaterfallModal={() => setShowWaterfallModal(true)}
+          />
         </TabsContent>
         <TabsContent value="sensitivity" className="mt-4">
           <SensitivityTab sensitivity={sensitivity} templateType={templateType} fmt={fmt} pct={pct} />
         </TabsContent>
       </Tabs>
+
+      {/* Waterfall Modal */}
+      <WaterfallModal
+        open={showWaterfallModal}
+        onClose={() => setShowWaterfallModal(false)}
+        proforma={displayProforma}
+        initialStructure={waterfallStructure}
+        onSave={setWaterfallStructure}
+      />
     </div>
   );
 }
@@ -1198,7 +1224,10 @@ function BTRCashFlowTab({ cashFlows, fmt }) {
 // TAB: RETURNS ANALYSIS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ReturnsTab({ metrics, waterfall, templateType, fmt, pct }) {
+function ReturnsTab({ metrics, waterfall, advancedWaterfall, templateType, fmt, pct, onOpenWaterfallModal }) {
+  const lpResults = advancedWaterfall?.final_results?.lp || {};
+  const gpResults = advancedWaterfall?.final_results?.gp || {};
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-5">
@@ -1220,6 +1249,34 @@ function ReturnsTab({ metrics, waterfall, templateType, fmt, pct }) {
         </div>
       </div>
 
+      {/* LP/GP Returns Summary */}
+      {advancedWaterfall && (
+        <div className="grid grid-cols-2 gap-5">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-blue-900 text-sm uppercase tracking-wide">LP Returns</h3>
+              <span className="text-xs text-blue-600">90% Equity</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <ReturnMetric label="LP IRR" value={pct(lpResults.irr)} color="blue" />
+              <ReturnMetric label="LP Multiple" value={`${(lpResults.equity_multiple || 0).toFixed(2)}x`} color="blue" />
+              <ReturnMetric label="LP Profit" value={fmt(lpResults.profit)} color="blue" />
+            </div>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-emerald-900 text-sm uppercase tracking-wide">GP Returns</h3>
+              <span className="text-xs text-emerald-600">10% Co-Invest + Promote</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <ReturnMetric label="GP IRR" value={pct(gpResults.irr)} color="emerald" />
+              <ReturnMetric label="GP Multiple" value={`${(gpResults.equity_multiple || 0).toFixed(2)}x`} color="emerald" />
+              <ReturnMetric label="Promote" value={fmt(gpResults.promote_earned)} color="emerald" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {templateType === 'build_to_rent' && (
         <div className="bg-white border rounded-lg p-5">
           <h3 className="font-semibold text-gray-900 mb-3 text-sm uppercase tracking-wide">Development Metrics</h3>
@@ -1234,7 +1291,18 @@ function ReturnsTab({ metrics, waterfall, templateType, fmt, pct }) {
 
       {waterfall && (
         <div className="bg-white border rounded-lg p-5">
-          <h3 className="font-semibold text-gray-900 mb-3 text-sm uppercase tracking-wide">Investor Waterfall Distribution</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wide">Investor Waterfall Distribution</h3>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onOpenWaterfallModal}
+              className="text-xs"
+            >
+              <TrendingUp className="h-3 w-3 mr-1" />
+              Advanced Waterfall
+            </Button>
+          </div>
           <table className="w-full text-sm">
             <thead><tr className="border-b text-xs font-medium text-gray-500 uppercase"><th className="pb-2 text-left">Tier</th><th className="pb-2 text-right">Total</th><th className="pb-2 text-right text-blue-700">Investor</th><th className="pb-2 text-right text-green-700">Sponsor</th></tr></thead>
             <tbody className="divide-y">
@@ -1263,10 +1331,20 @@ function ReturnsTab({ metrics, waterfall, templateType, fmt, pct }) {
   );
 }
 
-function ReturnMetric({ label, value }) {
+function ReturnMetric({ label, value, color }) {
+  const bgColors = {
+    blue: 'bg-blue-100',
+    emerald: 'bg-emerald-100',
+    default: 'bg-gray-50',
+  };
+  const textColors = {
+    blue: 'text-blue-900',
+    emerald: 'text-emerald-900',
+    default: 'text-gray-900',
+  };
   return (
-    <div className="text-center p-3 bg-gray-50 rounded-lg">
-      <div className="text-xl font-bold text-gray-900">{value}</div>
+    <div className={`text-center p-3 rounded-lg ${bgColors[color] || bgColors.default}`}>
+      <div className={`text-xl font-bold ${textColors[color] || textColors.default}`}>{value}</div>
       <div className="text-xs text-gray-500 mt-1">{label}</div>
     </div>
   );
