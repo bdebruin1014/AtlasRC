@@ -125,6 +125,11 @@ const DashboardBuilder = lazy(() => import('@/components/DashboardBuilder'));
 const DataImportExport = lazy(() => import('@/components/DataImportExport'));
 const NotificationPreferences = lazy(() => import('@/components/NotificationPreferences'));
 const ReportScheduler = lazy(() => import('@/components/ReportScheduler'));
+const TagManager = lazy(() => import('@/components/TagManager'));
+const BulkActions = lazy(() => import('@/components/BulkActions'));
+const UserActivityAnalytics = lazy(() => import('@/components/UserActivityAnalytics'));
+const CustomFieldsManager = lazy(() => import('@/components/CustomFieldsManager'));
+const WebhookManager = lazy(() => import('@/components/WebhookManager'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -524,6 +529,11 @@ const AppContent = () => (
     <Route path="/search" element={<ProtectedRoute><AppLayout><AdvancedSearch /></AppLayout></ProtectedRoute>} />
     <Route path="/dashboard-builder" element={<ProtectedRoute><AppLayout><DashboardBuilder /></AppLayout></ProtectedRoute>} />
     <Route path="/settings/notifications" element={<ProtectedRoute><AppLayout><NotificationPreferences /></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/tags" element={<ProtectedRoute><AppLayout><AdminLayout><TagManager /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/bulk-actions" element={<ProtectedRoute><AppLayout><AdminLayout><BulkActions /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/analytics" element={<ProtectedRoute><AppLayout><AdminLayout><UserActivityAnalytics /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/custom-fields" element={<ProtectedRoute><AppLayout><AdminLayout><CustomFieldsManager /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/webhooks" element={<ProtectedRoute><AppLayout><AdminLayout><WebhookManager /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
