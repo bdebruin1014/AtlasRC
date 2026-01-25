@@ -120,6 +120,11 @@ const ContactTimeline = lazy(() => import('@/components/ContactTimeline'));
 const DocumentTemplates = lazy(() => import('@/components/DocumentTemplates'));
 const ApprovalWorkflow = lazy(() => import('@/components/ApprovalWorkflow'));
 const AdvancedSearch = lazy(() => import('@/components/AdvancedSearch'));
+const EmailDashboard = lazy(() => import('@/components/EmailDashboard'));
+const DashboardBuilder = lazy(() => import('@/components/DashboardBuilder'));
+const DataImportExport = lazy(() => import('@/components/DataImportExport'));
+const NotificationPreferences = lazy(() => import('@/components/NotificationPreferences'));
+const ReportScheduler = lazy(() => import('@/components/ReportScheduler'));
 
 // ============================================
 // OPERATIONS & REPORTS
@@ -513,7 +518,12 @@ const AppContent = () => (
     <Route path="/operations/recurring-tasks" element={<ProtectedRoute><AppLayout><RecurringTasksManager /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/approvals" element={<ProtectedRoute><AppLayout><ApprovalWorkflow /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/templates" element={<ProtectedRoute><AppLayout><DocumentTemplates /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/emails" element={<ProtectedRoute><AppLayout><EmailDashboard /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/import-export" element={<ProtectedRoute><AppLayout><DataImportExport /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/report-scheduler" element={<ProtectedRoute><AppLayout><ReportScheduler /></AppLayout></ProtectedRoute>} />
     <Route path="/search" element={<ProtectedRoute><AppLayout><AdvancedSearch /></AppLayout></ProtectedRoute>} />
+    <Route path="/dashboard-builder" element={<ProtectedRoute><AppLayout><DashboardBuilder /></AppLayout></ProtectedRoute>} />
+    <Route path="/settings/notifications" element={<ProtectedRoute><AppLayout><NotificationPreferences /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
