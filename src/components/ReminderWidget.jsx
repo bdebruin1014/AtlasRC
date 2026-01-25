@@ -630,7 +630,7 @@ const ReminderWidget = () => {
         <button
           onClick={() => setIsOpen(true)}
           className={cn(
-            "fixed bottom-6 right-24 w-14 h-14 rounded-full shadow-lg z-40",
+            "fixed bottom-24 right-24 w-14 h-14 rounded-full shadow-lg z-40",
             "bg-amber-500 hover:bg-amber-600 text-white",
             "flex items-center justify-center transition-all",
             "hover:scale-105"
