@@ -114,6 +114,14 @@ const OpportunityComparisonPage = lazy(() => import('@/pages/opportunities/Oppor
 // Projects Module Enhancements (Phase 11)
 const ResourceAllocationDashboardPage = lazy(() => import('@/pages/projects/ResourceAllocationDashboardPage'));
 
+// Operations Module Enhancements (Phase 12)
+const NotificationCenterPage = lazy(() => import('@/pages/operations/NotificationCenterPage'));
+const ContractTemplatesPage = lazy(() => import('@/pages/operations/ContractTemplatesPage'));
+
+// Accounting Module Enhancements (Phase 12)
+const FinancialForecastingPage = lazy(() => import('@/pages/accounting/FinancialForecastingPage'));
+const InvestorPortalPage = lazy(() => import('@/pages/accounting/InvestorPortalPage'));
+
 // ============================================
 // OPERATIONS ENHANCEMENTS
 // ============================================
@@ -477,6 +485,10 @@ const AppContent = () => (
     {/* Ledger Routes */}
     <Route path="/accounting/entity-ledger/:entityId" element={<ProtectedRoute><AppLayout><EntityLedgerPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/project-ledger/:projectId" element={<ProtectedRoute><AppLayout><ProjectLedgerPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Accounting Enhancements (Phase 12) */}
+    <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
     
     {/* Entity-Specific Accounting Routes */}
     <Route path="/accounting/:entityId" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
@@ -593,6 +605,10 @@ const AppContent = () => (
     {/* Task Management System (Phase 10) */}
     <Route path="/operations/tasks/templates" element={<ProtectedRoute><AppLayout><TaskWorkflowTemplatesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/tasks/workflow-integration" element={<ProtectedRoute><AppLayout><WorkflowTaskIntegrationPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Operations Enhancements (Phase 12) */}
+    <Route path="/operations/notifications" element={<ProtectedRoute><AppLayout><NotificationCenterPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/contract-templates" element={<ProtectedRoute><AppLayout><ContractTemplatesPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
