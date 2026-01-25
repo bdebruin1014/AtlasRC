@@ -7,6 +7,7 @@ import {
   FileSignature, FolderOpen, Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import NotificationCenter from './NotificationCenter';
 
 const TopNavigation = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const TopNavigation = () => {
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home },
+    { label: 'Executive', path: '/executive', icon: BarChart3 },
     { label: 'Projects', path: '/projects', icon: Building2 },
     
     // Pipeline/Acquisition Dropdown
@@ -150,6 +152,7 @@ const TopNavigation = () => {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        <NotificationCenter />
         <button onClick={() => navigate('/settings')} className="text-gray-400 hover:text-white p-1.5">
           <Settings className="w-4 h-4" />
         </button>

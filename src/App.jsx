@@ -23,6 +23,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/Auth/ResetPassword'));
 const SharePointCallback = lazy(() => import('@/pages/auth/SharePointCallback'));
 const OutlookCallback = lazy(() => import('@/pages/auth/OutlookCallback'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
+const ExecutiveDashboard = lazy(() => import('@/pages/ExecutiveDashboard'));
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
 const EntitiesPage = lazy(() => import('@/pages/EntitiesPage'));
@@ -256,6 +257,7 @@ const AppContent = () => (
 
     {/* Core Routes */}
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
+    <Route path="/executive" element={<ProtectedRoute><AppLayout><ExecutiveDashboard /></AppLayout></ProtectedRoute>} />
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
     
     {/* ============================================ */}
