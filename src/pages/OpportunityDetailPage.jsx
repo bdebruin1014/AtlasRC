@@ -25,6 +25,7 @@ import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnal
 import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
 import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
+import ConvertToProjectModal from '@/components/ConvertToProjectModal';
 
 const OPPORTUNITY_TYPES = [
   { value: 'vacant-lot', label: 'Vacant Lot' },
@@ -42,6 +43,7 @@ const OpportunityDetailPage = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
 
   // Fetch opportunity from database
   const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
@@ -226,8 +228,15 @@ const OpportunityDetailPage = () => {
   };
 
   const handleConvertToProject = () => {
-    alert('Converting opportunity to project...');
-    navigate('/projects');
+    setShowConvertModal(true);
+  };
+
+  const handleConversionSuccess = (newProject) => {
+    toast({
+      title: 'Success',
+      description: 'Opportunity has been converted to a project.',
+    });
+    navigate(`/project/${newProject.id}`);
   };
 
   const handleAdvanceStage = () => {
@@ -1233,6 +1242,15 @@ const OpportunityDetailPage = () => {
 
         {renderContent()}
       </div>
+
+      {/* Convert to Project Modal */}
+      <ConvertToProjectModal
+        isOpen={showConvertModal}
+        onClose={() => setShowConvertModal(false)}
+        opportunity={formData}
+        dealSheet={null}
+        onSuccess={handleConversionSuccess}
+      />
     </div>
   );
 };
