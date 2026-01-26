@@ -434,7 +434,6 @@ const CalendarPage = () => {
                 <Badge variant="outline" className="text-xs">{eventCounts.all}</Badge>
               </button>
               {Object.entries(eventCategories).map(([key, cat]) => {
-                const Icon = cat.icon;
                 const count = eventCounts[key] || 0;
                 const isActive = filterCategory === key;
                 return (
