@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Filter, LayoutGrid, List, Building2, MapPin,
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useProjects, useProjectActions, useProjectSummary, PROJECT_STATUSES, PROJECT_TYPES } from '@/hooks/useProjects';
+import { projectService } from '@/services/projectService';
 import ProjectModal from '@/components/ProjectModal';
 
 const ProjectsPage = () => {
@@ -24,21 +25,59 @@ const ProjectsPage = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [projectFinancials, setProjectFinancials] = useState({});
+
+  // Fetch financials for all projects
+  useEffect(() => {
+    async function fetchAllFinancials() {
+      if (!rawProjects || rawProjects.length === 0) return;
+
+      const financialsMap = {};
+      // Fetch financials for each project (in parallel, max 5 at a time)
+      const chunks = [];
+      for (let i = 0; i < rawProjects.length; i += 5) {
+        chunks.push(rawProjects.slice(i, i + 5));
+      }
+
+      for (const chunk of chunks) {
+        const results = await Promise.all(
+          chunk.map(async (p) => {
+            try {
+              const financials = await projectService.getFinancials(p.id);
+              return { id: p.id, financials };
+            } catch {
+              return { id: p.id, financials: { totalExpenses: 0, percentSpent: 0 } };
+            }
+          })
+        );
+        results.forEach(r => {
+          financialsMap[r.id] = r.financials;
+        });
+      }
+
+      setProjectFinancials(financialsMap);
+    }
+
+    fetchAllFinancials();
+  }, [rawProjects]);
 
   // Transform projects to display format
-  const projects = rawProjects.map(p => ({
-    id: p.id,
-    name: p.name,
-    type: PROJECT_TYPES.find(t => t.key === p.project_type)?.label || p.project_type || 'Unknown',
-    status: p.status,
-    location: p.address || 'No address',
-    budgetSpent: 0, // TODO: Calculate from transactions
-    budgetTotal: parseFloat(p.budget) || 0,
-    targetDate: p.target_completion_date ? new Date(p.target_completion_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD',
-    progress: 0, // TODO: Calculate progress
-    entity: p.entity?.name,
-    raw: p,
-  }));
+  const projects = rawProjects.map(p => {
+    const financials = projectFinancials[p.id] || {};
+    return {
+      id: p.id,
+      name: p.name,
+      type: PROJECT_TYPES.find(t => t.key === p.project_type)?.label || p.project_type || 'Unknown',
+      status: p.status,
+      location: p.address || 'No address',
+      budgetSpent: financials.totalExpenses || 0,
+      budgetTotal: parseFloat(p.budget) || 0,
+      targetDate: p.target_completion_date ? new Date(p.target_completion_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD',
+      progress: financials.percentSpent || 0, // Using percent spent as progress indicator
+      entity: p.entity?.name,
+      raw: p,
+    };
+  });
 
   const handleCreate = () => {
     setEditingProject(null);

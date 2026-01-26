@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useProject, useProjectActions, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
+import { useProject, useProjectActions, useProjectFinancials, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
 
 // E-Sign and Document Components
@@ -33,6 +33,7 @@ const ProjectDetailPage = () => {
   // Fetch project data from database
   const { project: rawProject, isLoading, error, refetch } = useProject(projectId);
   const { updateProject } = useProjectActions();
+  const { financials } = useProjectFinancials(projectId);
 
   // Auto-save hook for project data
   const {
@@ -164,7 +165,7 @@ const ProjectDetailPage = () => {
   };
 
   const budget = parseFloat(formData?.budget) || 0;
-  const spent = 0; // TODO: Calculate from transactions
+  const spent = financials?.totalExpenses || 0;
   const projectedSalePrice = budget * 1.5;
   const projectedProfit = budget * 0.25;
 
