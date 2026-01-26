@@ -3,7 +3,7 @@
 
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import pptxgen from 'pptxgenjs';
+// import pptxgen from 'pptxgenjs'; // TODO: Install pptxgenjs if PowerPoint export is needed
 
 // Format helpers
 function formatCurrency(value) {
@@ -313,6 +313,14 @@ export async function exportToPresentation({
   chartRef,
   options = {},
 }) {
+  // TODO: Install pptxgenjs package to enable PowerPoint export
+  // Run: npm install pptxgenjs
+  console.warn('PowerPoint export is currently disabled. Install pptxgenjs to enable this feature.');
+  throw new Error('PowerPoint export requires the pptxgenjs package. Please run: npm install pptxgenjs');
+  
+  // The full PowerPoint export code has been temporarily disabled
+  // Install pptxgenjs and uncomment the code below to enable this feature
+  /*
   const {
     includeCharts = true,
     includeSummary = true,
@@ -321,6 +329,7 @@ export async function exportToPresentation({
     template = 'professional', // professional, minimal, detailed
   } = options;
 
+  const pptxgen = require('pptxgenjs');
   const pptx = new pptxgen();
 
   // Presentation settings
@@ -660,6 +669,7 @@ export async function exportToPresentation({
   await pptx.writeFile({ fileName: filename });
 
   return filename;
+  */
 }
 
 /**

@@ -274,7 +274,66 @@ const DEMO_CHANGE_ORDERS = [
     notes: 'Retracted by contractor',
     created_at: '2024-09-10T10:00:00Z',
   },
+  {
+    id: 'co-10',
+    project_id: 'demo-project-1',
+    budget_id: 'budget-1',
+    co_number: 10,
+    title: 'Permit redlines rework and resubmittal',
+    description: 'City plan review returned redlines requiring updated lateral calculations, shear wall nailing schedule, and revised site drainage detail. Includes design team time and resubmittal fees.',
+    reason: 'code_requirement',
+    contractor_id: 'contractor-1',
+    contractor_name: 'Summit Builders LLC',
+    contractor_reference: 'SB-CO-010',
+    amount: 5600,
+    budget_line_item_id: 'li-5',
+    budget_line_item_name: 'Permitting & Engineering',
+    submitted_date: '2024-11-12',
+    approval_deadline: '2024-11-19',
+    approved_date: null,
+    status: 'pending',
+    approved_by: null,
+    approval_notes: null,
+    is_paid: false,
+    paid_date: null,
+    paid_amount: null,
+    notes: 'Redlines issued 11/10; resubmittal targeting 11/18',
+    created_at: '2024-11-12T09:00:00Z',
+  },
 ];
+
+const parseCloneMeta = (changeOrderId) => {
+  const parts = changeOrderId.split('-');
+  if (parts.length <= 2) return { baseId: changeOrderId, projectId: null };
+  const baseId = `${parts[0]}-${parts[1]}`;
+  const projectId = parts.slice(2, -1).join('-') || null;
+  return { baseId, projectId };
+};
+
+const cloneChangeOrderDataForProject = (projectId) => {
+  const idMap = new Map();
+  const changeOrders = DEMO_CHANGE_ORDERS.map((co, idx) => {
+    const newId = `${co.id}-${projectId}-${idx}`;
+    idMap.set(co.id, newId);
+    return {
+      ...co,
+      id: newId,
+      project_id: projectId,
+    };
+  });
+
+  const documents = DEMO_CO_DOCUMENTS.map((doc, idx) => {
+    const mappedId = idMap.get(doc.change_order_id);
+    if (!mappedId) return null;
+    return {
+      ...doc,
+      id: `${doc.id}-${projectId}-${idx}`,
+      change_order_id: mappedId,
+    };
+  }).filter(Boolean);
+
+  return { changeOrders, documents };
+};
 
 const DEMO_CO_DOCUMENTS = [
   { id: 'cod-1', change_order_id: 'co-1', document_type: 'proposal', file_name: 'tankless_heater_proposal.pdf', file_path: '/docs/co-1/proposal.pdf', file_size: 245000, uploaded_at: '2024-06-15T10:00:00Z' },
@@ -285,6 +344,7 @@ const DEMO_CO_DOCUMENTS = [
   { id: 'cod-6', change_order_id: 'co-5', document_type: 'backup', file_name: 'window_specs_impact_rated.pdf', file_path: '/docs/co-5/specs.pdf', file_size: 520000, uploaded_at: '2024-07-08T10:30:00Z' },
   { id: 'cod-7', change_order_id: 'co-7', document_type: 'proposal', file_name: 'landscape_proposal_extended.pdf', file_path: '/docs/co-7/proposal.pdf', file_size: 1200000, uploaded_at: '2024-10-15T10:00:00Z' },
   { id: 'cod-8', change_order_id: 'co-8', document_type: 'photo', file_name: 'water_damage_master_bedroom.jpg', file_path: '/docs/co-8/photo1.jpg', file_size: 4100000, uploaded_at: '2024-11-02T10:00:00Z' },
+  { id: 'cod-9', change_order_id: 'co-10', document_type: 'proposal', file_name: 'permit_redline_rework_quote.pdf', file_path: '/docs/co-10/quote.pdf', file_size: 265000, uploaded_at: '2024-11-12T09:05:00Z' },
 ];
 
 // ─── CRUD OPERATIONS ──────────────────────────────────────────────────────────
@@ -300,8 +360,9 @@ export async function getChangeOrders(projectId) {
     .select('*')
     .eq('project_id', projectId)
     .order('co_number');
-  if (error) throw error;
-  return data || [];
+  if (!error && data && data.length) return data;
+  const { changeOrders } = cloneChangeOrderDataForProject(projectId);
+  return changeOrders;
 }
 
 export async function getChangeOrder(coId) {
@@ -313,8 +374,18 @@ export async function getChangeOrder(coId) {
     .select('*')
     .eq('id', coId)
     .single();
-  if (error) throw error;
-  return data;
+  if (!error && data) return data;
+
+  const { baseId, projectId } = parseCloneMeta(coId);
+  const demoMatch = DEMO_CHANGE_ORDERS.find(co => co.id === baseId);
+  if (!demoMatch) return null;
+
+  if (projectId) {
+    return { ...demoMatch, id: coId, project_id: projectId };
+  }
+
+  const { changeOrders } = cloneChangeOrderDataForProject('demo-project-1');
+  return changeOrders.find(co => co.id === coId) || demoMatch;
 }
 
 export async function createChangeOrder(projectId, coData) {
@@ -408,8 +479,15 @@ export async function getCODocuments(changeOrderId) {
     .select('*')
     .eq('change_order_id', changeOrderId)
     .order('uploaded_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error && data && data.length) return data;
+
+  const { baseId, projectId } = parseCloneMeta(changeOrderId);
+  if (!projectId) {
+    return DEMO_CO_DOCUMENTS.filter(d => d.change_order_id === baseId);
+  }
+
+  const { documents } = cloneChangeOrderDataForProject(projectId);
+  return documents.filter(d => d.change_order_id === changeOrderId || d.change_order_id === baseId);
 }
 
 export async function addCODocument(changeOrderId, docData) {

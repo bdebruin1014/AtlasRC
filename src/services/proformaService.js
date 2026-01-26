@@ -2,7 +2,7 @@
 // Professional-grade Pro Forma financial modeling service
 // Supports Scattered Lot, Multifamily, Subdivision templates
 
-import { isDemoMode } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 
 // ─── Financial Calculations ───────────────────────────────────────────────────
 
@@ -2462,20 +2462,62 @@ const DEMO_PROFORMAS = [
 
 // ─── CRUD Operations ──────────────────────────────────────────────────────────
 
+function cloneDemoProformas(projectId) {
+  return DEMO_PROFORMAS.map((p, idx) => ({
+    ...p,
+    id: `${p.id}-${projectId}`,
+    project_id: projectId,
+    version: idx + 1,
+    is_active: idx === 0,
+  }));
+}
+
 export async function getProformas(projectId) {
   if (isDemoMode) {
-    return DEMO_PROFORMAS.filter(p => p.project_id === projectId);
+    return cloneDemoProformas(projectId);
   }
+
+  try {
+    const { data, error } = await supabase.from('proformas').select('*').eq('project_id', projectId).order('version');
+    if (error) throw error;
+    if (data && data.length) return data;
+  } catch (err) {
+    console.warn('Falling back to demo proformas:', err?.message || err);
+  }
+  return cloneDemoProformas(projectId);
 }
 
 export async function getActiveProforma(projectId) {
   if (isDemoMode) {
-    return DEMO_PROFORMAS.find(p => p.project_id === projectId && p.is_active) || null;
+    return cloneDemoProformas(projectId).find(p => p.is_active) || null;
   }
+
+  try {
+    const { data, error } = await supabase
+      .from('proformas')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+      .single();
+    if (error) throw error;
+    if (data) return data;
+  } catch (err) {
+    console.warn('Falling back to demo active proforma:', err?.message || err);
+  }
+  return cloneDemoProformas(projectId).find(p => p.is_active) || null;
 }
 
 export async function getProforma(proformaId) {
   if (isDemoMode) {
+    return DEMO_PROFORMAS.find(p => p.id === proformaId) || null;
+  }
+
+  try {
+    const { data, error } = await supabase.from('proformas').select('*').eq('id', proformaId).single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn('Falling back to demo proforma:', err?.message || err);
     return DEMO_PROFORMAS.find(p => p.id === proformaId) || null;
   }
 }

@@ -73,6 +73,8 @@ const DEMO_SCHEDULE = {
   status: 'active',
 };
 
+const DEMO_SCHEDULES = [DEMO_SCHEDULE];
+
 const DEMO_TEMPLATES = [
   {
     id: 'sched-tmpl-1',
@@ -148,8 +150,7 @@ const DEMO_TEMPLATES = [
 
 export async function getProjectSchedule(projectId) {
   if (isDemoMode) {
-    return DEMO_SCHEDULE.project_id === projectId || projectId === 'demo-project-1'
-      ? DEMO_SCHEDULE : null;
+    return DEMO_SCHEDULES.find(s => s.project_id === projectId) || null;
   }
   const { data, error } = await supabase
     .from('project_schedules')
@@ -162,7 +163,9 @@ export async function getProjectSchedule(projectId) {
 
 export async function createProjectSchedule(projectId, scheduleData) {
   if (isDemoMode) {
-    return { id: `schedule-${Date.now()}`, project_id: projectId, ...scheduleData, status: 'draft', created_at: new Date().toISOString() };
+    const schedule = { id: `schedule-${Date.now()}`, project_id: projectId, ...scheduleData, status: scheduleData.status || 'draft', created_at: new Date().toISOString() };
+    DEMO_SCHEDULES.push(schedule);
+    return schedule;
   }
   const { data, error } = await supabase.from('project_schedules')
     .insert({ project_id: projectId, ...scheduleData }).select().single();
@@ -265,6 +268,69 @@ export async function getScheduleTemplates(projectType) {
   const { data, error } = await query.order('name');
   if (error) throw error;
   return data || [];
+}
+
+// Create a full schedule (schedule + phases + tasks) from a template
+export async function createScheduleFromTemplate(projectId, projectType) {
+  const templates = await getScheduleTemplates(projectType);
+  const template = templates.find(t => t.is_default) || templates[0];
+  if (!template) return null;
+
+  const start = new Date();
+  const projectedEnd = addDays(start, template.total_duration_days || 120);
+
+  const schedule = await createProjectSchedule(projectId, {
+    template_id: template.id,
+    project_start_date: formatDate(start),
+    projected_end_date: formatDate(projectedEnd),
+    status: 'active',
+  });
+
+  // Walk template phases sequentially and create tasks inside each phase
+  let currentPhaseStart = new Date(start);
+  for (const phase of template.phases || []) {
+    const phaseDuration = (phase.tasks || []).reduce((s, t) => s + (t.duration_days || 0), 0) || 1;
+    const phaseStartDate = new Date(currentPhaseStart);
+    const phaseEndDate = addDays(phaseStartDate, Math.max(phaseDuration - 1, 0));
+
+    const createdPhase = await createPhase(schedule.id, {
+      name: phase.name,
+      sort_order: phase.sort_order,
+      start_date: formatDate(phaseStartDate),
+      end_date: formatDate(phaseEndDate),
+      percent_complete: 0,
+    });
+
+    let taskStart = new Date(phaseStartDate);
+    for (const [idx, task] of (phase.tasks || []).entries()) {
+      const duration = Math.max(task.duration_days || 1, 1);
+      const taskEnd = addDays(taskStart, duration - 1);
+      await createTask(schedule.id, {
+        phase_id: createdPhase.id,
+        name: task.name,
+        category: task.category || 'general',
+        duration_days: duration,
+        duration_type: 'calculated',
+        predecessor_id: null,
+        predecessor_type: task.predecessor_type || null,
+        lag_days: task.lag_days || 0,
+        scheduled_start: formatDate(taskStart),
+        scheduled_end: formatDate(taskEnd),
+        status: 'not_started',
+        percent_complete: 0,
+        is_milestone: !!task.is_milestone,
+        is_critical_path: true,
+        is_date_fixed: false,
+        sort_order: idx + 1,
+        assigned_to_name: task.assigned_to_name || 'Unassigned',
+      });
+      taskStart = addDays(taskEnd, 1);
+    }
+
+    currentPhaseStart = addDays(phaseEndDate, 1);
+  }
+
+  return schedule;
 }
 
 // ─── SCHEDULE CALCULATION ────────────────────────────────────────────────────
