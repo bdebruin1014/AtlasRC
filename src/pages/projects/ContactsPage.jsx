@@ -40,7 +40,7 @@ const ContactsPage = () => {
   const [activeCategory, setActiveCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState(new Set(['all']));
+  const [expandedCategories, setExpandedCategories] = useState(new Set());
 
   useEffect(() => { loadContacts(); }, [projectId]);
 
