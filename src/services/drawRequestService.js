@@ -337,6 +337,13 @@ const DEMO_DRAW_REQUESTS = [
   },
 ];
 
+const cloneDrawsForProject = (projectId) =>
+  DEMO_DRAW_REQUESTS.map((d, idx) => ({
+    ...d,
+    id: `${d.id}-${projectId}-${idx}`,
+    project_id: projectId,
+  }));
+
 const DEMO_DRAW_ITEMS = [
   // Draw 1 - Land and Soft Costs
   { id: 'dri-1', draw_request_id: 'draw-1', budget_line_item_id: 'li-1', cost_code: '01-001', description: 'Land Purchase', budget_amount: 1200000, previously_drawn: 0, current_request: 400000, percent_complete: 33, approved_amount: 400000 },
@@ -408,17 +415,20 @@ const DEMO_DRAW_SCHEDULE = [
 
 export async function getDrawRequests(projectId) {
   if (isDemoMode) {
-    return DEMO_DRAW_REQUESTS
-      .filter(d => d.project_id === projectId || projectId === 'demo-project-1')
-      .sort((a, b) => a.draw_number - b.draw_number);
+    return cloneDrawsForProject(projectId).sort((a, b) => a.draw_number - b.draw_number);
   }
-  const { data, error } = await supabase
-    .from('draw_requests')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('draw_number');
-  if (error) throw error;
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('draw_requests')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('draw_number');
+    if (error) throw error;
+    if (data && data.length) return data;
+  } catch (err) {
+    console.warn('Falling back to demo draw requests:', err?.message || err);
+  }
+  return cloneDrawsForProject(projectId).sort((a, b) => a.draw_number - b.draw_number);
 }
 
 export async function getDrawRequest(drawId) {
