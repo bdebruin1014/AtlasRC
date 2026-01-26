@@ -284,12 +284,144 @@ export function useProjectSubscription(onUpdate) {
   }, [onUpdate]);
 }
 
+// Hook to fetch project financials (budget spent, etc.)
+export function useProjectFinancials(projectId) {
+  const [financials, setFinancials] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchFinancials = useCallback(async () => {
+    if (!projectId) {
+      setFinancials(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (isDemoMode) {
+        // Return mock financials for demo mode
+        setFinancials({
+          budget: 265000,
+          actualCost: 125000,
+          totalExpenses: 125000,
+          totalIncome: 0,
+          percentSpent: 47,
+          budgetRemaining: 140000,
+          expensesByCategory: {
+            'materials': 45000,
+            'labor': 55000,
+            'permits': 5000,
+            'other': 20000
+          }
+        });
+        return;
+      }
+
+      const data = await projectService.getFinancials(projectId);
+      setFinancials(data);
+    } catch (err) {
+      console.error('Error fetching project financials:', err);
+      setError(err.message);
+      // Provide empty financials as fallback
+      setFinancials({
+        budget: 0,
+        actualCost: 0,
+        totalExpenses: 0,
+        totalIncome: 0,
+        percentSpent: 0,
+        budgetRemaining: 0,
+        expensesByCategory: {}
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchFinancials();
+  }, [fetchFinancials]);
+
+  return { financials, isLoading, error, refetch: fetchFinancials };
+}
+
+// Hook to calculate project progress from schedule
+export function useProjectProgress(projectId) {
+  const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function calculateProgress() {
+      if (!projectId) {
+        setProgress(0);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        if (isDemoMode) {
+          // Mock progress for demo mode
+          setProgress(45);
+          return;
+        }
+
+        // Get schedule items to calculate progress
+        const { data: scheduleItems, error } = await supabase
+          .from('schedule_items')
+          .select('percent_complete, weight')
+          .eq('project_id', projectId);
+
+        if (error) throw error;
+
+        if (!scheduleItems || scheduleItems.length === 0) {
+          // No schedule items - try to calculate from milestones
+          const { data: milestones } = await supabase
+            .from('project_milestones')
+            .select('status')
+            .eq('project_id', projectId);
+
+          if (milestones && milestones.length > 0) {
+            const completed = milestones.filter(m => m.status === 'completed').length;
+            setProgress(Math.round((completed / milestones.length) * 100));
+          } else {
+            setProgress(0);
+          }
+          return;
+        }
+
+        // Calculate weighted progress
+        const totalWeight = scheduleItems.reduce((sum, item) => sum + (item.weight || 1), 0);
+        const weightedProgress = scheduleItems.reduce((sum, item) => {
+          const weight = item.weight || 1;
+          const complete = item.percent_complete || 0;
+          return sum + (weight * complete);
+        }, 0);
+
+        setProgress(Math.round(weightedProgress / totalWeight));
+      } catch (err) {
+        console.error('Error calculating project progress:', err);
+        setProgress(0);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    calculateProgress();
+  }, [projectId]);
+
+  return { progress, isLoading };
+}
+
 export default {
   useProjects,
   useProject,
   useProjectActions,
   useProjectSummary,
   useProjectSubscription,
+  useProjectFinancials,
+  useProjectProgress,
   PROJECT_STATUSES,
   PROJECT_TYPES,
 };
