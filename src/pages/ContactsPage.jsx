@@ -252,7 +252,7 @@ const ContactsPage = () => {
   );
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-[calc(100vh-40px)] overflow-hidden">
       {renderSidebar()}
       {renderContent()}
       <Dialog open={showCompanyModal} onOpenChange={setShowCompanyModal}>
