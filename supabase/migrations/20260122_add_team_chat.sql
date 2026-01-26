@@ -211,4 +211,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE team_members;
 -- Insert default general channel
 INSERT INTO chat_channels (id, name, description, type)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'General team discussion', 'channel')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;

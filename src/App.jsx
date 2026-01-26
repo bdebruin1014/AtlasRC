@@ -169,6 +169,7 @@ const GlobalTasksPage = lazy(() => import('@/pages/GlobalTasksPage'));
 const TeamsPage = lazy(() => import('@/pages/operations/TeamsPage'));
 const ESignPage = lazy(() => import('@/pages/operations/ESignPage'));
 const DocumentLibraryPage = lazy(() => import('@/pages/operations/DocumentLibraryPage'));
+const OperationsReportsPage = lazy(() => import('@/pages/operations/OperationsReportsPage'));
 
 // New Operations Pages (TypeScript)
 const ContactsListPage = lazy(() => import('@/pages/Operations/ContactsList'));
@@ -584,6 +585,7 @@ const AppContent = () => (
     <Route path="/operations/emails" element={<ProtectedRoute><AppLayout><EmailDashboard /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/import-export" element={<ProtectedRoute><AppLayout><DataImportExport /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/report-scheduler" element={<ProtectedRoute><AppLayout><ReportScheduler /></AppLayout></ProtectedRoute>} />
+    <Route path="/operations/reports" element={<ProtectedRoute><AppLayout><OperationsReportsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/search" element={<ProtectedRoute><AppLayout><AdvancedSearch /></AppLayout></ProtectedRoute>} />
     <Route path="/dashboard-builder" element={<ProtectedRoute><AppLayout><DashboardBuilder /></AppLayout></ProtectedRoute>} />
     <Route path="/settings/notifications" element={<ProtectedRoute><AppLayout><NotificationPreferences /></AppLayout></ProtectedRoute>} />
