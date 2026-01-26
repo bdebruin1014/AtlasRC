@@ -5,8 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Users, Plus, Search, Phone, Mail, Building2, ChevronRight,
-  HardHat, Paintbrush, Zap, Droplets, Wind, Ruler, FileText,
-  Scale, Landmark, DollarSign, Home, MoreHorizontal
+  HardHat, Briefcase, Settings, Landmark as GovernmentIcon, 
+  DollarSign, Scale, Building, TrendingUp, Ruler, UserCog, 
+  FileText, MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,23 +15,20 @@ import { Badge } from '@/components/ui/badge';
 import { getProjectContacts, CONTACT_CATEGORIES } from '@/services/projectContactsService';
 import AddContactModal from './Contacts/AddContactModal';
 
-// Contact type icons mapping
+// Contact type icons mapping - aligned with CONTACT_CATEGORIES
 const CONTACT_TYPE_ICONS = {
   architect: Ruler,
-  engineer: HardHat,
+  consultant: Briefcase,
   contractor: HardHat,
-  subcontractor: Paintbrush,
-  electrician: Zap,
-  plumber: Droplets,
-  hvac: Wind,
-  surveyor: Ruler,
-  attorney: Scale,
-  title_company: FileText,
-  lender: Landmark,
+  engineer: Settings,
+  government: GovernmentIcon,
   investor: DollarSign,
-  realtor: Home,
-  inspector: FileText,
-  other: Users,
+  legal_title: Scale,
+  lender: Building,
+  sales: TrendingUp,
+  survey: Ruler,
+  team_member: UserCog,
+  other: FileText,
 };
 
 const ContactsPage = () => {
@@ -91,7 +89,7 @@ const ContactsPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)]">
+    <div className="flex h-full">
       {/* Left Sidebar - Contact Types */}
       <div className="w-64 bg-white border-r flex-shrink-0 flex flex-col overflow-hidden">
         <div className="p-4 border-b">
@@ -158,6 +156,19 @@ const ContactsPage = () => {
                       <div
                         key={contact.id}
                         className="px-4 py-2 pl-11 text-xs text-gray-600 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setActiveCategory(cat.id);
+                          setSearchTerm(`${contact.first_name} ${contact.last_name}`);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setActiveCategory(cat.id);
+                            setSearchTerm(`${contact.first_name} ${contact.last_name}`);
+                          }
+                        }}
                       >
                         {contact.first_name} {contact.last_name}
                         {contact.company_name && (

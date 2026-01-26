@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-// Check if we're in demo mode
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || !import.meta.env.VITE_SUPABASE_URL;
+// Check if we're in demo mode (treat placeholder creds as demo, too)
+const isPlaceholderCreds = !import.meta.env.VITE_SUPABASE_URL || supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder');
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isPlaceholderCreds;
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

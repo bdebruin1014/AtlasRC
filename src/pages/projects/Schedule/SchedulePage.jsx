@@ -1,13 +1,15 @@
 // src/pages/projects/Schedule/SchedulePage.jsx
 // Main Schedule Module with Gantt, List, and Milestone views
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Calendar, List, Flag, Plus, RefreshCw, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useScheduleData } from '@/hooks/useSchedule';
+import { useProject } from '@/hooks/useProjects';
+import { createScheduleFromTemplate } from '@/services/scheduleService';
 import GanttChart from './GanttChart';
 import TaskList from './TaskList';
 import TaskForm from './TaskForm';
@@ -26,6 +28,9 @@ const SchedulePage = ({ projectId: propProjectId }) => {
   const [viewMode, setViewMode] = useState('gantt');
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [seeding, setSeeding] = useState(false);
+
+  const { project } = useProject(projectId);
 
   const {
     schedule,
@@ -39,7 +44,23 @@ const SchedulePage = ({ projectId: propProjectId }) => {
     editTask,
     removeTask,
     recalculate,
+    refetchAll,
   } = useScheduleData(projectId);
+
+  // Auto-seed a schedule from the default template for the project type when none exists
+  useEffect(() => {
+    if (loading || seeding || schedule || !project) return;
+
+    (async () => {
+      try {
+        setSeeding(true);
+        await createScheduleFromTemplate(projectId, project.project_type);
+        await refetchAll();
+      } finally {
+        setSeeding(false);
+      }
+    })();
+  }, [loading, seeding, schedule, project, projectId, refetchAll]);
 
   const handleAddTask = () => {
     setEditingTask(null);
@@ -70,7 +91,7 @@ const SchedulePage = ({ projectId: propProjectId }) => {
     await editTask(taskId, { status: newStatus, percent_complete: percentComplete });
   };
 
-  if (loading) {
+  if (loading || seeding) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F855A]" />
