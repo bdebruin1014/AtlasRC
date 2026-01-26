@@ -150,6 +150,19 @@ const ContactsPage = () => {
                       <div
                         key={contact.id}
                         className="px-4 py-2 pl-11 text-xs text-gray-600 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setActiveCategory(cat.id);
+                          setSearchTerm(`${contact.first_name} ${contact.last_name}`);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setActiveCategory(cat.id);
+                            setSearchTerm(`${contact.first_name} ${contact.last_name}`);
+                          }
+                        }}
                       >
                         {contact.first_name} {contact.last_name}
                         {contact.company_name && (
