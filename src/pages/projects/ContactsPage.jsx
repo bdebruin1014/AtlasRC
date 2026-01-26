@@ -93,7 +93,7 @@ const ContactsPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)]">
+    <div className="flex h-full">
       {/* Left Sidebar - Contact Types */}
       <div className="w-64 bg-white border-r flex-shrink-0 flex flex-col overflow-hidden">
         <div className="p-4 border-b">
