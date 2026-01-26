@@ -1,9 +1,5 @@
 // src/pages/projects/ContactsPage.jsx
-<<<<<<< claude/fix-lint-errors-apEyD
-// Project Contacts with left sidebar showing Contact Types
-=======
 // Project Contacts with 12 categories and left sidebar navigation
->>>>>>> main
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
