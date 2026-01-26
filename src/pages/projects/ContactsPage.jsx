@@ -135,10 +135,17 @@ const ContactsPage = () => {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">{categoryContacts.length}</Badge>
                     {categoryContacts.length > 0 && (
-                      <ChevronRight
-                        className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }}
-                      />
+                        aria-label={`Toggle ${cat.label} preview`}
+                        className="flex items-center justify-center"
+                      >
+                        <ChevronRight
+                          className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                          aria-hidden="true"
+                        />
+                      </button>
                     )}
                   </div>
                 </button>
