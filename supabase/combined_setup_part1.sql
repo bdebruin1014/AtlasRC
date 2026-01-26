@@ -2337,42 +2337,92 @@ ALTER TABLE document_signers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE generated_contracts ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- RLS Policies (idempotent - safe to re-run)
 
--- Templates: viewable by all authenticated users
-CREATE POLICY "Templates are viewable by authenticated users"
-  ON document_templates FOR SELECT TO authenticated USING (true);
+-- document_templates
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_templates' AND policyname='Templates are viewable by authenticated users') THEN
+    EXECUTE 'DROP POLICY "Templates are viewable by authenticated users" ON public.document_templates';
+  END IF;
+  EXECUTE 'CREATE POLICY "Templates are viewable by authenticated users" ON public.document_templates FOR SELECT TO authenticated USING (true)';
+END$$;
 
--- Signing requests: viewable and manageable by authenticated users
-CREATE POLICY "Signing requests viewable by authenticated users"
-  ON document_signing_requests FOR SELECT TO authenticated USING (true);
+-- document_signing_requests
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_signing_requests' AND policyname='Signing requests viewable by authenticated users') THEN
+    EXECUTE 'DROP POLICY "Signing requests viewable by authenticated users" ON public.document_signing_requests';
+  END IF;
+  EXECUTE 'CREATE POLICY "Signing requests viewable by authenticated users" ON public.document_signing_requests FOR SELECT TO authenticated USING (true)';
+END$$;
 
-CREATE POLICY "Authenticated users can create signing requests"
-  ON document_signing_requests FOR INSERT TO authenticated WITH CHECK (true);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_signing_requests' AND policyname='Authenticated users can create signing requests') THEN
+    EXECUTE 'DROP POLICY "Authenticated users can create signing requests" ON public.document_signing_requests';
+  END IF;
+  EXECUTE 'CREATE POLICY "Authenticated users can create signing requests" ON public.document_signing_requests FOR INSERT TO authenticated WITH CHECK (true)';
+END$$;
 
-CREATE POLICY "Authenticated users can update signing requests"
-  ON document_signing_requests FOR UPDATE TO authenticated USING (true);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_signing_requests' AND policyname='Authenticated users can update signing requests') THEN
+    EXECUTE 'DROP POLICY "Authenticated users can update signing requests" ON public.document_signing_requests';
+  END IF;
+  EXECUTE 'CREATE POLICY "Authenticated users can update signing requests" ON public.document_signing_requests FOR UPDATE TO authenticated USING (true)';
+END$$;
 
--- Signers: viewable and manageable by authenticated users
-CREATE POLICY "Signers viewable by authenticated users"
-  ON document_signers FOR SELECT TO authenticated USING (true);
+-- document_signers
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_signers' AND policyname='Signers viewable by authenticated users') THEN
+    EXECUTE 'DROP POLICY "Signers viewable by authenticated users" ON public.document_signers';
+  END IF;
+  EXECUTE 'CREATE POLICY "Signers viewable by authenticated users" ON public.document_signers FOR SELECT TO authenticated USING (true)';
+END$$;
 
-CREATE POLICY "Authenticated users can manage signers"
-  ON document_signers FOR ALL TO authenticated USING (true);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_signers' AND policyname='Authenticated users can manage signers') THEN
+    EXECUTE 'DROP POLICY "Authenticated users can manage signers" ON public.document_signers';
+  END IF;
+  EXECUTE 'CREATE POLICY "Authenticated users can manage signers" ON public.document_signers FOR ALL TO authenticated USING (true)';
+END$$;
 
--- Document contacts: viewable and manageable by authenticated users
-CREATE POLICY "Document contacts viewable by authenticated users"
-  ON document_contacts FOR SELECT TO authenticated USING (true);
+-- document_contacts
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_contacts' AND policyname='Document contacts viewable by authenticated users') THEN
+    EXECUTE 'DROP POLICY "Document contacts viewable by authenticated users" ON public.document_contacts';
+  END IF;
+  EXECUTE 'CREATE POLICY "Document contacts viewable by authenticated users" ON public.document_contacts FOR SELECT TO authenticated USING (true)';
+END$$;
 
-CREATE POLICY "Authenticated users can manage document contacts"
-  ON document_contacts FOR ALL TO authenticated USING (true);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='document_contacts' AND policyname='Authenticated users can manage document contacts') THEN
+    EXECUTE 'DROP POLICY "Authenticated users can manage document contacts" ON public.document_contacts';
+  END IF;
+  EXECUTE 'CREATE POLICY "Authenticated users can manage document contacts" ON public.document_contacts FOR ALL TO authenticated USING (true)';
+END$$;
 
--- Generated contracts: viewable and manageable by authenticated users
-CREATE POLICY "Generated contracts viewable by authenticated users"
-  ON generated_contracts FOR SELECT TO authenticated USING (true);
+-- generated_contracts
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='generated_contracts' AND policyname='Generated contracts viewable by authenticated users') THEN
+    EXECUTE 'DROP POLICY "Generated contracts viewable by authenticated users" ON public.generated_contracts';
+  END IF;
+  EXECUTE 'CREATE POLICY "Generated contracts viewable by authenticated users" ON public.generated_contracts FOR SELECT TO authenticated USING (true)';
+END$$;
 
-CREATE POLICY "Authenticated users can manage generated contracts"
-  ON generated_contracts FOR ALL TO authenticated USING (true);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='generated_contracts' AND policyname='Authenticated users can manage generated contracts') THEN
+    EXECUTE 'DROP POLICY "Authenticated users can manage generated contracts" ON public.generated_contracts';
+  END IF;
+  EXECUTE 'CREATE POLICY "Authenticated users can manage generated contracts" ON public.generated_contracts FOR ALL TO authenticated USING (true)';
+END$$;
 
 -- Insert default templates
 INSERT INTO document_templates (id, name, description, category, available_for)
@@ -2382,7 +2432,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000103', 'Letter of Intent (LOI)', 'Non-binding letter of intent', 'pre-contract', ARRAY['opportunity']),
   ('00000000-0000-0000-0000-000000000104', 'Due Diligence Extension', 'Request for DD period extension', 'amendment', ARRAY['project', 'opportunity']),
   ('00000000-0000-0000-0000-000000000105', 'Earnest Money Release', 'Release of earnest money deposit', 'closing', ARRAY['project', 'opportunity'])
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 -- Team Chat Tables Migration
 -- Creates tables for internal team messaging
 
@@ -2596,7 +2646,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE team_members;
 -- Insert default general channel
 INSERT INTO chat_channels (id, name, description, type)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'General team discussion', 'channel')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 -- Migration: Enhanced global contacts with flexible schema
 
 -- Add new columns to contacts table if they don't exist
