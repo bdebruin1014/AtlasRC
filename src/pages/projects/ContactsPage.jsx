@@ -5,8 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Users, Plus, Search, Phone, Mail, Building2, ChevronRight,
-  HardHat, Paintbrush, Zap, Droplets, Wind, Ruler, FileText,
-  Scale, Landmark, DollarSign, Home, MoreHorizontal
+  HardHat, Briefcase, Settings, Landmark as GovernmentIcon, 
+  DollarSign, Scale, Building, TrendingUp, Ruler, UserCog, 
+  FileText, MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,23 +15,20 @@ import { Badge } from '@/components/ui/badge';
 import { getProjectContacts, CONTACT_CATEGORIES } from '@/services/projectContactsService';
 import AddContactModal from './Contacts/AddContactModal';
 
-// Contact type icons mapping
+// Contact type icons mapping - aligned with CONTACT_CATEGORIES
 const CONTACT_TYPE_ICONS = {
   architect: Ruler,
-  engineer: HardHat,
+  consultant: Briefcase,
   contractor: HardHat,
-  subcontractor: Paintbrush,
-  electrician: Zap,
-  plumber: Droplets,
-  hvac: Wind,
-  surveyor: Ruler,
-  attorney: Scale,
-  title_company: FileText,
-  lender: Landmark,
+  engineer: Settings,
+  government: GovernmentIcon,
   investor: DollarSign,
-  realtor: Home,
-  inspector: FileText,
-  other: Users,
+  legal_title: Scale,
+  lender: Building,
+  sales: TrendingUp,
+  survey: Ruler,
+  team_member: UserCog,
+  other: FileText,
 };
 
 const ContactsPage = () => {
