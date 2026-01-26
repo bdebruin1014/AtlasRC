@@ -1,7 +1,8 @@
 // src/services/bankAccountService.js
 // Bank Account Management Service
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { isDemoMode } from '@/lib/utils';
 
 // Mock data for demo mode
 const MOCK_ACCOUNTS = [
