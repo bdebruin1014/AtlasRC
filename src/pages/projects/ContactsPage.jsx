@@ -270,7 +270,11 @@ const ContactCard = ({ contact }) => {
               </Badge>
             </div>
           </div>
-          <button className="p-1 hover:bg-gray-100 rounded">
+          <button
+            type="button"
+            aria-label="More actions for this contact"
+            className="p-1 hover:bg-gray-100 rounded"
+          >
             <MoreHorizontal className="w-4 h-4 text-gray-400" />
           </button>
         </div>
