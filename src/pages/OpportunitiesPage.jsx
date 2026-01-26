@@ -183,7 +183,7 @@ const OpportunitiesPage = () => {
                     <tr
                       key={opp.id}
                       className="border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => navigate(`/opportunities/${opp.id}`)}
+                      onClick={() => navigate(`/opportunity/${opp.id}`)}
                     >
                       <td className="py-3 px-4 font-medium">{opp.deal_number}</td>
                       <td className="py-3 px-4">
@@ -229,7 +229,7 @@ const OpportunitiesPage = () => {
                 <Card
                   key={opp.id}
                   className="cursor-pointer hover:shadow-lg transition"
-                  onClick={() => navigate(`/opportunities/${opp.id}`)}
+                  onClick={() => navigate(`/opportunity/${opp.id}`)}
                 >
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <div className="font-bold text-lg">{opp.deal_number}</div>

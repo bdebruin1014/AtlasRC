@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { isDemoMode } from '@/lib/utils';
 import {
   Activity,
   CheckCircle2,
