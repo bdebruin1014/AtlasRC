@@ -1194,67 +1194,6 @@ const ProjectDetailPage = () => {
           </div>
         );
 
-      case 'project-settings':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Project Settings</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Project Status</h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Current Status</Label>
-                    <Select value={formData?.status || 'active'} onValueChange={(v) => setField('status', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="on-hold">On Hold</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Priority</Label>
-                    <Select value={formData?.priority || 'medium'} onValueChange={(v) => setField('priority', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Notifications</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" defaultChecked />
-                    <span className="text-sm">Budget threshold alerts</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" defaultChecked />
-                    <span className="text-sm">Schedule milestone reminders</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" defaultChecked />
-                    <span className="text-sm">Document expiration warnings</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">Weekly summary emails</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return (
           <div className="p-6">

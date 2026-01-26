@@ -762,19 +762,13 @@ const OpportunityDetailPage = () => {
       
       case 'tasks':
         return <OpportunityTasks opportunity={opportunity} />;
-      
-      case 'property-details':
-        return <OpportunityPropertyDetails opportunity={opportunity} />;
-      
+
       case 'contacts':
         return <OpportunityContacts opportunity={opportunity} />;
       
       case 'comps':
         return <OpportunityComparables opportunity={opportunity} />;
-      
-      case 'files':
-        return <OpportunityFiles />;
-      
+
       case 'mailing':
         return (
           <div className="p-6 space-y-4">
