@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, DollarSign, Calendar, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { billService } from '@/services/billService';
 import { formatCurrency } from '@/lib/utils';
+import AttachmentUpload from './AttachmentUpload';
 
 // Mock data
 const mockVendors = [
@@ -47,6 +48,11 @@ const mockProjects = [
   { id: 3, name: 'Cedar Mill Apartments', code: 'PRJ-003' },
 ];
 
+const mockDiscountAccounts = [
+  { id: 8, number: '5900', name: 'Purchase Discounts' },
+  { id: 9, number: '4900', name: 'Discounts Taken' },
+];
+
 const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -59,11 +65,16 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
     description: '',
     terms: '30',
     memo: '',
+    discount_type: 'none', // none, percentage, amount
+    discount_value: '',
+    discount_account_id: '',
   });
   
   const [lineItems, setLineItems] = useState([
     { id: 1, account_id: '', description: '', amount: '', project_id: '' },
   ]);
+
+  const [attachments, setAttachments] = useState([]);
 
   useEffect(() => {
     if (existingBill) {
@@ -75,6 +86,9 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
         description: existingBill.description || '',
         terms: existingBill.terms || '30',
         memo: existingBill.memo || '',
+        discount_type: existingBill.discount_type || 'none',
+        discount_value: existingBill.discount_value?.toString() || '',
+        discount_account_id: existingBill.discount_account_id?.toString() || '',
       });
       if (existingBill.line_items?.length > 0) {
         setLineItems(existingBill.line_items.map((item, idx) => ({
@@ -85,6 +99,7 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
           project_id: item.project_id?.toString() || '',
         })));
       }
+      setAttachments(existingBill.attachments || []);
     } else {
       // Reset form
       setFormData({
@@ -95,8 +110,12 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
         description: '',
         terms: '30',
         memo: '',
+        discount_type: 'none',
+        discount_value: '',
+        discount_account_id: '',
       });
       setLineItems([{ id: 1, account_id: '', description: '', amount: '', project_id: '' }]);
+      setAttachments([]);
     }
   }, [existingBill, isOpen]);
 
@@ -139,7 +158,18 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
     setLineItems(prev => prev.filter(line => line.id !== lineId));
   };
 
-  const totalAmount = lineItems.reduce((sum, line) => sum + (parseFloat(line.amount) || 0), 0);
+  const subtotal = lineItems.reduce((sum, line) => sum + (parseFloat(line.amount) || 0), 0);
+
+  const discountAmount = useMemo(() => {
+    if (formData.discount_type === 'none' || !formData.discount_value) return 0;
+    const value = parseFloat(formData.discount_value) || 0;
+    if (formData.discount_type === 'percentage') {
+      return (subtotal * value) / 100;
+    }
+    return value;
+  }, [formData.discount_type, formData.discount_value, subtotal]);
+
+  const totalAmount = subtotal - discountAmount;
 
   const handleSubmit = async () => {
     // Validation
@@ -174,6 +204,11 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
         description: formData.description,
         terms: formData.terms,
         memo: formData.memo,
+        subtotal: subtotal,
+        discount_type: formData.discount_type,
+        discount_value: formData.discount_value ? parseFloat(formData.discount_value) : null,
+        discount_amount: discountAmount,
+        discount_account_id: formData.discount_account_id ? parseInt(formData.discount_account_id) : null,
         amount: totalAmount,
         balance: totalAmount,
         status: 'pending',
@@ -183,6 +218,7 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
           amount: parseFloat(line.amount),
           project_id: line.project_id ? parseInt(line.project_id) : null,
         })),
+        attachments: attachments,
       };
 
       if (existingBill) {
@@ -381,15 +417,113 @@ const BillEntryModal = ({ isOpen, onClose, entityId, existingBill, onSuccess }) 
                 </div>
               ))}
 
-              {/* Total */}
-              <div className="grid grid-cols-12 gap-2 p-3 border-t bg-gray-50 font-medium">
-                <div className="col-span-8 text-right">Total:</div>
-                <div className="col-span-3 text-right font-mono text-lg">
-                  {formatCurrency(totalAmount)}
+              {/* Totals */}
+              <div className="border-t bg-gray-50">
+                <div className="grid grid-cols-12 gap-2 p-3">
+                  <div className="col-span-8 text-right">Subtotal:</div>
+                  <div className="col-span-3 text-right font-mono">
+                    {formatCurrency(subtotal)}
+                  </div>
+                  <div className="col-span-1"></div>
                 </div>
-                <div className="col-span-1"></div>
+                {discountAmount > 0 && (
+                  <div className="grid grid-cols-12 gap-2 px-3 pb-2">
+                    <div className="col-span-8 text-right text-green-600">
+                      Discount ({formData.discount_type === 'percentage' ? `${formData.discount_value}%` : 'Fixed'}):
+                    </div>
+                    <div className="col-span-3 text-right font-mono text-green-600">
+                      -{formatCurrency(discountAmount)}
+                    </div>
+                    <div className="col-span-1"></div>
+                  </div>
+                )}
+                <div className="grid grid-cols-12 gap-2 p-3 border-t font-bold">
+                  <div className="col-span-8 text-right">Total:</div>
+                  <div className="col-span-3 text-right font-mono text-lg">
+                    {formatCurrency(totalAmount)}
+                  </div>
+                  <div className="col-span-1"></div>
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Discount */}
+          <div className="space-y-3">
+            <Label>Discount</Label>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-xs text-gray-500">Type</Label>
+                <Select
+                  value={formData.discount_type}
+                  onValueChange={(value) => handleChange('discount_type', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="amount">Fixed Amount ($)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.discount_type !== 'none' && (
+                <>
+                  <div className="grid gap-2">
+                    <Label className="text-xs text-gray-500">
+                      {formData.discount_type === 'percentage' ? 'Percentage' : 'Amount'}
+                    </Label>
+                    <div className="relative">
+                      {formData.discount_type === 'amount' && (
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      )}
+                      <Input
+                        type="number"
+                        step={formData.discount_type === 'percentage' ? '0.1' : '0.01'}
+                        placeholder={formData.discount_type === 'percentage' ? '0' : '0.00'}
+                        className={formData.discount_type === 'amount' ? 'pl-9' : ''}
+                        value={formData.discount_value}
+                        onChange={(e) => handleChange('discount_value', e.target.value)}
+                      />
+                      {formData.discount_type === 'percentage' && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-xs text-gray-500">Discount Account</Label>
+                    <Select
+                      value={formData.discount_account_id}
+                      onValueChange={(value) => handleChange('discount_account_id', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockDiscountAccounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id.toString()}>
+                            {account.number} - {account.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Attachments */}
+          <div className="space-y-3">
+            <Label>Attachments</Label>
+            <AttachmentUpload
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              entityType="bill"
+              entityId={existingBill?.id}
+              maxFiles={5}
+            />
           </div>
 
           {/* Memo */}

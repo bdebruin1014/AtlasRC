@@ -2,10 +2,27 @@ import React, { useState, useMemo } from 'react';
 import {
   Building, Truck, Computer, Wrench, DollarSign, Calendar, Filter,
   Search, Plus, Edit, Trash2, Eye, ChevronDown, ChevronRight,
-  AlertTriangle, CheckCircle, Clock, TrendingDown, Package
+  AlertTriangle, CheckCircle, Clock, TrendingDown, Package, X, Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
 const mockAssets = [
@@ -212,19 +229,568 @@ const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' }
 };
 
+const depreciationMethods = [
+  { value: 'Straight-Line', label: 'Straight-Line' },
+  { value: 'Double-Declining', label: 'Double Declining Balance' },
+  { value: 'Sum-of-Years', label: 'Sum of Years Digits' },
+  { value: 'Units-of-Production', label: 'Units of Production' },
+  { value: 'MACRS', label: 'MACRS (Tax)' },
+];
+
+const assetCategories = [
+  { value: 'Buildings', label: 'Buildings', defaultLife: 39 },
+  { value: 'Building Improvements', label: 'Building Improvements', defaultLife: 15 },
+  { value: 'Vehicles', label: 'Vehicles', defaultLife: 5 },
+  { value: 'Furniture & Fixtures', label: 'Furniture & Fixtures', defaultLife: 7 },
+  { value: 'IT Equipment', label: 'IT Equipment', defaultLife: 5 },
+  { value: 'Machinery', label: 'Machinery & Equipment', defaultLife: 7 },
+  { value: 'Land', label: 'Land', defaultLife: 0 },
+  { value: 'Leasehold Improvements', label: 'Leasehold Improvements', defaultLife: 15 },
+];
+
+const mockLocations = [
+  'Corporate HQ',
+  'Downtown Tower',
+  'Riverside Plaza',
+  'Warehouse A',
+  'Branch Office',
+];
+
+// Asset Entry/Edit Modal Component
+const AssetModal = ({ isOpen, onClose, asset, onSave }) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const isEdit = !!asset;
+
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    subcategory: '',
+    location: '',
+    acquisitionDate: new Date().toISOString().split('T')[0],
+    acquisitionCost: '',
+    usefulLife: '',
+    salvageValue: '',
+    depreciationMethod: 'Straight-Line',
+    serialNumber: '',
+    vendor: '',
+    poNumber: '',
+    condition: 'good',
+    insurancePolicy: '',
+    notes: '',
+  });
+
+  React.useEffect(() => {
+    if (asset) {
+      setFormData({
+        name: asset.name || '',
+        category: asset.category || '',
+        subcategory: asset.subcategory || '',
+        location: asset.location || '',
+        acquisitionDate: asset.acquisitionDate || '',
+        acquisitionCost: asset.acquisitionCost?.toString() || '',
+        usefulLife: asset.usefulLife?.toString() || '',
+        salvageValue: asset.salvageValue?.toString() || '',
+        depreciationMethod: asset.depreciationMethod || 'Straight-Line',
+        serialNumber: asset.serialNumber || '',
+        vendor: asset.vendor || '',
+        poNumber: asset.poNumber || '',
+        condition: asset.condition || 'good',
+        insurancePolicy: asset.insurancePolicy || '',
+        notes: asset.notes || '',
+      });
+    } else {
+      setFormData({
+        name: '',
+        category: '',
+        subcategory: '',
+        location: '',
+        acquisitionDate: new Date().toISOString().split('T')[0],
+        acquisitionCost: '',
+        usefulLife: '',
+        salvageValue: '',
+        depreciationMethod: 'Straight-Line',
+        serialNumber: '',
+        vendor: '',
+        poNumber: '',
+        condition: 'good',
+        insurancePolicy: '',
+        notes: '',
+      });
+    }
+  }, [asset, isOpen]);
+
+  const handleChange = (field, value) => {
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-set useful life when category changes
+      if (field === 'category') {
+        const cat = assetCategories.find(c => c.value === value);
+        if (cat && cat.defaultLife > 0) {
+          updated.usefulLife = cat.defaultLife.toString();
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.category || !formData.acquisitionCost) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Required Fields',
+        description: 'Please fill in asset name, category, and acquisition cost.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const assetData = {
+        id: asset?.id || `FA-${String(Date.now()).slice(-6)}`,
+        name: formData.name,
+        category: formData.category,
+        subcategory: formData.subcategory,
+        location: formData.location,
+        acquisitionDate: formData.acquisitionDate,
+        acquisitionCost: parseFloat(formData.acquisitionCost) || 0,
+        usefulLife: parseInt(formData.usefulLife) || 0,
+        salvageValue: parseFloat(formData.salvageValue) || 0,
+        depreciationMethod: formData.depreciationMethod,
+        accumulatedDepreciation: asset?.accumulatedDepreciation || 0,
+        netBookValue: asset?.netBookValue || (parseFloat(formData.acquisitionCost) || 0),
+        status: 'active',
+        serialNumber: formData.serialNumber,
+        vendor: formData.vendor,
+        poNumber: formData.poNumber,
+        condition: formData.condition,
+        lastInspection: asset?.lastInspection || null,
+        insurancePolicy: formData.insurancePolicy,
+        notes: formData.notes,
+      };
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      onSave(assetData, isEdit);
+      toast({
+        title: 'Success',
+        description: `Asset ${isEdit ? 'updated' : 'created'} successfully.`,
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to save asset.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Asset' : 'Add New Asset'}</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-4 py-4">
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 grid gap-2">
+                <Label htmlFor="name">Asset Name *</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., Office Building - Main St"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Category *</Label>
+                <Select value={formData.category} onValueChange={(v) => handleChange('category', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assetCategories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="subcategory">Subcategory</Label>
+                <Input
+                  id="subcategory"
+                  placeholder="e.g., Commercial Property"
+                  value={formData.subcategory}
+                  onChange={(e) => handleChange('subcategory', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Location</Label>
+                <Select value={formData.location} onValueChange={(v) => handleChange('location', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockLocations.map((loc) => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Condition</Label>
+                <Select value={formData.condition} onValueChange={(v) => handleChange('condition', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="excellent">Excellent</SelectItem>
+                    <SelectItem value="good">Good</SelectItem>
+                    <SelectItem value="fair">Fair</SelectItem>
+                    <SelectItem value="poor">Poor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Financial Information */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900 border-b pb-2">Financial Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="acquisitionDate">Acquisition Date *</Label>
+                <Input
+                  id="acquisitionDate"
+                  type="date"
+                  value={formData.acquisitionDate}
+                  onChange={(e) => handleChange('acquisitionDate', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="acquisitionCost">Acquisition Cost *</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="acquisitionCost"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="pl-9"
+                    value={formData.acquisitionCost}
+                    onChange={(e) => handleChange('acquisitionCost', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="usefulLife">Useful Life (Years)</Label>
+                <Input
+                  id="usefulLife"
+                  type="number"
+                  placeholder="e.g., 39"
+                  value={formData.usefulLife}
+                  onChange={(e) => handleChange('usefulLife', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="salvageValue">Salvage Value</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="salvageValue"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="pl-9"
+                    value={formData.salvageValue}
+                    onChange={(e) => handleChange('salvageValue', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="col-span-2 grid gap-2">
+                <Label>Depreciation Method</Label>
+                <Select value={formData.depreciationMethod} onValueChange={(v) => handleChange('depreciationMethod', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {depreciationMethods.map((method) => (
+                      <SelectItem key={method.value} value={method.value}>{method.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Details */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-900 border-b pb-2">Additional Details</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="serialNumber">Serial Number</Label>
+                <Input
+                  id="serialNumber"
+                  placeholder="e.g., SN-12345"
+                  value={formData.serialNumber}
+                  onChange={(e) => handleChange('serialNumber', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="vendor">Vendor/Supplier</Label>
+                <Input
+                  id="vendor"
+                  placeholder="e.g., Equipment Co."
+                  value={formData.vendor}
+                  onChange={(e) => handleChange('vendor', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="poNumber">PO Number</Label>
+                <Input
+                  id="poNumber"
+                  placeholder="e.g., PO-2024-001"
+                  value={formData.poNumber}
+                  onChange={(e) => handleChange('poNumber', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="insurancePolicy">Insurance Policy</Label>
+                <Input
+                  id="insurancePolicy"
+                  placeholder="e.g., POL-2024-001"
+                  value={formData.insurancePolicy}
+                  onChange={(e) => handleChange('insurancePolicy', e.target.value)}
+                />
+              </div>
+              <div className="col-span-2 grid gap-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Additional notes about this asset..."
+                  rows={3}
+                  value={formData.notes}
+                  onChange={(e) => handleChange('notes', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="border-t pt-4">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {loading ? 'Saving...' : isEdit ? 'Update Asset' : 'Add Asset'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Disposal Modal Component
+const DisposalModal = ({ isOpen, onClose, asset, onDispose }) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    disposalDate: new Date().toISOString().split('T')[0],
+    disposalAmount: '',
+    disposalMethod: 'Sale',
+    notes: '',
+  });
+
+  const handleSubmit = async () => {
+    if (!formData.disposalDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Date',
+        description: 'Please enter a disposal date.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      onDispose({
+        ...asset,
+        status: 'disposed',
+        condition: 'disposed',
+        disposalDate: formData.disposalDate,
+        disposalAmount: parseFloat(formData.disposalAmount) || 0,
+        disposalMethod: formData.disposalMethod,
+        notes: asset.notes + '\n\nDisposal Notes: ' + formData.notes,
+      });
+      toast({
+        title: 'Asset Disposed',
+        description: `${asset.name} has been marked as disposed.`,
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to dispose asset.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Dispose Asset</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="font-medium text-yellow-800">You are disposing:</p>
+            <p className="text-yellow-700">{asset?.name}</p>
+            <p className="text-sm text-yellow-600 mt-1">
+              Net Book Value: ${asset?.netBookValue?.toLocaleString()}
+            </p>
+          </div>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>Disposal Date *</Label>
+              <Input
+                type="date"
+                value={formData.disposalDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, disposalDate: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Disposal Amount (Proceeds)</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="pl-9"
+                  value={formData.disposalAmount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, disposalAmount: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Disposal Method</Label>
+              <Select
+                value={formData.disposalMethod}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, disposalMethod: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sale">Sale</SelectItem>
+                  <SelectItem value="Trade-In">Trade-In</SelectItem>
+                  <SelectItem value="Donation">Donation</SelectItem>
+                  <SelectItem value="Scrapped">Scrapped</SelectItem>
+                  <SelectItem value="Theft/Loss">Theft/Loss</SelectItem>
+                  <SelectItem value="Demolition Sale">Demolition Sale</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Notes</Label>
+              <Textarea
+                placeholder="Reason for disposal, buyer info, etc."
+                rows={2}
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading} variant="destructive">
+            {loading ? 'Processing...' : 'Dispose Asset'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function FixedAssetManagementPage() {
+  const { toast } = useToast();
+  const [assets, setAssets] = useState(mockAssets);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAsset, setSelectedAsset] = useState(mockAssets[0]);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showDisposalModal, setShowDisposalModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState(null);
+
+  const handleAddAsset = () => {
+    setEditingAsset(null);
+    setShowAssetModal(true);
+  };
+
+  const handleEditAsset = (asset) => {
+    setEditingAsset(asset);
+    setShowAssetModal(true);
+  };
+
+  const handleSaveAsset = (assetData, isEdit) => {
+    if (isEdit) {
+      setAssets(prev => prev.map(a => a.id === assetData.id ? assetData : a));
+      setSelectedAsset(assetData);
+    } else {
+      setAssets(prev => [assetData, ...prev]);
+      setSelectedAsset(assetData);
+    }
+  };
+
+  const handleDisposeAsset = (disposedAsset) => {
+    setAssets(prev => prev.map(a => a.id === disposedAsset.id ? disposedAsset : a));
+    setSelectedAsset(disposedAsset);
+  };
+
+  const handleDeleteAsset = (asset) => {
+    if (confirm(`Are you sure you want to delete "${asset.name}"? This cannot be undone.`)) {
+      setAssets(prev => prev.filter(a => a.id !== asset.id));
+      if (selectedAsset?.id === asset.id) {
+        setSelectedAsset(assets.find(a => a.id !== asset.id) || null);
+      }
+      toast({
+        title: 'Asset Deleted',
+        description: `${asset.name} has been removed.`,
+      });
+    }
+  };
+
+  const handleRunDepreciation = () => {
+    toast({
+      title: 'Depreciation Calculated',
+      description: 'Monthly depreciation has been recorded for all active assets.',
+    });
+  };
 
   const categories = useMemo(() => {
-    const cats = [...new Set(mockAssets.map(a => a.category))];
+    const cats = [...new Set(assets.map(a => a.category))];
     return ['all', ...cats];
-  }, []);
+  }, [assets]);
 
   const filteredAssets = useMemo(() => {
-    return mockAssets.filter(asset => {
+    return assets.filter(asset => {
       const matchesStatus = filter === 'all' || asset.status === filter;
       const matchesCategory = categoryFilter === 'all' || asset.category === categoryFilter;
       const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -232,21 +798,21 @@ export default function FixedAssetManagementPage() {
         asset.location.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesStatus && matchesCategory && matchesSearch;
     });
-  }, [filter, categoryFilter, searchTerm]);
+  }, [assets, filter, categoryFilter, searchTerm]);
 
   const stats = useMemo(() => {
-    const activeAssets = mockAssets.filter(a => a.status === 'active');
+    const activeAssets = assets.filter(a => a.status === 'active');
     return {
       totalAssets: activeAssets.length,
       totalCost: activeAssets.reduce((sum, a) => sum + a.acquisitionCost, 0),
       totalNBV: activeAssets.reduce((sum, a) => sum + a.netBookValue, 0),
       totalDepreciation: activeAssets.reduce((sum, a) => sum + a.accumulatedDepreciation, 0)
     };
-  }, []);
+  }, [assets]);
 
   const assetsByCategory = useMemo(() => {
     const cats = {};
-    mockAssets.filter(a => a.status === 'active').forEach(asset => {
+    assets.filter(a => a.status === 'active').forEach(asset => {
       if (!cats[asset.category]) {
         cats[asset.category] = { count: 0, cost: 0, nbv: 0 };
       }
@@ -255,7 +821,7 @@ export default function FixedAssetManagementPage() {
       cats[asset.category].nbv += asset.netBookValue;
     });
     return Object.entries(cats).sort((a, b) => b[1].nbv - a[1].nbv);
-  }, []);
+  }, [assets]);
 
   return (
     <div className="p-6 space-y-6">
@@ -265,8 +831,8 @@ export default function FixedAssetManagementPage() {
           <p className="text-gray-600">Track and manage company fixed assets</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline"><TrendingDown className="w-4 h-4 mr-2" />Run Depreciation</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700"><Plus className="w-4 h-4 mr-2" />Add Asset</Button>
+          <Button variant="outline" onClick={handleRunDepreciation}><TrendingDown className="w-4 h-4 mr-2" />Run Depreciation</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleAddAsset}><Plus className="w-4 h-4 mr-2" />Add Asset</Button>
         </div>
       </div>
 
@@ -392,8 +958,13 @@ export default function FixedAssetManagementPage() {
                     <p className="text-gray-600">{selectedAsset.id} • {selectedAsset.category}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm"><Edit className="w-4 h-4" /></Button>
-                    {selectedAsset.status === 'active' && <Button variant="outline" size="sm" className="text-red-600"><Trash2 className="w-4 h-4" /></Button>}
+                    <Button variant="outline" size="sm" onClick={() => handleEditAsset(selectedAsset)}><Edit className="w-4 h-4" /></Button>
+                    {selectedAsset.status === 'active' && (
+                      <>
+                        <Button variant="outline" size="sm" className="text-orange-600" onClick={() => setShowDisposalModal(true)}>Dispose</Button>
+                        <Button variant="outline" size="sm" className="text-red-600" onClick={() => handleDeleteAsset(selectedAsset)}><Trash2 className="w-4 h-4" /></Button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -463,6 +1034,22 @@ export default function FixedAssetManagementPage() {
           )}
         </div>
       </div>
+
+      {/* Asset Modal */}
+      <AssetModal
+        isOpen={showAssetModal}
+        onClose={() => setShowAssetModal(false)}
+        asset={editingAsset}
+        onSave={handleSaveAsset}
+      />
+
+      {/* Disposal Modal */}
+      <DisposalModal
+        isOpen={showDisposalModal}
+        onClose={() => setShowDisposalModal(false)}
+        asset={selectedAsset}
+        onDispose={handleDisposeAsset}
+      />
     </div>
   );
 }

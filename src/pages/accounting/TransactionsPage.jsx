@@ -1,13 +1,34 @@
 import React, { useState } from 'react';
-import { Plus, Search, Download, Upload, Filter, Eye, Edit2, Trash2, X, CheckCircle } from 'lucide-react';
+import { Plus, Search, Download, Upload, Filter, Eye, Edit2, Trash2, X, CheckCircle, Ban, RotateCcw, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const TransactionsPage = ({ selectedEntity, entities, flatEntities }) => {
+  const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showReverseDialog, setShowReverseDialog] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [voidReason, setVoidReason] = useState('');
 
   const [transactions, setTransactions] = useState([
     { id: 'TXN-2024-0892', date: '2024-12-28', type: 'deposit', description: 'Rental Income - December', account: 'Operating Account', amount: 145000, entity: 'sunset', category: 'Revenue', status: 'posted', project: null },
@@ -62,6 +83,89 @@ const TransactionsPage = ({ selectedEntity, entities, flatEntities }) => {
     setTransactions(prev => [newTx, ...prev]);
     setShowModal(false);
     setFormData({ date: new Date().toISOString().split('T')[0], type: 'payment', description: '', account: 'Operating Account', amount: '', entity: selectedEntity || '', category: 'Operating Expenses', project: '' });
+  };
+
+  const handleVoid = () => {
+    if (!selectedTransaction) return;
+
+    if (!voidReason.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Reason Required',
+        description: 'Please provide a reason for voiding this transaction.',
+      });
+      return;
+    }
+
+    setTransactions(prev => prev.map(tx =>
+      tx.id === selectedTransaction.id
+        ? {
+            ...tx,
+            status: 'voided',
+            voidedAt: new Date().toISOString(),
+            voidReason: voidReason,
+            originalAmount: tx.amount,
+            amount: 0,
+          }
+        : tx
+    ));
+
+    toast({
+      title: 'Transaction Voided',
+      description: `${selectedTransaction.id} has been voided and will not affect account balances.`,
+    });
+
+    setShowVoidDialog(false);
+    setSelectedTransaction(null);
+    setVoidReason('');
+  };
+
+  const handleReverse = () => {
+    if (!selectedTransaction) return;
+
+    // Create a reversing entry
+    const reversalTx = {
+      id: `TXN-2024-${String(893 + transactions.length + 1).padStart(4, '0')}`,
+      date: new Date().toISOString().split('T')[0],
+      type: selectedTransaction.type,
+      description: `REVERSAL: ${selectedTransaction.description}`,
+      account: selectedTransaction.account,
+      amount: -selectedTransaction.amount, // Opposite sign
+      entity: selectedTransaction.entity,
+      category: selectedTransaction.category,
+      status: 'posted',
+      project: selectedTransaction.project,
+      isReversal: true,
+      reversesId: selectedTransaction.id,
+    };
+
+    // Mark original as reversed
+    setTransactions(prev => [
+      reversalTx,
+      ...prev.map(tx =>
+        tx.id === selectedTransaction.id
+          ? { ...tx, status: 'reversed', reversedById: reversalTx.id }
+          : tx
+      ),
+    ]);
+
+    toast({
+      title: 'Transaction Reversed',
+      description: `Created reversal entry ${reversalTx.id} to offset ${selectedTransaction.id}.`,
+    });
+
+    setShowReverseDialog(false);
+    setSelectedTransaction(null);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'posted': return 'bg-green-100 text-green-700';
+      case 'pending': return 'bg-amber-100 text-amber-700';
+      case 'voided': return 'bg-red-100 text-red-700';
+      case 'reversed': return 'bg-purple-100 text-purple-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
   };
 
   return (
@@ -160,14 +264,44 @@ const TransactionsPage = ({ selectedEntity, entities, flatEntities }) => {
                   {tx.amount > 0 ? '+' : ''}{tx.amount < 0 ? '-' : ''}${Math.abs(tx.amount).toLocaleString()}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={cn("px-2 py-1 rounded text-xs capitalize", tx.status === 'posted' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
-                    {tx.status}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={cn("px-2 py-1 rounded text-xs capitalize", getStatusColor(tx.status))}>
+                      {tx.status}
+                    </span>
+                    {tx.isReversal && (
+                      <span className="px-1.5 py-0.5 rounded text-xs bg-purple-50 text-purple-600">REV</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
                     <button className="p-1 hover:bg-gray-100 rounded" title="View"><Eye className="w-4 h-4 text-gray-500" /></button>
-                    <button className="p-1 hover:bg-gray-100 rounded" title="Edit"><Edit2 className="w-4 h-4 text-gray-500" /></button>
+                    {tx.status === 'pending' && (
+                      <button className="p-1 hover:bg-gray-100 rounded" title="Edit"><Edit2 className="w-4 h-4 text-gray-500" /></button>
+                    )}
+                    {(tx.status === 'posted' || tx.status === 'pending') && !tx.isReversal && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1 hover:bg-gray-100 rounded"><MoreHorizontal className="w-4 h-4 text-gray-500" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => { setSelectedTransaction(tx); setShowVoidDialog(true); }}
+                            className="text-red-600"
+                          >
+                            <Ban className="w-4 h-4 mr-2" />Void Transaction
+                          </DropdownMenuItem>
+                          {tx.status === 'posted' && (
+                            <DropdownMenuItem
+                              onClick={() => { setSelectedTransaction(tx); setShowReverseDialog(true); }}
+                              className="text-purple-600"
+                            >
+                              <RotateCcw className="w-4 h-4 mr-2" />Reverse Entry
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -245,6 +379,144 @@ const TransactionsPage = ({ selectedEntity, entities, flatEntities }) => {
           </div>
         </div>
       )}
+
+      {/* Void Transaction Dialog */}
+      <Dialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="w-5 h-5 text-red-500" />
+              Void Transaction
+            </DialogTitle>
+            <DialogDescription>
+              This will mark the transaction as void. The transaction will remain in the ledger but with a $0 amount.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTransaction && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Transaction:</span>
+                  <span className="font-medium">{selectedTransaction.id}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Description:</span>
+                  <span>{selectedTransaction.description}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className={cn("font-medium", selectedTransaction.amount > 0 ? "text-green-600" : "text-red-600")}>
+                    ${Math.abs(selectedTransaction.amount).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium block mb-1">Reason for voiding *</label>
+                <textarea
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                  rows={3}
+                  placeholder="Enter reason for voiding this transaction..."
+                  value={voidReason}
+                  onChange={(e) => setVoidReason(e.target.value)}
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <p className="text-sm text-amber-700">
+                  This action cannot be undone. The transaction will be permanently marked as void.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowVoidDialog(false); setVoidReason(''); }}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleVoid}>
+              <Ban className="w-4 h-4 mr-1" />Void Transaction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reverse Transaction Dialog */}
+      <Dialog open={showReverseDialog} onOpenChange={setShowReverseDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-purple-500" />
+              Reverse Transaction
+            </DialogTitle>
+            <DialogDescription>
+              This will create a new entry with opposite debits and credits to offset the original transaction.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTransaction && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-gray-700 mb-2">Original Transaction</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Transaction:</span>
+                  <span className="font-medium">{selectedTransaction.id}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Date:</span>
+                  <span>{selectedTransaction.date}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Description:</span>
+                  <span>{selectedTransaction.description}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className={cn("font-medium", selectedTransaction.amount > 0 ? "text-green-600" : "text-red-600")}>
+                    {selectedTransaction.amount > 0 ? '+' : '-'}${Math.abs(selectedTransaction.amount).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-purple-50 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-purple-700 mb-2">Reversing Entry (to be created)</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Date:</span>
+                  <span>{new Date().toISOString().split('T')[0]}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Description:</span>
+                  <span>REVERSAL: {selectedTransaction.description}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className={cn("font-medium", -selectedTransaction.amount > 0 ? "text-green-600" : "text-red-600")}>
+                    {-selectedTransaction.amount > 0 ? '+' : '-'}${Math.abs(selectedTransaction.amount).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
+                <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                <p className="text-sm text-blue-700">
+                  The net effect of the original and reversing entries will be zero, effectively canceling the transaction.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReverseDialog(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-purple-600 hover:bg-purple-700" onClick={handleReverse}>
+              <RotateCcw className="w-4 h-4 mr-1" />Create Reversal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
