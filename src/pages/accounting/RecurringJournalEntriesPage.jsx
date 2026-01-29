@@ -1,16 +1,31 @@
 import React, { useState } from 'react';
-import { RefreshCw, Plus, Calendar, Clock, Play, Pause, Edit2, Trash2, Copy, CheckCircle, AlertTriangle, X, ChevronDown, Filter, Search } from 'lucide-react';
+import { RefreshCw, Plus, Calendar, Clock, Play, Pause, Edit2, Trash2, Copy, CheckCircle, AlertTriangle, X, ChevronDown, Filter, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const RecurringJournalEntriesPage = () => {
+  const { toast } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showExecuteDialog, setShowExecuteDialog] = useState(false);
+  const [entryToExecute, setEntryToExecute] = useState(null);
+  const [executing, setExecuting] = useState(false);
+  const [runningAll, setRunningAll] = useState(false);
+  const [executionDate, setExecutionDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const recurringEntries = [
+  const [recurringEntries, setRecurringEntries] = useState([
     {
       id: 'rje-1',
       name: 'Monthly Depreciation',
@@ -119,7 +134,165 @@ const RecurringJournalEntriesPage = () => {
       runCount: 3,
       createdBy: 'Sarah Johnson',
     },
-  ];
+  ]);
+
+  // Execute a single recurring entry
+  const handleExecuteEntry = async () => {
+    if (!entryToExecute) return;
+
+    setExecuting(true);
+    try {
+      // Simulate API call to create journal entry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Update the entry's lastRun and calculate next run
+      setRecurringEntries(prev => prev.map(entry => {
+        if (entry.id !== entryToExecute.id) return entry;
+
+        const nextRun = calculateNextRun(entry.frequency, executionDate);
+        return {
+          ...entry,
+          lastRun: executionDate,
+          nextRun: nextRun,
+          runCount: entry.runCount + 1,
+        };
+      }));
+
+      toast({
+        title: 'Entry Executed',
+        description: `Created journal entry for "${entryToExecute.name}" - $${entryToExecute.amount.toLocaleString()}`,
+      });
+
+      setShowExecuteDialog(false);
+      setEntryToExecute(null);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Execution Failed',
+        description: error.message || 'Failed to execute recurring entry.',
+      });
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  // Execute all due entries
+  const handleRunAllDue = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const dueEntries = recurringEntries.filter(e =>
+      e.status === 'active' && e.nextRun <= today
+    );
+
+    if (dueEntries.length === 0) {
+      toast({
+        title: 'No Due Entries',
+        description: 'There are no recurring entries due to run today.',
+      });
+      return;
+    }
+
+    setRunningAll(true);
+    try {
+      // Simulate running all entries
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      setRecurringEntries(prev => prev.map(entry => {
+        if (entry.status !== 'active' || entry.nextRun > today) return entry;
+
+        const nextRun = calculateNextRun(entry.frequency, today);
+        return {
+          ...entry,
+          lastRun: today,
+          nextRun: nextRun,
+          runCount: entry.runCount + 1,
+        };
+      }));
+
+      toast({
+        title: 'All Due Entries Executed',
+        description: `Successfully ran ${dueEntries.length} recurring entries.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Execution Failed',
+        description: 'Some entries failed to execute.',
+      });
+    } finally {
+      setRunningAll(false);
+    }
+  };
+
+  // Calculate next run date based on frequency
+  const calculateNextRun = (frequency, currentDate) => {
+    const date = new Date(currentDate);
+    switch (frequency) {
+      case 'daily':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'biweekly':
+        date.setDate(date.getDate() + 14);
+        break;
+      case 'monthly':
+        date.setMonth(date.getMonth() + 1);
+        break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3);
+        break;
+      case 'yearly':
+        date.setFullYear(date.getFullYear() + 1);
+        break;
+      default:
+        date.setMonth(date.getMonth() + 1);
+    }
+    return date.toISOString().split('T')[0];
+  };
+
+  // Toggle entry status (pause/resume)
+  const toggleEntryStatus = (entryId) => {
+    setRecurringEntries(prev => prev.map(entry =>
+      entry.id === entryId
+        ? { ...entry, status: entry.status === 'active' ? 'paused' : 'active' }
+        : entry
+    ));
+
+    const entry = recurringEntries.find(e => e.id === entryId);
+    toast({
+      title: entry?.status === 'active' ? 'Entry Paused' : 'Entry Resumed',
+      description: `"${entry?.name}" has been ${entry?.status === 'active' ? 'paused' : 'resumed'}.`,
+    });
+  };
+
+  // Delete entry
+  const deleteEntry = (entryId) => {
+    const entry = recurringEntries.find(e => e.id === entryId);
+    if (confirm(`Are you sure you want to delete "${entry?.name}"?`)) {
+      setRecurringEntries(prev => prev.filter(e => e.id !== entryId));
+      toast({
+        title: 'Entry Deleted',
+        description: `"${entry?.name}" has been removed.`,
+      });
+    }
+  };
+
+  // Duplicate entry
+  const duplicateEntry = (entry) => {
+    const newEntry = {
+      ...entry,
+      id: `rje-${Date.now()}`,
+      name: `${entry.name} (Copy)`,
+      runCount: 0,
+      createdBy: 'Current User',
+    };
+    setRecurringEntries(prev => [newEntry, ...prev]);
+    toast({
+      title: 'Entry Duplicated',
+      description: `Created copy of "${entry.name}".`,
+    });
+  };
 
   const getFrequencyLabel = (freq) => {
     switch (freq) {
@@ -172,7 +345,13 @@ const RecurringJournalEntriesPage = () => {
             <p className="text-sm text-gray-500">Automate repetitive journal entries</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-1" />Run All Due</Button>
+            <Button variant="outline" size="sm" onClick={handleRunAllDue} disabled={runningAll}>
+              {runningAll ? (
+                <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Running...</>
+              ) : (
+                <><RefreshCw className="w-4 h-4 mr-1" />Run All Due</>
+              )}
+            </Button>
             <Button className="bg-[#047857] hover:bg-[#065f46]" size="sm" onClick={() => setShowCreateModal(true)}>
               <Plus className="w-4 h-4 mr-1" />New Recurring Entry
             </Button>
@@ -305,21 +484,33 @@ const RecurringJournalEntriesPage = () => {
                 <div className="mt-4 flex items-center justify-between pt-3 border-t">
                   <span className="text-xs text-gray-500">Created by {entry.createdBy}</span>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setEntryToExecute(entry); setShowExecuteDialog(true); }}
+                      disabled={entry.status !== 'active'}
+                    >
                       <Play className="w-4 h-4 mr-1" />Run Now
                     </Button>
                     {entry.status === 'active' ? (
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => toggleEntryStatus(entry.id)}>
                         <Pause className="w-4 h-4 mr-1" />Pause
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => toggleEntryStatus(entry.id)}>
                         <Play className="w-4 h-4 mr-1" />Resume
                       </Button>
                     )}
                     <Button variant="outline" size="sm"><Edit2 className="w-4 h-4" /></Button>
-                    <Button variant="outline" size="sm"><Copy className="w-4 h-4" /></Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                    <Button variant="outline" size="sm" onClick={() => duplicateEntry(entry)}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => deleteEntry(entry.id)}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -435,6 +626,92 @@ const RecurringJournalEntriesPage = () => {
           </div>
         </div>
       )}
+
+      {/* Execute Dialog */}
+      <Dialog open={showExecuteDialog} onOpenChange={setShowExecuteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-green-500" />
+              Run Recurring Entry
+            </DialogTitle>
+            <DialogDescription>
+              Create a journal entry from this recurring template
+            </DialogDescription>
+          </DialogHeader>
+
+          {entryToExecute && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Template:</span>
+                  <span className="font-medium">{entryToExecute.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Entity:</span>
+                  <span>{entryToExecute.entity}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className="font-semibold">${entryToExecute.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Last Run:</span>
+                  <span>{entryToExecute.lastRun}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium block mb-1">Entry Date</label>
+                <Input
+                  type="date"
+                  value={executionDate}
+                  onChange={(e) => setExecutionDate(e.target.value)}
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 mb-2">Entry Lines</h4>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-gray-500">
+                      <th className="text-left pb-1">Account</th>
+                      <th className="text-right pb-1">Debit</th>
+                      <th className="text-right pb-1">Credit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entryToExecute.lines.map((line, idx) => (
+                      <tr key={idx} className="text-blue-700">
+                        <td className="py-1">{line.account}</td>
+                        <td className="py-1 text-right">{line.debit > 0 ? `$${line.debit.toLocaleString()}` : '-'}</td>
+                        <td className="py-1 text-right">{line.credit > 0 ? `$${line.credit.toLocaleString()}` : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExecuteDialog(false)} disabled={executing}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleExecuteEntry}
+              disabled={executing}
+            >
+              {executing ? (
+                <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Creating...</>
+              ) : (
+                <><CheckCircle className="w-4 h-4 mr-1" />Create Journal Entry</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

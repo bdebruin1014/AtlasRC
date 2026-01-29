@@ -15,6 +15,19 @@ import { useToast } from '@/components/ui/use-toast';
 import { journalEntryService } from '@/services/journalEntryService';
 import { cn, formatCurrency } from '@/lib/utils';
 
+// Mock cost centers / departments
+const mockCostCenters = [
+  { id: 1, code: 'ADMIN', name: 'Administration' },
+  { id: 2, code: 'SALES', name: 'Sales & Marketing' },
+  { id: 3, code: 'OPS', name: 'Operations' },
+  { id: 4, code: 'FIN', name: 'Finance' },
+  { id: 5, code: 'DEV', name: 'Development' },
+  { id: 6, code: 'PROP-001', name: 'Downtown Tower' },
+  { id: 7, code: 'PROP-002', name: 'Riverside Plaza' },
+  { id: 8, code: 'PROP-003', name: 'Cedar Mill Apartments' },
+  { id: 9, code: 'CORP', name: 'Corporate Overhead' },
+];
+
 // Mock chart of accounts
 const mockAccounts = [
   { id: 1, number: '1000', name: 'Cash', type: 'Asset' },
@@ -43,8 +56,8 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
   });
   
   const [lines, setLines] = useState([
-    { id: 1, account_id: '', debit: '', credit: '' },
-    { id: 2, account_id: '', debit: '', credit: '' },
+    { id: 1, account_id: '', debit: '', credit: '', cost_center_id: '' },
+    { id: 2, account_id: '', debit: '', credit: '', cost_center_id: '' },
   ]);
 
   useEffect(() => {
@@ -61,6 +74,7 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
           account_id: line.account_id?.toString() || '',
           debit: line.debit > 0 ? line.debit.toString() : '',
           credit: line.credit > 0 ? line.credit.toString() : '',
+          cost_center_id: line.cost_center_id?.toString() || '',
         })));
       }
     }
@@ -88,7 +102,7 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
 
   const addLine = () => {
     const newId = Math.max(...lines.map(l => l.id)) + 1;
-    setLines(prev => [...prev, { id: newId, account_id: '', debit: '', credit: '' }]);
+    setLines(prev => [...prev, { id: newId, account_id: '', debit: '', credit: '', cost_center_id: '' }]);
   };
 
   const removeLine = (lineId) => {
@@ -105,8 +119,50 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
 
   const totalDebit = lines.reduce((sum, line) => sum + (parseFloat(line.debit) || 0), 0);
   const totalCredit = lines.reduce((sum, line) => sum + (parseFloat(line.credit) || 0), 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
   const difference = Math.abs(totalDebit - totalCredit);
+  const isBalanced = difference < 0.01;
+
+  // Enhanced validation checks
+  const validationErrors = [];
+
+  // Check for zero amounts
+  if (totalDebit === 0 && totalCredit === 0) {
+    validationErrors.push('Entry must have at least one debit or credit amount.');
+  }
+
+  // Check that each line has only debit OR credit, not both
+  const linesWithBoth = lines.filter(line =>
+    parseFloat(line.debit) > 0 && parseFloat(line.credit) > 0
+  );
+  if (linesWithBoth.length > 0) {
+    validationErrors.push('Each line can only have a debit OR a credit, not both.');
+  }
+
+  // Check for at least one debit and one credit line
+  const hasDebit = lines.some(line => parseFloat(line.debit) > 0);
+  const hasCredit = lines.some(line => parseFloat(line.credit) > 0);
+  if ((hasDebit && !hasCredit) || (hasCredit && !hasDebit)) {
+    validationErrors.push('Entry must have at least one debit and one credit line.');
+  }
+
+  // Check for duplicate accounts with same type (debit or credit)
+  const accountDebits = {};
+  const accountCredits = {};
+  lines.forEach(line => {
+    if (line.account_id) {
+      if (parseFloat(line.debit) > 0) {
+        accountDebits[line.account_id] = (accountDebits[line.account_id] || 0) + 1;
+      }
+      if (parseFloat(line.credit) > 0) {
+        accountCredits[line.account_id] = (accountCredits[line.account_id] || 0) + 1;
+      }
+    }
+  });
+  const duplicateWarning = Object.values(accountDebits).some(count => count > 1) ||
+                          Object.values(accountCredits).some(count => count > 1);
+
+  const hasValidationErrors = validationErrors.length > 0;
+  const canPost = isBalanced && !hasValidationErrors;
 
   const handleSubmit = async (asDraft = false) => {
     // Validation
@@ -132,13 +188,24 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
       return;
     }
 
-    if (!isBalanced && !asDraft) {
-      toast({
-        variant: 'destructive',
-        title: 'Entry Not Balanced',
-        description: `Debits and credits must be equal. Difference: ${formatCurrency(difference)}`,
-      });
-      return;
+    if (!asDraft) {
+      if (!isBalanced) {
+        toast({
+          variant: 'destructive',
+          title: 'Entry Not Balanced',
+          description: `Debits and credits must be equal. Difference: ${formatCurrency(difference)}`,
+        });
+        return;
+      }
+
+      if (hasValidationErrors) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Failed',
+          description: validationErrors[0],
+        });
+        return;
+      }
     }
 
     setLoading(true);
@@ -156,6 +223,7 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
           account_id: parseInt(line.account_id),
           debit: parseFloat(line.debit) || 0,
           credit: parseFloat(line.credit) || 0,
+          cost_center_id: line.cost_center_id ? parseInt(line.cost_center_id) : null,
         })),
       };
 
@@ -236,15 +304,16 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
 
           <div className="border rounded-lg overflow-hidden">
             <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 text-sm font-medium text-gray-500">
-              <div className="col-span-5">Account</div>
-              <div className="col-span-3 text-right">Debit</div>
-              <div className="col-span-3 text-right">Credit</div>
-              <div className="col-span-1"></div>
+              <div className="col-span-4">Account</div>
+              <div className="col-span-2">Cost Center</div>
+              <div className="col-span-2 text-right">Debit</div>
+              <div className="col-span-2 text-right">Credit</div>
+              <div className="col-span-2"></div>
             </div>
 
             {lines.map((line) => (
               <div key={line.id} className="grid grid-cols-12 gap-2 p-3 border-t items-center">
-                <div className="col-span-5">
+                <div className="col-span-4">
                   <Select
                     value={line.account_id}
                     onValueChange={(value) => handleLineChange(line.id, 'account_id', value)}
@@ -261,7 +330,25 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-2">
+                  <Select
+                    value={line.cost_center_id}
+                    onValueChange={(value) => handleLineChange(line.id, 'cost_center_id', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {mockCostCenters.map((cc) => (
+                        <SelectItem key={cc.id} value={cc.id.toString()}>
+                          {cc.code} - {cc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
                   <Input
                     type="number"
                     step="0.01"
@@ -271,7 +358,7 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
                     onChange={(e) => handleLineChange(line.id, 'debit', e.target.value)}
                   />
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <Input
                     type="number"
                     step="0.01"
@@ -281,7 +368,7 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
                     onChange={(e) => handleLineChange(line.id, 'credit', e.target.value)}
                   />
                 </div>
-                <div className="col-span-1 flex justify-center">
+                <div className="col-span-2 flex justify-center">
                   <Button
                     type="button"
                     variant="ghost"
@@ -296,28 +383,56 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
 
             {/* Totals */}
             <div className="grid grid-cols-12 gap-2 p-3 border-t bg-gray-50 font-medium">
-              <div className="col-span-5 text-right">Totals:</div>
-              <div className="col-span-3 text-right font-mono">{formatCurrency(totalDebit)}</div>
-              <div className="col-span-3 text-right font-mono">{formatCurrency(totalCredit)}</div>
-              <div className="col-span-1"></div>
+              <div className="col-span-6 text-right">Totals:</div>
+              <div className="col-span-2 text-right font-mono">{formatCurrency(totalDebit)}</div>
+              <div className="col-span-2 text-right font-mono">{formatCurrency(totalCredit)}</div>
+              <div className="col-span-2"></div>
             </div>
           </div>
 
-          {/* Balance Indicator */}
-          <div className={cn(
-            "flex items-center gap-2 p-3 rounded-lg",
-            isBalanced ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-          )}>
-            {isBalanced ? (
-              <>
-                <CheckCircle className="w-5 h-5" />
-                <span>Entry is balanced</span>
-              </>
-            ) : (
-              <>
+          {/* Balance and Validation Indicator */}
+          <div className="space-y-2">
+            {/* Balance Status */}
+            <div className={cn(
+              "flex items-center gap-2 p-3 rounded-lg",
+              isBalanced ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+            )}>
+              {isBalanced ? (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  <span>Debits equal credits - Entry is balanced</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-5 h-5" />
+                  <span>Out of balance by {formatCurrency(difference)} - {totalDebit > totalCredit ? 'Debits exceed credits' : 'Credits exceed debits'}</span>
+                </>
+              )}
+            </div>
+
+            {/* Validation Errors */}
+            {validationErrors.length > 0 && (
+              <div className="bg-amber-50 text-amber-700 p-3 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Validation Issues:</p>
+                    <ul className="text-sm mt-1 space-y-1">
+                      {validationErrors.map((error, idx) => (
+                        <li key={idx}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Duplicate Warning */}
+            {duplicateWarning && (
+              <div className="bg-blue-50 text-blue-700 p-3 rounded-lg flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
-                <span>Out of balance by {formatCurrency(difference)}</span>
-              </>
+                <span className="text-sm">Multiple entries for the same account detected. Consider consolidating.</span>
+              </div>
             )}
           </div>
         </div>
@@ -344,10 +459,10 @@ const JournalEntryForm = ({ entityId, existingEntry, onCancel, onSuccess }) => {
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-          <Button 
-            type="button" 
-            onClick={() => handleSubmit(false)} 
-            disabled={loading || !isBalanced}
+          <Button
+            type="button"
+            onClick={() => handleSubmit(false)}
+            disabled={loading || !canPost}
             className="bg-[#2F855A] hover:bg-[#276749]"
           >
             {loading ? 'Saving...' : 'Post Entry'}

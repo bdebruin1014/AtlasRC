@@ -1,14 +1,33 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Eye, Edit2, X, Send, Download, Printer, DollarSign, Clock, CheckCircle, AlertTriangle, FileText, Mail, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Edit2, X, Send, Download, Printer, DollarSign, Clock, CheckCircle, AlertTriangle, FileText, Mail, MoreHorizontal, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
+  const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [invoiceToSend, setInvoiceToSend] = useState(null);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
+  const [sendFormData, setSendFormData] = useState({
+    toEmail: '',
+    ccEmail: '',
+    subject: '',
+    message: '',
+  });
 
   const [invoices, setInvoices] = useState([
     {
@@ -152,7 +171,17 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
     items: [{ description: '', quantity: 1, rate: '', amount: '' }],
     notes: '',
     isIntercompany: false,
+    discountType: 'none', // none, percentage, amount
+    discountValue: '',
   });
+
+  const subtotal = formData.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const discountAmount = formData.discountType === 'none' || !formData.discountValue
+    ? 0
+    : formData.discountType === 'percentage'
+      ? (subtotal * (parseFloat(formData.discountValue) || 0)) / 100
+      : parseFloat(formData.discountValue) || 0;
+  const invoiceTotal = subtotal - discountAmount;
 
   const filteredInvoices = invoices.filter(inv => {
     if (filterStatus === 'all') return true;
@@ -190,8 +219,58 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
     setFormData(prev => ({ ...prev, items: [...prev.items, { description: '', quantity: 1, rate: '', amount: '' }] }));
   };
 
+  const openSendDialog = (invoice) => {
+    setInvoiceToSend(invoice);
+    setSendFormData({
+      toEmail: invoice.customerEmail || '',
+      ccEmail: '',
+      subject: `Invoice ${invoice.id} from ${invoice.entity}`,
+      message: `Dear ${invoice.customer},\n\nPlease find attached Invoice ${invoice.id} for $${invoice.total?.toLocaleString() || invoice.subtotal?.toLocaleString()}.\n\nPayment is due by ${invoice.dueDate}.\n\nThank you for your business.\n\nBest regards,\n${invoice.entity}`,
+    });
+    setShowSendDialog(true);
+  };
+
+  const handleSendInvoice = async () => {
+    if (!sendFormData.toEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'Email Required',
+        description: 'Please enter a recipient email address.',
+      });
+      return;
+    }
+
+    setSendingInvoice(true);
+    try {
+      // Simulate sending email
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Update invoice status to 'sent'
+      setInvoices(prev => prev.map(inv =>
+        inv.id === invoiceToSend.id
+          ? { ...inv, status: 'sent', sentAt: new Date().toISOString(), sentTo: sendFormData.toEmail }
+          : inv
+      ));
+
+      toast({
+        title: 'Invoice Sent',
+        description: `Invoice ${invoiceToSend.id} has been sent to ${sendFormData.toEmail}`,
+      });
+
+      setShowSendDialog(false);
+      setInvoiceToSend(null);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Send Failed',
+        description: 'Failed to send invoice. Please try again.',
+      });
+    } finally {
+      setSendingInvoice(false);
+    }
+  };
+
   const handleSave = (status = 'draft') => {
-    const subtotal = formData.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
     const newInvoice = {
       id: `INV-2024-${String(invoices.length + 1).padStart(3, '0')}`,
       ...formData,
@@ -199,14 +278,17 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
       status,
       paidDate: null,
       subtotal,
+      discountType: formData.discountType,
+      discountValue: formData.discountValue ? parseFloat(formData.discountValue) : null,
+      discountAmount,
       tax: 0,
-      total: subtotal,
+      total: invoiceTotal,
       amountPaid: 0,
-      balance: subtotal,
+      balance: invoiceTotal,
     };
     setInvoices(prev => [newInvoice, ...prev]);
     setShowModal(false);
-    setFormData({ customer: '', customerEmail: '', entity: 'VanRock Holdings', project: '', dueDate: '', items: [{ description: '', quantity: 1, rate: '', amount: '' }], notes: '', isIntercompany: false });
+    setFormData({ customer: '', customerEmail: '', entity: 'VanRock Holdings', project: '', dueDate: '', items: [{ description: '', quantity: 1, rate: '', amount: '' }], notes: '', isIntercompany: false, discountType: 'none', discountValue: '' });
   };
 
   return (
@@ -320,8 +402,12 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
                     <button className="p-1 hover:bg-gray-100 rounded" title="View" onClick={() => setSelectedInvoice(invoice)}>
                       <Eye className="w-4 h-4 text-gray-500" />
                     </button>
-                    {invoice.status === 'draft' && (
-                      <button className="p-1 hover:bg-blue-100 rounded" title="Send">
+                    {(invoice.status === 'draft' || invoice.status === 'sent') && invoice.balance > 0 && (
+                      <button
+                        className="p-1 hover:bg-blue-100 rounded"
+                        title={invoice.status === 'draft' ? 'Send' : 'Resend'}
+                        onClick={() => openSendDialog(invoice)}
+                      >
                         <Send className="w-4 h-4 text-blue-500" />
                       </button>
                     )}
@@ -415,9 +501,25 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
                     </tbody>
                     <tfoot className="bg-gray-50 border-t">
                       <tr>
+                        <td colSpan={3} className="px-3 py-2 text-right">Subtotal:</td>
+                        <td className="px-3 py-2 text-right">
+                          ${subtotal.toLocaleString()}
+                        </td>
+                      </tr>
+                      {discountAmount > 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-3 py-2 text-right text-green-600">
+                            Discount ({formData.discountType === 'percentage' ? `${formData.discountValue}%` : 'Fixed'}):
+                          </td>
+                          <td className="px-3 py-2 text-right text-green-600">
+                            -${discountAmount.toLocaleString()}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="border-t">
                         <td colSpan={3} className="px-3 py-2 text-right font-semibold">Total:</td>
                         <td className="px-3 py-2 text-right font-semibold">
-                          ${formData.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
+                          ${invoiceTotal.toLocaleString()}
                         </td>
                       </tr>
                     </tfoot>
@@ -426,6 +528,53 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
                 <Button variant="outline" size="sm" className="mt-2" onClick={addLineItem}>
                   <Plus className="w-4 h-4 mr-1" />Add Line
                 </Button>
+              </div>
+
+              {/* Discount */}
+              <div>
+                <label className="text-sm font-medium block mb-2">Discount</label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Type</label>
+                    <select
+                      className="w-full border rounded-md px-3 py-2 text-sm"
+                      value={formData.discountType}
+                      onChange={(e) => setFormData(prev => ({ ...prev, discountType: e.target.value }))}
+                    >
+                      <option value="none">No Discount</option>
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="amount">Fixed Amount ($)</option>
+                    </select>
+                  </div>
+                  {formData.discountType !== 'none' && (
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">
+                        {formData.discountType === 'percentage' ? 'Percentage' : 'Amount'}
+                      </label>
+                      <div className="relative">
+                        {formData.discountType === 'amount' && (
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                        )}
+                        <Input
+                          type="number"
+                          step={formData.discountType === 'percentage' ? '0.1' : '0.01'}
+                          placeholder={formData.discountType === 'percentage' ? '0' : '0.00'}
+                          className={formData.discountType === 'amount' ? 'pl-7' : ''}
+                          value={formData.discountValue}
+                          onChange={(e) => setFormData(prev => ({ ...prev, discountValue: e.target.value }))}
+                        />
+                        {formData.discountType === 'percentage' && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {discountAmount > 0 && (
+                    <div className="flex items-end">
+                      <p className="text-sm text-green-600 pb-2">Saves: ${discountAmount.toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -513,6 +662,14 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
                       <td colSpan={3} className="px-3 py-2 text-right">Subtotal</td>
                       <td className="px-3 py-2 text-right">${selectedInvoice.subtotal.toLocaleString()}</td>
                     </tr>
+                    {selectedInvoice.discountAmount > 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-2 text-right text-green-600">
+                          Discount ({selectedInvoice.discountType === 'percentage' ? `${selectedInvoice.discountValue}%` : 'Fixed'})
+                        </td>
+                        <td className="px-3 py-2 text-right text-green-600">-${selectedInvoice.discountAmount.toLocaleString()}</td>
+                      </tr>
+                    )}
                     <tr>
                       <td colSpan={3} className="px-3 py-2 text-right font-semibold">Total</td>
                       <td className="px-3 py-2 text-right font-semibold">${selectedInvoice.total.toLocaleString()}</td>
@@ -543,7 +700,9 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
             <div className="flex justify-between items-center p-4 border-t bg-gray-50">
               <div className="flex gap-2">
                 <Button variant="outline" size="sm"><Printer className="w-4 h-4 mr-1" />Print</Button>
-                <Button variant="outline" size="sm"><Mail className="w-4 h-4 mr-1" />Email</Button>
+                <Button variant="outline" size="sm" onClick={() => openSendDialog(selectedInvoice)}>
+                  <Mail className="w-4 h-4 mr-1" />Email
+                </Button>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setSelectedInvoice(null)}>Close</Button>
@@ -555,6 +714,104 @@ const InvoicesPage = ({ onEntityChange, selectedEntity }) => {
           </div>
         </div>
       )}
+
+      {/* Send Invoice Dialog */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-blue-500" />
+              Send Invoice
+            </DialogTitle>
+            <DialogDescription>
+              Send invoice {invoiceToSend?.id} to the customer via email.
+            </DialogDescription>
+          </DialogHeader>
+
+          {invoiceToSend && (
+            <div className="space-y-4 py-4">
+              {/* Invoice Summary */}
+              <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Invoice:</span>
+                  <span className="font-medium">{invoiceToSend.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Customer:</span>
+                  <span>{invoiceToSend.customer}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className="font-semibold">${invoiceToSend.total?.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Email Form */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium block mb-1">To *</label>
+                  <Input
+                    type="email"
+                    placeholder="customer@email.com"
+                    value={sendFormData.toEmail}
+                    onChange={(e) => setSendFormData(prev => ({ ...prev, toEmail: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">CC</label>
+                  <Input
+                    type="email"
+                    placeholder="cc@email.com (optional)"
+                    value={sendFormData.ccEmail}
+                    onChange={(e) => setSendFormData(prev => ({ ...prev, ccEmail: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">Subject</label>
+                  <Input
+                    value={sendFormData.subject}
+                    onChange={(e) => setSendFormData(prev => ({ ...prev, subject: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">Message</label>
+                  <textarea
+                    className="w-full border rounded-md px-3 py-2 text-sm min-h-[120px]"
+                    value={sendFormData.message}
+                    onChange={(e) => setSendFormData(prev => ({ ...prev, message: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <FileText className="w-4 h-4" />
+                <span>Invoice PDF will be attached automatically</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSendDialog(false)} disabled={sendingInvoice}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={handleSendInvoice}
+              disabled={sendingInvoice}
+            >
+              {sendingInvoice ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-1" />Send Invoice
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
