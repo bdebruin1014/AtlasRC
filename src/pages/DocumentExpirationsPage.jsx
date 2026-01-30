@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AlertTriangle, Plus, Search, Calendar, Shield, FileText,
   Clock, Check, X, Edit2, Trash2, RefreshCw, Bell,
@@ -78,12 +78,7 @@ const DocumentExpirationsPage = ({ projectId }) => {
 
   const [renewDate, setRenewDate] = useState('');
 
-  // Fetch data
-  useEffect(() => {
-    fetchData();
-  }, [projectId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [expRes, summaryRes] = await Promise.all([
@@ -98,7 +93,12 @@ const DocumentExpirationsPage = ({ projectId }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId]);
+
+  // Fetch data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async () => {
     try {

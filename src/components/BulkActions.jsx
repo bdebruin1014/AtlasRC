@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isDemoMode } from '@/lib/utils';
 import {
@@ -117,11 +117,7 @@ export default function BulkActions() {
   const [actionResult, setActionResult] = useState(null);
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedType]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setSelectedItems([]);
     try {
@@ -142,7 +138,11 @@ export default function BulkActions() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedType]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
