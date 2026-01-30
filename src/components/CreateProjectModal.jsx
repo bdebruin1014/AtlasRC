@@ -53,7 +53,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
-      const { data } = await getOrganizationTemplates(organization.id);
+      const { data } = await getOrganizationTemplates(organization?.id);
       setTemplates(data || []);
     } catch (err) {
       console.error('Error loading templates:', err);
