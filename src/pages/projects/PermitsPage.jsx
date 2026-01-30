@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Eye, Edit2, X, FileText, Calendar, Clock, CheckCircle, AlertTriangle, XCircle, Download, ExternalLink, Building2, Upload, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit2, X, FileText, Calendar, Clock, CheckCircle, AlertTriangle, XCircle, Download, ExternalLink, Building2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

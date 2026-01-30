@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Eye, Edit2, X, Download, FileText, DollarSign, Calendar, CheckCircle, Clock, AlertTriangle, Send, Users, Award, TrendingDown, TrendingUp, Scale, Building2, Phone, Mail, Star, StarOff } from 'lucide-react';
+import { Plus, Search, Edit2, X, Download, FileText, Calendar, CheckCircle, AlertTriangle, Send, Users, Award, TrendingDown, TrendingUp, Scale, Building2, Phone, Mail, Star, StarOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

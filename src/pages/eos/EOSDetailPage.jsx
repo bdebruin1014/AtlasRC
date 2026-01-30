@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, Settings, Target, Calendar, Users, BarChart3, AlertTriangle, 
-  FileText, Eye, Compass, Mountain, Clock, CheckSquare, TrendingUp, 
+  ChevronLeft, Settings, Calendar, Users, BarChart3, AlertTriangle, 
+  Compass, Mountain, Clock, CheckSquare, TrendingUp, 
   BookOpen, Zap, Award, ChevronRight, Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle, Plus, Search, Calendar, Shield, FileText,
   Clock, Check, X, Edit2, Trash2, RefreshCw, Bell,
-  Building2, User, Download, Filter, Eye, AlertCircle
+  Building2, User, Download, Eye, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

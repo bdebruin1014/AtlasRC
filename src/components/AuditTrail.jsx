@@ -290,6 +290,7 @@ const AuditTrail = ({
 
   useEffect(() => {
     loadAuditTrail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, entityType, entityId]);
 
   const loadAuditTrail = async () => {

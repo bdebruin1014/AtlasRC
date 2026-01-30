@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-  DollarSign, Plus, Search, Filter, AlertCircle, CheckCircle2,
-  Clock, XCircle, CreditCard, FileText,
+  DollarSign, Plus, Search, AlertCircle, CheckCircle2,
+  Clock, XCircle, CreditCard,
 } from 'lucide-react';
 import { useProjectExpenses } from '@/hooks/useProjectExpenses';
 import { useExpenseActions } from '@/hooks/useProjectExpenses';

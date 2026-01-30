@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Save, Plus, Loader2, Info, MapPin, DollarSign,
-  User, Home, Calendar, FileText, Tags, Upload, X
+  ArrowLeft, Save, Plus, Loader2, Info,
+  User, Home, Calendar, Tags, Upload, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

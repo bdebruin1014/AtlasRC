@@ -4,10 +4,10 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Calendar, Clock, Users, Target, CheckSquare, AlertTriangle,
-  Plus, Search, Filter, MoreVertical, ChevronRight, Play, Pause,
+  Calendar, Users, Target, CheckSquare, AlertTriangle,
+  Plus, Search, MoreVertical, Play, Pause,
   BarChart3, TrendingUp, Star, RefreshCw, Video, MapPin, Building2,
-  Flag, ListTodo, MessageSquare, Award, Edit2, Trash2, Copy
+  Flag, ListTodo, MessageSquare, Award, Edit2, Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

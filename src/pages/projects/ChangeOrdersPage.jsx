@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Eye, Edit2, X, DollarSign, Clock, CheckCircle, XCircle, AlertTriangle, FileText, Calendar, TrendingUp, TrendingDown, Download } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, X, DollarSign, Clock, CheckCircle, XCircle, AlertTriangle, Calendar, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
