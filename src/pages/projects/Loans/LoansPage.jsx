@@ -4,8 +4,8 @@ import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Landmark, Plus, DollarSign, TrendingUp, Clock,
-  Percent, AlertCircle, ChevronRight,
+  Landmark, Plus, DollarSign, TrendingUp,
+  Percent, AlertCircle,
 } from 'lucide-react';
 import { useProjectLoans } from '@/hooks/useLoans';
 import {

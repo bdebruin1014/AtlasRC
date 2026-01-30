@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, X, DollarSign, Download, Upload, ChevronDown, ChevronRight, Trash2, Copy, Lock, Unlock, Save, History, TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, Search, Edit2, X, DollarSign, Download, Upload, Trash2, Copy, Save, History, TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

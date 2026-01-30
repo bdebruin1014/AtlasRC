@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Search, Edit2, Copy, Building2, Layers, CheckSquare, Calendar,
+  Plus, Search, Edit2, Copy, Layers, CheckSquare,
   Calculator, Target, Trash2, FolderTree, Users, ChevronRight, ChevronDown,
   Save, X, GripVertical, AlertTriangle, Loader2
 } from 'lucide-react';
