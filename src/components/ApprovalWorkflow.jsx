@@ -1,21 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isDemoMode } from '@/lib/utils';
 import {
   GitBranch,
-  Plus,
   Search,
   Filter,
   CheckCircle,
   XCircle,
-  Clock,
-  AlertCircle,
   User,
   Users,
   ArrowRight,
   MoreVertical,
   Eye,
-  Edit,
   Trash2,
   Play,
   Pause,

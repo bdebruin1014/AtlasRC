@@ -18,7 +18,6 @@ import {
   FileText,
   CheckCircle2,
   Clock,
-  AlertCircle,
   Calendar,
   Activity,
   Target,

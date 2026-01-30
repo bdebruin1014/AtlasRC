@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { 
-  DollarSign, Plus, Filter, Search, Download, 
+  Plus, Filter, Search, Download, 
   ChevronDown, ChevronRight, AlertCircle, CheckCircle2,
   Mail, FileText, Calendar, ArrowUpRight, Loader2
 } from 'lucide-react';
