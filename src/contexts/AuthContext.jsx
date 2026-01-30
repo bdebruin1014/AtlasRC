@@ -50,8 +50,7 @@ export const AuthProvider = ({ children }) => {
         setUser(session?.user ?? null);
       } catch (error) {
         console.error('Error checking auth session:', error);
-        // Fall back to demo mode on error
-        setUser(DEMO_USER);
+        setUser(null);
       } finally {
         setLoading(false);
       }

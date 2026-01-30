@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -10,6 +10,7 @@ import TopNavigation from '@/components/TopNavigation';
 import LoadingState from '@/components/LoadingState';
 import { ChatButton } from '@/components/chat';
 import ReminderWidget from '@/components/ReminderWidget';
+import { entityService } from '@/services/entityService';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 
@@ -305,7 +306,36 @@ const AdminLayout = ({ children }) => (
 );
 
 const AccountingEntityLayout = ({ children }) => {
-  const entity = { name: 'Highland Park Development LLC', type: 'project', cashBalance: 485000, ytdRevenue: 3200000, ytdExpenses: 2485000 };
+  const { entityId } = useParams();
+  const [entity, setEntity] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEntity = async () => {
+      if (!entityId) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const data = await entityService.getById(entityId);
+        setEntity(data);
+      } catch (error) {
+        console.error('Error fetching entity:', error);
+        // Fallback to basic entity structure if fetch fails
+        setEntity({ id: entityId, name: 'Entity', type: 'project' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEntity();
+  }, [entityId]);
+
+  if (loading) {
+    return <LoadingState />;
+  }
+
   return (
     <TransactionEntryProvider>
       <div className="flex h-[calc(100vh-40px)]">
