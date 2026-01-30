@@ -455,8 +455,8 @@ export default function TaskWorkflowTemplatesPage() {
             <h3 className="font-semibold text-green-900 mb-2">Responsible Party Assignment</h3>
             <p className="text-sm text-green-800">
               Tasks can be assigned to internal users/teams OR external project contacts.
-              When a task is generated, the system looks up the project's contacts to find the
-              appropriate party (e.g., the project's "Contractor" contact for construction tasks).
+              When a task is generated, the system looks up the project&apos;s contacts to find the
+              appropriate party (e.g., the project&apos;s &quot;Contractor&quot; contact for construction tasks).
             </p>
           </div>
 

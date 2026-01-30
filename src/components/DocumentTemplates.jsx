@@ -755,7 +755,7 @@ export default function DocumentTemplates() {
                     ) : (
                       <div className="text-center text-gray-500 dark:text-gray-400 py-12">
                         <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Fill in the variables and click "Generate Document" to see the preview</p>
+                        <p>Fill in the variables and click &quot;Generate Document&quot; to see the preview</p>
                       </div>
                     )}
                   </div>

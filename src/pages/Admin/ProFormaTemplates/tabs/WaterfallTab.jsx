@@ -572,7 +572,7 @@ export default function WaterfallTab({ config, onChange }) {
                 <div>
                   <span className="font-medium">GP Clawback</span>
                   <p className="text-sm text-gray-500">
-                    GP must return excess promote if final returns don't meet hurdles
+                    GP must return excess promote if final returns don&apos;t meet hurdles
                   </p>
                 </div>
               </label>

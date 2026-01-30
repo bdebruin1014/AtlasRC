@@ -559,7 +559,7 @@ const TwoFactorManagementPage = () => {
             </DialogTitle>
             <DialogDescription>
               This will require all users to set up two-factor authentication.
-              Users who haven't enrolled will have {globalSettings.gracePeriodDays} days to do so.
+              Users who haven&apos;t enrolled will have {globalSettings.gracePeriodDays} days to do so.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">

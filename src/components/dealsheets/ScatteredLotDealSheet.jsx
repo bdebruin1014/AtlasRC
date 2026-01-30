@@ -616,7 +616,7 @@ export default function ScatteredLotDealSheet({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
             <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-blue-700">
-              <strong>Quick Analysis Only:</strong> This is a first-pass filter. Use "Create Project" to generate a full pro forma with itemized costs before making investment decisions.
+              <strong>Quick Analysis Only:</strong> This is a first-pass filter. Use &quot;Create Project&quot; to generate a full pro forma with itemized costs before making investment decisions.
             </div>
           </div>
 

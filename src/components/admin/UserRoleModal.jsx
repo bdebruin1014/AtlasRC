@@ -192,7 +192,7 @@ const UserRoleModal = ({
                 <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
                   <Info className="w-4 h-4 text-blue-500 mt-0.5" />
                   <p className="text-xs text-blue-700">
-                    Custom permissions are added on top of the role's base permissions. 
+                    Custom permissions are added on top of the role&apos;s base permissions. 
                     Grayed out items are already included in the selected role.
                   </p>
                 </div>

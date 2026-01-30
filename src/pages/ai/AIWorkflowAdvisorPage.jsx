@@ -378,11 +378,11 @@ export default function AIWorkflowAdvisorPage() {
                   <div>
                     <p className="text-purple-900 font-medium mb-2">Example questions you can ask:</p>
                     <ul className="text-sm text-purple-700 space-y-1">
-                      <li>"What's the average change order rate for multifamily projects?"</li>
-                      <li>"Which contractors have the best on-time completion record?"</li>
-                      <li>"How does Riverside Apartments compare to similar projects?"</li>
-                      <li>"What's the typical timeline for permitting in Austin?"</li>
-                      <li>"What cost categories usually exceed budget?"</li>
+                      <li>&quot;What&apos;s the average change order rate for multifamily projects?&quot;</li>
+                      <li>&quot;Which contractors have the best on-time completion record?&quot;</li>
+                      <li>&quot;How does Riverside Apartments compare to similar projects?&quot;</li>
+                      <li>&quot;What&apos;s the typical timeline for permitting in Austin?&quot;</li>
+                      <li>&quot;What cost categories usually exceed budget?&quot;</li>
                     </ul>
                   </div>
                 </div>

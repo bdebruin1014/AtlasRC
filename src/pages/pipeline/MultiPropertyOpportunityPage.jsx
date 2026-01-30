@@ -390,7 +390,7 @@ const MultiPropertyOpportunityPage = () => {
           <DialogHeader>
             <DialogTitle>Add Property to Opportunity</DialogTitle>
             <DialogDescription>
-              Link a new property to "{selectedOpportunity?.name}"
+              Link a new property to &quot;{selectedOpportunity?.name}&quot;
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

@@ -494,8 +494,8 @@ const DocumentExpirationsPage = ({ projectId }) => {
                 >
                   <optgroup label="Insurance">
                     <option value="insurance_gl">General Liability</option>
-                    <option value="insurance_builders_risk">Builder's Risk</option>
-                    <option value="insurance_workers_comp">Workers' Compensation</option>
+                    <option value="insurance_builders_risk">Builder&apos;s Risk</option>
+                    <option value="insurance_workers_comp">Workers&apos; Compensation</option>
                     <option value="insurance_auto">Auto Insurance</option>
                     <option value="insurance_umbrella">Umbrella Policy</option>
                   </optgroup>

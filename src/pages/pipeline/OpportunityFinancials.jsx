@@ -168,9 +168,9 @@ export default function OpportunityFinancials({ opportunity, onNavigateToDealAna
             <div>
               <h4 className="font-medium text-blue-900">Ready to Convert to Project?</h4>
               <p className="text-sm text-blue-700 mt-1">
-                Once you've completed your deal sheet analysis and the deal passes your thresholds,
-                click "Create Project" to convert this opportunity into a full project. The deal sheet
-                data will pre-populate your pro forma, and you'll be able to track variance between
+                Once you&apos;ve completed your deal sheet analysis and the deal passes your thresholds,
+                click &quot;Create Project&quot; to convert this opportunity into a full project. The deal sheet
+                data will pre-populate your pro forma, and you&apos;ll be able to track variance between
                 your initial estimates and actual costs throughout the project lifecycle.
               </p>
             </div>

@@ -557,7 +557,7 @@ const VendorPerformanceTracker = ({
                                 <span className="text-gray-500">by {review.reviewer}</span>
                                 <span className="text-gray-400">{review.date}</span>
                               </div>
-                              <p className="text-gray-600 italic">"{review.comment}"</p>
+                              <p className="text-gray-600 italic">&quot;{review.comment}&quot;</p>
                             </div>
                           ))}
                         </div>

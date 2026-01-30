@@ -289,7 +289,7 @@ const OperationsReportsPage = () => {
             {/* Upcoming Tasks */}
             <Card>
               <CardHeader className="border-b py-3">
-                <CardTitle className="text-sm">Today's Tasks</CardTitle>
+                <CardTitle className="text-sm">Today&apos;s Tasks</CardTitle>
               </CardHeader>
               <CardContent className="p-4">
                 <div className="space-y-3">

@@ -522,7 +522,7 @@ export default function MultifamilyDealSheet({
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
             <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-amber-700">
-              <strong>Quick Analysis Only:</strong> Multifamily acquisitions require rent roll analysis, T-12 review, and detailed due diligence. Use "Create Project" for full underwriting.
+              <strong>Quick Analysis Only:</strong> Multifamily acquisitions require rent roll analysis, T-12 review, and detailed due diligence. Use &quot;Create Project&quot; for full underwriting.
             </div>
           </div>
 

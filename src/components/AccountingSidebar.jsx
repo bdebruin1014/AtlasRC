@@ -521,7 +521,7 @@ const TransactionModalsDark = () => {
                             <option value="1000">1000 - Cash - Operating</option>
                             <option value="1100">1100 - Accounts Receivable</option>
                             <option value="2000">2000 - Accounts Payable</option>
-                            <option value="3000">3000 - Member's Capital</option>
+                            <option value="3000">3000 - Member&apos;s Capital</option>
                             <option value="4000">4000 - Revenue</option>
                             <option value="5000">5000 - Cost of Goods Sold</option>
                             <option value="6000">6000 - Operating Expenses</option>

@@ -345,7 +345,7 @@ export default function WorkflowTaskIntegrationPage() {
             <h3 className="font-semibold text-yellow-900 mb-2">Event-Template Connections</h3>
             <p className="text-sm text-yellow-800">
               Each event can be connected to multiple templates. When an event fires, all connected templates
-              will generate tasks for projects matching the template's project type.
+              will generate tasks for projects matching the template&apos;s project type.
             </p>
           </div>
 

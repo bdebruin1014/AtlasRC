@@ -533,7 +533,7 @@ export default function ApprovalWorkflow() {
                           <span className="font-medium">{item.step}</span>
                           <span className="text-gray-500">by {item.by}</span>
                           {item.comment && (
-                            <span className="text-gray-400">- "{item.comment}"</span>
+                            <span className="text-gray-400">- &quot;{item.comment}&quot;</span>
                           )}
                         </div>
                       ))}

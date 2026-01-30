@@ -325,7 +325,7 @@ const PeriodLockPage = () => {
             </div>
 
             <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
-              <p><strong>Note:</strong> Locked periods can be unlocked by administrators if adjustments are needed. Use the "Close Period" option for permanent closure.</p>
+              <p><strong>Note:</strong> Locked periods can be unlocked by administrators if adjustments are needed. Use the &quot;Close Period&quot; option for permanent closure.</p>
             </div>
           </div>
 

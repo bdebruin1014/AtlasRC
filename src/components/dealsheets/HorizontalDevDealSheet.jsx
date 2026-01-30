@@ -504,7 +504,7 @@ export default function HorizontalDevDealSheet({
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
             <Info className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-emerald-700">
-              <strong>Quick Analysis Only:</strong> Land development requires detailed site engineering, phasing plans, and market absorption studies. Use "Create Project" for full underwriting.
+              <strong>Quick Analysis Only:</strong> Land development requires detailed site engineering, phasing plans, and market absorption studies. Use &quot;Create Project&quot; for full underwriting.
             </div>
           </div>
 

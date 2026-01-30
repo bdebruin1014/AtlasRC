@@ -280,7 +280,7 @@ const HomePage = () => {
           <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">Welcome back! Here's your daily overview.</p>
+              <p className="text-sm text-gray-500 mt-1">Welcome back! Here&apos;s your daily overview.</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="hidden md:flex text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-md border border-gray-100">

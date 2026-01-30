@@ -404,7 +404,7 @@ const EntitiesPage = () => {
             ))
           ) : (
             <div className="p-8 text-center text-slate-400">
-              No entities found matching "{searchTerm}"
+              No entities found matching &quot;{searchTerm}&quot;
             </div>
           )
         ) : (
@@ -413,7 +413,7 @@ const EntitiesPage = () => {
             hierarchy.map(entity => renderEntityNode(entity))
           ) : (
             <div className="p-8 text-center text-slate-400">
-              No entities yet. Click "Add Entity" to create one.
+              No entities yet. Click &quot;Add Entity&quot; to create one.
             </div>
           )
         )}
@@ -438,7 +438,7 @@ const EntitiesPage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Entity</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete "{deleteEntity?.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{deleteEntity?.name}&quot;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
