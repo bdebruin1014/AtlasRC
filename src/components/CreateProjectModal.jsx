@@ -1,5 +1,5 @@
 // AtlasDev - Create Project Modal with Budget Type and Template Selection
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Building2, MapPin, Calendar, DollarSign, FileText, ChevronRight, Check, Layers, FolderTree, CheckSquare, Users, Loader2, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
@@ -41,23 +41,16 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
   });
 
   // Load templates and generate project number when modal opens
-  useEffect(() => {
-    if (isOpen && organization?.id) {
-      loadTemplates();
-      loadProjectNumber();
-    }
-  }, [isOpen, organization]);
-
-  const loadProjectNumber = async () => {
+  const loadProjectNumber = useCallback(async () => {
     try {
       const number = await generateProjectNumber(organization?.id);
       setFormData(prev => ({ ...prev, projectNumber: number }));
     } catch (err) {
       console.error('Error generating project number:', err);
     }
-  };
+  }, [organization?.id]);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
       const { data } = await getOrganizationTemplates(organization.id);
@@ -67,7 +60,14 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
     } finally {
       setLoadingTemplates(false);
     }
-  };
+  }, [organization?.id]);
+
+  useEffect(() => {
+    if (isOpen && organization?.id) {
+      loadTemplates();
+      loadProjectNumber();
+    }
+  }, [isOpen, organization?.id, loadTemplates, loadProjectNumber]);
 
   const projectTypes = [
     { id: 'spec-home', label: 'Spec Home', description: 'Single home build for sale', budgetType: 'spec-home' },
