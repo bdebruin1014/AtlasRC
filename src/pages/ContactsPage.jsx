@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import {
   COMPANY_CATEGORIES, EMPLOYEE_ROLES, PROJECT_CONTACT_ROLES,
   getCompanies, getCompanyById, createCompany, updateCompany, deleteCompany,
-  getEmployees, createEmployee, getAllBuyers, getAllSellers,
+  getEmployees, createEmployee, updateEmployee, deleteEmployee, getAllBuyers, getAllSellers,
 } from '@/services/contactsService';
 
 const ContactsPage = () => {
@@ -32,8 +32,8 @@ const ContactsPage = () => {
   const [employees, setEmployees] = useState([]);
   const [buyers, setBuyers] = useState([]);
   const [sellers, setSellers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+   const [loading, setLoading] = useState(true);
+   const [searchTerm, setSearchTerm] = useState('');
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
@@ -58,7 +58,7 @@ const ContactsPage = () => {
     finally { setLoading(false); }
   };
 
-  const handleSearch = (e) => { setSearchTerm(e.target.value); setTimeout(() => loadData(), 300); };
+   const handleSearch = (e) => { setSearchTerm(e.target.value); setTimeout(() => loadData(), 300); };
   const toggleCategory = (category) => { setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] })); };
   const selectType = (category, type) => { setActiveSection('companies'); setActiveType(type); };
   const viewCompanyDetails = async (companyId) => { setSelectedCompany(await getCompanyById(companyId)); };
@@ -71,9 +71,16 @@ const ContactsPage = () => {
   };
 
   const handleSaveEmployee = async () => {
-    await createEmployee(employeeForm);
-    setShowEmployeeModal(false); setEmployeeForm({ first_name: '', last_name: '', job_title: '', email: '', work_phone: '', cell_phone: '', company_id: '' });
-    if (selectedCompany) viewCompanyDetails(selectedCompany.id); loadData();
+    if (editingEmployee) {
+      await updateEmployee(editingEmployee.id, employeeForm);
+    } else {
+      await createEmployee(employeeForm);
+    }
+    setShowEmployeeModal(false);
+    setEmployeeForm({ first_name: '', last_name: '', job_title: '', email: '', work_phone: '', cell_phone: '', company_id: '' });
+    setEditingEmployee(null);
+    if (selectedCompany) viewCompanyDetails(selectedCompany.id);
+    loadData();
   };
 
   const openNewCompanyModal = (type = null) => { setEditingCompany(null); setCompanyForm({ name: '', company_type: type || '', phone: '', email: '', address: '', city: '', state: '', zip_code: '', notes: '' }); setShowCompanyModal(true); };
@@ -178,7 +185,7 @@ const ContactsPage = () => {
   const renderEmployeesTable = () => (
     <Card><CardContent className="p-0">
       <table className="w-full">
-        <thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Name</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Job Title</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Company</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Email</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Phone</th></tr></thead>
+        <thead className="bg-gray-50 border-b"><tr><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Name</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Job Title</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Company</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Email</th><th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Phone</th><th className="w-20"></th></tr></thead>
         <tbody className="divide-y">
           {employees.map((emp) => (
             <tr key={emp.id} className="hover:bg-gray-50">
@@ -187,9 +194,18 @@ const ContactsPage = () => {
               <td className="px-4 py-3 text-sm">{emp.company?.name ? <button className="text-emerald-600 hover:underline" onClick={() => viewCompanyDetails(emp.company.id)}>{emp.company.name}</button> : <span className="text-gray-400">Not set</span>}</td>
               <td className="px-4 py-3 text-sm">{emp.email || <span className="text-gray-400">Not set</span>}</td>
               <td className="px-4 py-3 text-sm">{emp.work_phone || emp.cell_phone || <span className="text-gray-400">Not set</span>}</td>
+              <td className="px-4 py-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => { setEditingEmployee(emp); setEmployeeForm({ first_name: emp.first_name || '', last_name: emp.last_name || '', job_title: emp.job_title || '', email: emp.email || '', work_phone: emp.work_phone || '', cell_phone: emp.cell_phone || '', company_id: emp.company_id || '' }); setShowEmployeeModal(true); }}><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-600" onClick={() => { deleteEmployee(emp.id).then(() => { if (selectedCompany) viewCompanyDetails(selectedCompany.id); loadData(); }); }}><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </td>
             </tr>
           ))}
-          {employees.length === 0 && <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500"><Users className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p>No employees found</p></td></tr>}
+          {employees.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500"><Users className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p>No employees found</p></td></tr>}
         </tbody>
       </table>
     </CardContent></Card>
