@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isDemoMode } from '@/lib/utils';
 import {
@@ -188,11 +188,7 @@ const ContactTimeline = ({ contactId, contactName = 'Contact', showAddButtons = 
     metadata: {}
   });
 
-  useEffect(() => {
-    loadTimeline();
-  }, [contactId]);
-
-  const loadTimeline = async () => {
+  const loadTimeline = useCallback(async () => {
     setLoading(true);
     try {
       if (isDemoMode()) {
@@ -212,7 +208,11 @@ const ContactTimeline = ({ contactId, contactName = 'Contact', showAddButtons = 
     } finally {
       setLoading(false);
     }
-  };
+  }, [contactId]);
+
+  useEffect(() => {
+    loadTimeline();
+  }, [loadTimeline]);
 
   const filteredTimeline = useMemo(() => {
     return timeline.filter(item => {
