@@ -127,7 +127,7 @@ const UserOnboardingWizardPage = () => {
             </div>
             <h2 className="text-2xl font-bold mb-4">Welcome to AtlasRC!</h2>
             <p className="text-gray-600 max-w-md mx-auto mb-6">
-              Your complete real estate development management platform. Let's get you set up
+              Your complete real estate development management platform. Let&apos;s get you set up
               in just a few minutes so you can start managing your projects effectively.
             </p>
             <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto mt-8">
@@ -156,8 +156,8 @@ const UserOnboardingWizardPage = () => {
       case 'role':
         return (
           <div className="py-4">
-            <h2 className="text-xl font-bold mb-2">What's your primary role?</h2>
-            <p className="text-gray-600 mb-6">We'll customize your experience based on your role.</p>
+            <h2 className="text-xl font-bold mb-2">What&apos;s your primary role?</h2>
+            <p className="text-gray-600 mb-6">We&apos;ll customize your experience based on your role.</p>
             <div className="grid gap-3">
               {roleOptions.map((role) => (
                 <div
@@ -351,9 +351,9 @@ const UserOnboardingWizardPage = () => {
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <PartyPopper className="w-10 h-10 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold mb-4">You're All Set!</h2>
+            <h2 className="text-2xl font-bold mb-4">You&apos;re All Set!</h2>
             <p className="text-gray-600 max-w-md mx-auto mb-6">
-              Great job completing the onboarding! You're now ready to start managing your
+              Great job completing the onboarding! You&apos;re now ready to start managing your
               real estate projects like a pro.
             </p>
             <div className="bg-blue-50 rounded-lg p-4 max-w-md mx-auto mb-6">

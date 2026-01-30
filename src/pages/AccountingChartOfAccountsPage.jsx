@@ -576,9 +576,9 @@ const ChartOfAccountsPage = () => {
                <div className="space-y-2 mt-2">
                   <p className="text-xs font-medium text-gray-700">Map Columns</p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                     <div className="border border-gray-200 p-2 rounded bg-gray-50 text-gray-500 text-xs">CSV Column: "Account #"</div>
+                     <div className="border border-gray-200 p-2 rounded bg-gray-50 text-gray-500 text-xs">CSV Column: &quot;Account #&quot;</div>
                      <div className="border border-gray-200 p-2 rounded bg-white text-xs font-medium">Map to: Account Number</div>
-                     <div className="border border-gray-200 p-2 rounded bg-gray-50 text-gray-500 text-xs">CSV Column: "Name"</div>
+                     <div className="border border-gray-200 p-2 rounded bg-gray-50 text-gray-500 text-xs">CSV Column: &quot;Name&quot;</div>
                      <div className="border border-gray-200 p-2 rounded bg-white text-xs font-medium">Map to: Account Name</div>
                   </div>
                </div>

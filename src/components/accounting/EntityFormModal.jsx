@@ -479,7 +479,7 @@ const EntityFormModal = ({
                     <p className="font-medium">Tax Reporting Notes:</p>
                     <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
                       <li>Partnerships file Form 1065 and issue K-1s to partners</li>
-                      <li>Disregarded entities report on owner's return</li>
+                      <li>Disregarded entities report on owner&apos;s return</li>
                       <li>S-Corps file Form 1120-S and issue K-1s</li>
                       <li>C-Corps file Form 1120</li>
                     </ul>

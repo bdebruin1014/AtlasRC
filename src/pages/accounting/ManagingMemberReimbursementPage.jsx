@@ -443,7 +443,7 @@ export default function ManagingMemberReimbursementPage() {
                           {approval.date && <span className="text-sm text-gray-500">{approval.date}</span>}
                         </div>
                         {approval.comment && (
-                          <p className="text-sm text-gray-600 mt-1 italic">"{approval.comment}"</p>
+                          <p className="text-sm text-gray-600 mt-1 italic">&quot;{approval.comment}&quot;</p>
                         )}
                       </div>
                       {approval.status === 'pending' && (

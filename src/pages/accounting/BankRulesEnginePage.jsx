@@ -406,7 +406,7 @@ const BankRulesEnginePage = () => {
                           {idx > 0 && <span className="text-xs font-medium text-gray-400">AND</span>}
                           <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{cond.field}</span>
                           <span className="text-gray-400">{cond.operator}</span>
-                          <span className="font-medium">"{cond.value}"</span>
+                          <span className="font-medium">&quot;{cond.value}&quot;</span>
                         </div>
                       ))}
                     </div>
@@ -595,7 +595,7 @@ const BankRulesEnginePage = () => {
                       }))}
                     />
                     <label htmlFor="requiresReview" className="text-sm">
-                      Flag for manual review (don't auto-categorize)
+                      Flag for manual review (don&apos;t auto-categorize)
                     </label>
                   </div>
                 </div>

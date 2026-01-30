@@ -478,7 +478,7 @@ const InteractiveWalkthroughBuilderPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Show only once</Label>
-                <p className="text-sm text-gray-500">Don't show again after user completes it</p>
+                <p className="text-sm text-gray-500">Don&apos;t show again after user completes it</p>
               </div>
               <Switch
                 checked={walkthroughData.showOnce}

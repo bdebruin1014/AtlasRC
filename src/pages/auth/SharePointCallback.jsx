@@ -154,7 +154,7 @@ const SharePointCallback = () => {
 
           <h1 className="text-xl font-semibold text-center mb-2">Select SharePoint Site</h1>
           <p className="text-gray-600 text-center mb-6">
-            Choose the SharePoint site for your organization's documents
+            Choose the SharePoint site for your organization&apos;s documents
           </p>
 
           <div className="space-y-2 max-h-64 overflow-y-auto">

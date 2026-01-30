@@ -454,7 +454,7 @@ export default function CheckPrintingWorkflowPage() {
           <div className="bg-white rounded-lg border p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-gray-900">Today's Positive Pay File</h3>
+                <h3 className="font-semibold text-gray-900">Today&apos;s Positive Pay File</h3>
                 <p className="text-sm text-gray-600">Last transmitted: 2024-02-01 17:00:00 EST</p>
               </div>
               <div className="flex gap-2">

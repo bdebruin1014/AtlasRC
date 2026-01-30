@@ -525,7 +525,7 @@ const DistributionsPage = ({ entityId }) => {
             <div className="p-6 space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-700">
-                  Enter the total distribution amount. It will be allocated proportionally based on each member's ownership percentage.
+                  Enter the total distribution amount. It will be allocated proportionally based on each member&apos;s ownership percentage.
                 </p>
               </div>
 

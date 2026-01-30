@@ -270,7 +270,7 @@ const WhiteLabelConfigPage = () => {
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label>Show "Powered by Atlas RC"</Label>
+                      <Label>Show &quot;Powered by Atlas RC&quot;</Label>
                       <Switch
                         checked={config.showPoweredBy}
                         onCheckedChange={(checked) => setConfig(prev => ({ ...prev, showPoweredBy: checked }))}

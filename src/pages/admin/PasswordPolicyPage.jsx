@@ -620,7 +620,7 @@ const PasswordPolicyPage = () => {
                 {policy.passwordHistory > 0 && (
                   <div className="flex items-center gap-2">
                     <RefreshCw className="w-4 h-4 text-blue-500" />
-                    <span>Can't reuse last {policy.passwordHistory} passwords</span>
+                    <span>Can&apos;t reuse last {policy.passwordHistory} passwords</span>
                   </div>
                 )}
                 {policy.maxAge > 0 && (

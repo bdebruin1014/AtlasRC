@@ -585,7 +585,7 @@ const MeetingInstancePage = () => {
             {/* Last Week's Tasks */}
             <div className="bg-white rounded-lg border">
               <div className="p-4 border-b">
-                <h3 className="font-semibold text-gray-900">Last Week's To-Dos</h3>
+                <h3 className="font-semibold text-gray-900">Last Week&apos;s To-Dos</h3>
               </div>
               <div className="divide-y">
                 {tasksFromLastWeek.map((task) => (

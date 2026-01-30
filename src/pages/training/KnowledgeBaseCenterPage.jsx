@@ -430,7 +430,7 @@ const KnowledgeBaseCenterPage = () => {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-blue-900">Can't find what you're looking for?</h3>
+              <h3 className="font-semibold text-blue-900">Can&apos;t find what you&apos;re looking for?</h3>
               <p className="text-blue-700">Contact our support team for personalized assistance</p>
             </div>
             <Button className="bg-blue-600 hover:bg-blue-700">

@@ -114,7 +114,7 @@ const OpportunitiesPage = () => {
         <CardContent>
           {opportunities.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No opportunities yet. Click "New Opportunity" to add one.
+              No opportunities yet. Click &quot;New Opportunity&quot; to add one.
             </div>
           ) : (
             <div className="overflow-x-auto">

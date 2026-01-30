@@ -386,7 +386,7 @@ const InsuranceCertificateManagerPage = () => {
                     <TableHead>Coverage</TableHead>
                     <TableHead>Expiration</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Add'l Insured</TableHead>
+                    <TableHead>Add&apos;l Insured</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

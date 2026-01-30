@@ -156,7 +156,7 @@ const MarketAnalysisPage = () => {
               <span className="text-xs text-gray-500">Inventory (Months)</span>
             </div>
             <p className="text-xl font-bold text-red-700">{housingMetrics.inventory}</p>
-            <p className="text-xs text-gray-500">Seller's Market</p>
+            <p className="text-xs text-gray-500">Seller&apos;s Market</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">

@@ -876,7 +876,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No draw requests yet. Click "New Draw Request" to create one.</p>
+              <p className="text-gray-500 text-center py-8">No draw requests yet. Click &quot;New Draw Request&quot; to create one.</p>
             </div>
           </div>
         );
@@ -924,7 +924,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No change orders yet. Click "New Change Order" to create one.</p>
+              <p className="text-gray-500 text-center py-8">No change orders yet. Click &quot;New Change Order&quot; to create one.</p>
             </div>
           </div>
         );
@@ -955,7 +955,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No permits tracked yet. Click "Add Permit" to add one.</p>
+              <p className="text-gray-500 text-center py-8">No permits tracked yet. Click &quot;Add Permit&quot; to add one.</p>
             </div>
           </div>
         );
@@ -986,7 +986,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No bid packages yet. Click "Create Bid Package" to start.</p>
+              <p className="text-gray-500 text-center py-8">No bid packages yet. Click &quot;Create Bid Package&quot; to start.</p>
             </div>
           </div>
         );
@@ -1072,7 +1072,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No expenses recorded yet. Click "Record Expense" to add one.</p>
+              <p className="text-gray-500 text-center py-8">No expenses recorded yet. Click &quot;Record Expense&quot; to add one.</p>
             </div>
           </div>
         );
@@ -1103,7 +1103,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No sales recorded yet. Click "Record Sale" when property is sold.</p>
+              <p className="text-gray-500 text-center py-8">No sales recorded yet. Click &quot;Record Sale&quot; when property is sold.</p>
             </div>
           </div>
         );
@@ -1134,7 +1134,7 @@ const ProjectDetailPage = () => {
               </div>
             </div>
             <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No loans tracked yet. Click "Add Loan" to add financing details.</p>
+              <p className="text-gray-500 text-center py-8">No loans tracked yet. Click &quot;Add Loan&quot; to add financing details.</p>
             </div>
           </div>
         );

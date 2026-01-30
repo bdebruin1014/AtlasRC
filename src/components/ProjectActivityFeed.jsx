@@ -435,7 +435,7 @@ const ProjectActivityFeed = ({
       case 'comment_added':
         return (
           <div className="text-sm text-gray-600 bg-gray-50 rounded p-2 mt-1 italic">
-            "{metadata.comment}"
+            &quot;{metadata.comment}&quot;
           </div>
         );
       case 'issue_reported':

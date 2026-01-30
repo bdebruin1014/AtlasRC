@@ -106,7 +106,7 @@ const ApprovalModal = ({ open, action, changeOrder, projectId, onComplete, onClo
                   Approving this change order will increase the committed budget by{' '}
                   <span className="font-semibold">{formatCurrency(co.amount)}</span>
                   {co.budget_line_item_name && (
-                    <> on line item "<span className="font-medium">{co.budget_line_item_name}</span>"</>
+                    <> on line item &quot;<span className="font-medium">{co.budget_line_item_name}</span>&quot;</>
                   )}.
                   An unpaid expense will be created for tracking.
                 </p>
