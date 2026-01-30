@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Wrench, Plus, Search, Filter, Clock, CheckCircle,
@@ -62,12 +62,7 @@ const WorkOrdersPage = () => {
     estimated_cost: '',
   });
 
-  // Fetch data
-  useEffect(() => {
-    fetchData();
-  }, [projectId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [woRes, summaryRes] = await Promise.all([
@@ -82,7 +77,12 @@ const WorkOrdersPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId]);
+
+  // Fetch data
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async () => {
     try {
