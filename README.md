@@ -17,8 +17,8 @@ Atlas is a comprehensive internal operating system designed for real estate deve
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/atlas.git
-cd atlas
+git clone https://github.com/bdebruin1014/AtlasRC.git
+cd AtlasRC
 
 # Install dependencies
 npm install
