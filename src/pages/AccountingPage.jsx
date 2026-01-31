@@ -209,14 +209,24 @@ const AccountingPage = () => {
     </div>
   );
 
-  const renderPlaceholderTab = (title) => (
-    <div className="p-6">
-      <div className="bg-white border rounded-lg p-12 text-center">
-        <p className="text-gray-600 capitalize font-medium mb-2">{title}</p>
-        <p className="text-gray-400 text-sm">Mock data interface - Real integration coming</p>
+  const renderPlaceholderTab = (title, icon) => {
+    const IconComponent = icon || Settings;
+    return (
+      <div className="p-6">
+        <div className="bg-white border rounded-lg p-12 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <IconComponent className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+          <p className="text-gray-500 text-sm mb-4">This feature is under development and will be available soon.</p>
+          <Button variant="outline" disabled>
+            <Settings className="w-4 h-4 mr-2" />
+            Coming Soon
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -225,13 +235,13 @@ const AccountingPage = () => {
       case 'banking': return <Suspense fallback={<div className="p-6">Loading...</div>}><BankingPage selectedEntity={selectedEntity} flatEntities={flatEntities} /></Suspense>;
       case 'journal': return <Suspense fallback={<div className="p-6">Loading...</div>}><JournalEntriesPage selectedEntity={selectedEntity} flatEntities={flatEntities} /></Suspense>;
       case 'reports': return <Suspense fallback={<div className="p-6">Loading...</div>}><FinancialReportsPage selectedEntity={selectedEntity} viewMode={viewMode} flatEntities={flatEntities} /></Suspense>;
-      case 'invoices': return renderPlaceholderTab('Invoice Management');
-      case 'bills': return renderPlaceholderTab('Bills Management');
-      case 'hierarchy': return renderPlaceholderTab('Entity Hierarchy');
-      case 'intercompany': return renderPlaceholderTab('Intercompany Transactions');
-      case 'consolidation': return renderPlaceholderTab('Consolidation');
-      case 'coa': return renderPlaceholderTab('Chart of Accounts');
-      case 'settings': return renderPlaceholderTab('Accounting Settings');
+      case 'invoices': return renderPlaceholderTab('Invoice Management', FileText);
+      case 'bills': return renderPlaceholderTab('Bills Management', CreditCard);
+      case 'hierarchy': return renderPlaceholderTab('Entity Hierarchy', GitBranch);
+      case 'intercompany': return renderPlaceholderTab('Intercompany Transactions', Link2);
+      case 'consolidation': return renderPlaceholderTab('Consolidation', Layers);
+      case 'coa': return renderPlaceholderTab('Chart of Accounts', Calculator);
+      case 'settings': return renderPlaceholderTab('Accounting Settings', Settings);
       default:
         return (
           <div className="p-6">

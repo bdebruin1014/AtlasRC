@@ -2,7 +2,8 @@
 // Single Deal Acquisition Analysis Tool
 // VanRock Holdings LLC
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import {
   CurrencyInput,
   NumberInput,
@@ -162,6 +163,7 @@ const defaultTimeline: TimelineMilestone[] = [
 // ============================================
 
 export const PipelineDealAnalyzer: React.FC = () => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('inputs');
   const [projectInfo, setProjectInfo] = useState<ProjectInfo>(defaultProjectInfo);
   const [planSelection, setPlanSelection] = useState<PlanSelection>(defaultPlanSelection);
@@ -171,6 +173,21 @@ export const PipelineDealAnalyzer: React.FC = () => {
   const [financing, setFinancing] = useState<FinancingInputs>(defaultFinancing);
   const [sales, setSales] = useState<SalesInputs>(defaultSales);
   const [timeline, setTimeline] = useState<TimelineMilestone[]>(defaultTimeline);
+
+  const handleSave = useCallback(() => {
+    localStorage.setItem('deal_analyzer_draft', JSON.stringify({ projectInfo, planSelection, acquisition, site, vertical, financing, sales, timeline }));
+    toast({ title: 'Analysis Saved', description: 'Your deal analysis has been saved as a draft.' });
+  }, [projectInfo, planSelection, acquisition, site, vertical, financing, sales, timeline, toast]);
+
+  const handleExport = useCallback(() => {
+    const data = { projectInfo, planSelection, acquisition, site, vertical, financing, sales, timeline };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `deal_analysis_${projectInfo.dealName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    toast({ title: 'Export Complete', description: 'Deal analysis exported successfully.' });
+  }, [projectInfo, planSelection, acquisition, site, vertical, financing, sales, timeline, toast]);
 
   // Calculate all metrics
   const metrics = useMemo(() => {
@@ -295,8 +312,8 @@ export const PipelineDealAnalyzer: React.FC = () => {
             <p className="text-slate-300 text-sm">Single Deal Acquisition & Proforma Analysis</p>
           </div>
           <ActionButtons
-            onSave={() => console.log('Saving...')}
-            onExport={() => console.log('Exporting...')}
+            onSave={handleSave}
+            onExport={handleExport}
             onPrint={() => window.print()}
           />
         </div>

@@ -272,9 +272,11 @@ const FinancialReportsPage = ({ selectedEntity, viewMode, flatEntities }) => {
       case 'balance-sheet': return renderBalanceSheet();
       default: return (
         <div className="bg-white border rounded-lg p-12 text-center">
-          <FileText className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-600 font-medium">{reportTypes.find(r => r.id === activeReport)?.label}</p>
-          <p className="text-gray-400 text-sm mt-2">Mock data interface - Real integration coming</p>
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{reportTypes.find(r => r.id === activeReport)?.label}</h3>
+          <p className="text-gray-500 text-sm mb-4">This report is under development and will be available soon.</p>
         </div>
       );
     }

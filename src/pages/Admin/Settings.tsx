@@ -133,15 +133,23 @@ export default function Settings() {
   const handleSave = async (section: string) => {
     setIsSaving(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save settings to localStorage for persistence
+      const settingsKey = `atlas_settings_${section.toLowerCase().replace(/\s+/g, '_')}`;
+      const settingsData = section === 'General' ? generalSettings :
+                          section === 'Notifications' ? notificationSettings :
+                          section === 'Security' ? securitySettings :
+                          section === 'API Keys' ? apiKeys : {};
+
+      localStorage.setItem(settingsKey, JSON.stringify(settingsData));
+
       toast({
         title: 'Settings Saved',
-        description: `${section} settings have been updated successfully.`
+        description: `${section} settings have been saved successfully.`
       });
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to save settings.',
+        description: 'Failed to save settings. Please try again.',
         variant: 'destructive'
       });
     } finally {

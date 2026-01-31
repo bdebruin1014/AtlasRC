@@ -131,8 +131,11 @@ const EntityAccountingDashboard = () => {
     return (
       <div className="p-6">
         <div className="bg-white border rounded-lg p-12 text-center">
-          <p className="text-gray-600 capitalize font-medium">{activeSection.replace('-', ' ')}</p>
-          <p className="text-gray-400 text-sm mt-2">Mock data interface - Real integration coming</p>
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Settings className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2 capitalize">{activeSection.replace('-', ' ')}</h3>
+          <p className="text-gray-500 text-sm mb-4">This feature is under development and will be available soon.</p>
         </div>
       </div>
     );

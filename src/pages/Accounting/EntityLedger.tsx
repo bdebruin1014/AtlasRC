@@ -34,6 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/components/ui/use-toast';
 
 interface LedgerEntry {
   id: string;
@@ -164,6 +165,7 @@ const mockLedgerEntries: LedgerEntry[] = [
 export default function EntityLedger() {
   const navigate = useNavigate();
   const { entityId } = useParams();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [entity, setEntity] = useState(mockEntity);
@@ -259,8 +261,33 @@ export default function EntityLedger() {
   };
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
-    console.log(`Exporting ledger as ${format}`);
-    // Export implementation would go here
+    if (format === 'csv') {
+      const headers = ['Date', 'Description', 'Reference', 'Type', 'Account', 'Amount', 'Balance', 'Status'];
+      const csvContent = [
+        headers.join(','),
+        ...entries.map(e =>
+          [e.date, e.description, e.reference, e.type, e.account, e.amount, e.balance, e.status].map(
+            field => `"${String(field).replace(/"/g, '""')}"`
+          ).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `entity_ledger_${entityId}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+
+      toast({
+        title: 'Export Complete',
+        description: `Ledger exported as CSV with ${entries.length} entries`,
+      });
+    } else {
+      toast({
+        title: 'Export Format',
+        description: `${format.toUpperCase()} export will be available soon`,
+      });
+    }
   };
 
   if (isLoading) {
