@@ -971,7 +971,6 @@ export function calculateBTRMetrics(proforma) {
     costPerUnit, costPerSF,
     units: totalUnits,
     profitPerUnit: totalUnits > 0 ? netProfit / totalUnits : 0,
-    costPerUnit,
     revenuePerUnit: totalUnits > 0 ? totalRevenue / totalUnits : 0,
     totalSaleCosts: sellingCosts,
   };
