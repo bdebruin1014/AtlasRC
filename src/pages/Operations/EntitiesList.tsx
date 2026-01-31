@@ -220,6 +220,29 @@ const EntitiesList: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+    const headers = ['Name', 'Type', 'Tax ID', 'Project Count', 'Total Assets'];
+    const csvContent = [
+      headers.join(','),
+      ...allEntities.map(e =>
+        [e.name, e.type, e.taxId || '', e.projectCount, e.totalAssets].map(
+          field => `"${String(field).replace(/"/g, '""')}"`
+        ).join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `entities_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+
+    toast({
+      title: 'Export Complete',
+      description: `${allEntities.length} entities exported to CSV`,
+    });
+  };
+
   const renderTreeNode = (entity: Entity, depth: number = 0) => {
     const hasChildren = entity.children && entity.children.length > 0;
     const isExpanded = expandedIds.has(entity.id);
@@ -336,7 +359,7 @@ const EntitiesList: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>

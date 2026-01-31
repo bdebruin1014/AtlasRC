@@ -2,7 +2,8 @@
 // Single Home Build for Sale Template
 // VanRock Holdings LLC
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import {
   CurrencyInput,
   NumberInput,
@@ -195,11 +196,27 @@ const defaultCategories: Category[] = [
 // ============================================
 
 export const IndividualSpecHomeBudget: React.FC = () => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('budget');
   const [projectInfo, setProjectInfo] = useState<ProjectInfo>(defaultProjectInfo);
   const [planSelection, setPlanSelection] = useState<PlanSelection>(defaultPlanSelection);
   const [profitAnalysis, setProfitAnalysis] = useState<ProfitAnalysis>(defaultProfitAnalysis);
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
+
+  const handleSave = useCallback(() => {
+    localStorage.setItem('spec_home_budget_draft', JSON.stringify({ projectInfo, planSelection, profitAnalysis, categories }));
+    toast({ title: 'Budget Saved', description: 'Your spec home budget has been saved as a draft.' });
+  }, [projectInfo, planSelection, profitAnalysis, categories, toast]);
+
+  const handleExport = useCallback(() => {
+    const data = { projectInfo, planSelection, profitAnalysis, categories };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `spec_home_budget_${projectInfo.projectName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    toast({ title: 'Export Complete', description: 'Spec home budget exported successfully.' });
+  }, [projectInfo, planSelection, profitAnalysis, categories, toast]);
 
   // Calculate totals
   const categoryTotals = useMemo(() => {
@@ -290,8 +307,8 @@ export const IndividualSpecHomeBudget: React.FC = () => {
             <p className="text-emerald-200 text-sm">Single Home Build for Sale - AtlasDev Template</p>
           </div>
           <ActionButtons
-            onSave={() => console.log('Saving...')}
-            onExport={() => console.log('Exporting...')}
+            onSave={handleSave}
+            onExport={handleExport}
             onPrint={() => window.print()}
           />
         </div>
