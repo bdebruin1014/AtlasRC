@@ -454,7 +454,10 @@ export async function loadUserPermissions(userId = null) {
       .single();
 
     if (error && error.code !== 'PGRST116') {
-      throw error;
+      console.warn('Error loading user role:', error);
+      currentUserPermissions = [];
+      currentUserRole = null;
+      return { permissions: [], role: null };
     }
 
     // Default to team_member if no role assigned

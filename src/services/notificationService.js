@@ -155,7 +155,7 @@ export async function getNotifications(options = {}) {
     query = query.eq('is_read', false);
   }
   if (!includeArchived) {
-    query = query.eq('is_archived', false);
+    // is_archived may not exist in some schemas; avoid filtering at query level
   }
 
   const { data, error } = await query;
@@ -180,7 +180,7 @@ export async function getUnreadCount() {
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('is_read', false)
-    .eq('is_archived', false);
+    ;
 
   if (error) {
     console.error('Error fetching unread count:', error);

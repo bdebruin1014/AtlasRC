@@ -78,6 +78,7 @@ export default function NotificationCenter() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState('all'); // all, unread
   const dropdownRef = useRef(null);
 
@@ -85,6 +86,7 @@ export default function NotificationCenter() {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
+      setLoadError(false);
       const [notifs, count] = await Promise.all([
         getNotifications({ includeRead: true, limit: 20 }),
         getUnreadCount(),
@@ -92,7 +94,9 @@ export default function NotificationCenter() {
       setNotifications(notifs);
       setUnreadCount(count);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -104,7 +108,7 @@ export default function NotificationCenter() {
 
     // Poll for new notifications every 30 seconds
     const interval = setInterval(() => {
-      getUnreadCount().then(setUnreadCount);
+      getUnreadCount().then(setUnreadCount).catch(() => setUnreadCount(0));
     }, 30000);
 
     return () => clearInterval(interval);
@@ -169,6 +173,10 @@ export default function NotificationCenter() {
 
   const filteredNotifications =
     filter === 'unread' ? notifications.filter((n) => !n.is_read) : notifications;
+
+  if (loadError) {
+    return null;
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>

@@ -93,6 +93,7 @@ const ReminderWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [filter, setFilter] = useState('upcoming');
   const [formData, setFormData] = useState({
@@ -111,6 +112,7 @@ const ReminderWidget = () => {
 
   async function fetchReminders() {
     try {
+      setLoadError(false);
       if (isDemoMode()) {
         setReminders(demoReminders);
         setLoading(false);
@@ -126,11 +128,15 @@ const ReminderWidget = () => {
       if (error) throw error;
       setReminders(data || []);
     } catch (error) {
-      console.error('Error fetching reminders:', error);
-      setReminders(demoReminders);
+      setReminders([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!loading && loadError) {
+    return null;
   }
 
   const filteredReminders = useMemo(() => {
