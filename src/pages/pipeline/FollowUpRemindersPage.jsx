@@ -222,7 +222,6 @@ const FollowUpRemindersPage = () => {
 
   const markComplete = (id) => {
     // In real app, would update state/database
-    console.log('Marking complete:', id);
   };
 
   return (

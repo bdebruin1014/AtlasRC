@@ -276,11 +276,11 @@ const FinancialDashboardPage = () => {
                               <CreditCard className="w-5 h-5" />
                               <span className="text-xs">Record Payment</span>
                            </Button>
-                           <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors" onClick={() => navigate('/finance/entities/1110/receivables')}>
+                           <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors" onClick={() => navigate('/accounting/1110/ar-aging')}>
                               <FileText className="w-5 h-5" />
                               <span className="text-xs">Create Invoice</span>
                            </Button>
-                           <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-colors" onClick={() => navigate('/finance/entities/1110/bills')}>
+                           <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-2 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-colors" onClick={() => navigate('/accounting/1110/bills')}>
                               <Plus className="w-5 h-5" />
                               <span className="text-xs">Enter Bill</span>
                            </Button>

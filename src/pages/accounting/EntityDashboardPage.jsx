@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   DollarSign, TrendingUp, TrendingDown, Wallet, Receipt, CheckCircle,
@@ -7,48 +7,80 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { TransactionEntryContext } from '@/contexts/TransactionEntryContext';
+import LoadingState from '@/components/LoadingState';
+import { entityService } from '@/services/entityService';
 
 const EntityDashboardPage = () => {
   const { entityId } = useParams();
   const { openModal } = React.useContext(TransactionEntryContext);
+  const [entity, setEntity] = useState({
+    id: entityId || '',
+    name: '',
+    type: '',
+    ein: '',
+    state: '',
+    fiscalYearEnd: '',
+    cashBalance: 0,
+    ytdRevenue: 0,
+    ytdExpenses: 0,
+    ytdNetIncome: 0,
+    accountsReceivable: 0,
+    accountsPayable: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
-  // Mock entity data
-  const entity = {
-    id: entityId,
-    name: 'Highland Park Development LLC',
-    type: 'project',
-    ein: '**-***9012',
-    state: 'SC',
-    fiscalYearEnd: 'December',
-    cashBalance: 485000,
-    ytdRevenue: 3200000,
-    ytdExpenses: 2485000,
-    ytdNetIncome: 715000,
-    accountsReceivable: 45000,
-    accountsPayable: 185000,
-  };
+  const recentTransactions = [];
+  const pendingItems = [];
 
-  const recentTransactions = [
-    { id: 1, date: '2024-12-28', description: 'Wire Transfer - Construction Draw #12', amount: -125000, type: 'debit' },
-    { id: 2, date: '2024-12-27', description: 'Lot Sale - Lot 14', amount: 185000, type: 'credit' },
-    { id: 3, date: '2024-12-26', description: 'Invoice Payment - ABC Builders', amount: -45000, type: 'debit' },
-    { id: 4, date: '2024-12-24', description: 'Interest Income', amount: 850, type: 'credit' },
-    { id: 5, date: '2024-12-22', description: 'Insurance Premium', amount: -8500, type: 'debit' },
-  ];
+  useEffect(() => {
+    const loadEntity = async () => {
+      if (!entityId) {
+        setLoading(false);
+        return;
+      }
+      try {
+        setLoadError(null);
+        const data = await entityService.getById(entityId);
+        setEntity((prev) => ({
+          ...prev,
+          id: data?.id || entityId,
+          name: data?.name || '',
+          type: data?.type || '',
+          ein: data?.tax_id || '',
+          state: data?.state || '',
+          fiscalYearEnd: data?.fiscal_year_end || '',
+        }));
+      } catch (error) {
+        setLoadError('Failed to load entity data.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const pendingItems = [
-    { id: 1, type: 'reconciliation', description: 'Bank reconciliation needed', account: 'Operating Account', days: 5 },
-    { id: 2, type: 'bill', description: 'Unpaid bill', vendor: 'XYZ Plumbing', amount: 12500, days: 3 },
-    { id: 3, type: 'invoice', description: 'Outstanding invoice', customer: 'Builder Corp', amount: 35000, days: 15 },
-  ];
+    loadEntity();
+  }, [entityId]);
 
-  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val || 0);
+
+  if (loading) {
+    return <LoadingState />;
+  }
+
+  if (loadError || !entity?.id) {
+    return (
+      <div className="p-6 text-center">
+        <h2 className="text-xl font-semibold text-gray-900">Entity not found</h2>
+        {loadError && <p className="text-sm text-gray-500 mt-2">{loadError}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{entity.name}</h1>
-        <p className="text-sm text-gray-500">Financial Overview • EIN: {entity.ein} • {entity.state}</p>
+        <h1 className="text-2xl font-bold">{entity?.name || 'Entity'}</h1>
+        <p className="text-sm text-gray-500">Financial Overview • EIN: {entity?.ein || '—'} • {entity?.state || '—'}</p>
       </div>
 
       {/* Quick Actions */}
@@ -89,7 +121,7 @@ const EntityDashboardPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Cash Balance</p>
-              <p className="text-2xl font-bold">{formatCurrency(entity.cashBalance)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(entity?.cashBalance)}</p>
             </div>
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <Wallet className="w-5 h-5 text-green-600" />
@@ -97,7 +129,7 @@ const EntityDashboardPage = () => {
           </div>
           <div className="mt-2 flex items-center text-sm">
             <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600">+$45K</span>
+            <span className="text-green-600">—</span>
             <span className="text-gray-500 ml-1">this month</span>
           </div>
         </div>
@@ -106,7 +138,7 @@ const EntityDashboardPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">YTD Revenue</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(entity.ytdRevenue)}</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(entity?.ytdRevenue)}</p>
             </div>
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-blue-600" />
@@ -114,7 +146,7 @@ const EntityDashboardPage = () => {
           </div>
           <div className="mt-2 flex items-center text-sm">
             <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600">+18%</span>
+            <span className="text-green-600">—</span>
             <span className="text-gray-500 ml-1">vs last year</span>
           </div>
         </div>
@@ -123,7 +155,7 @@ const EntityDashboardPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">YTD Expenses</p>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(entity.ytdExpenses)}</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(entity?.ytdExpenses)}</p>
             </div>
             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
               <TrendingDown className="w-5 h-5 text-red-600" />
@@ -131,7 +163,7 @@ const EntityDashboardPage = () => {
           </div>
           <div className="mt-2 flex items-center text-sm">
             <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
-            <span className="text-red-600">+12%</span>
+            <span className="text-red-600">—</span>
             <span className="text-gray-500 ml-1">vs budget</span>
           </div>
         </div>
@@ -140,8 +172,8 @@ const EntityDashboardPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">YTD Net Income</p>
-              <p className={cn("text-2xl font-bold", entity.ytdNetIncome >= 0 ? 'text-green-600' : 'text-red-600')}>
-                {formatCurrency(entity.ytdNetIncome)}
+              <p className={cn("text-2xl font-bold", (entity?.ytdNetIncome || 0) >= 0 ? 'text-green-600' : 'text-red-600')}>
+                {formatCurrency(entity?.ytdNetIncome)}
               </p>
             </div>
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -149,7 +181,7 @@ const EntityDashboardPage = () => {
             </div>
           </div>
           <div className="mt-2 text-sm text-gray-500">
-            {((entity.ytdNetIncome / entity.ytdRevenue) * 100).toFixed(1)}% margin
+            {entity?.ytdRevenue ? ((entity.ytdNetIncome / entity.ytdRevenue) * 100).toFixed(1) : '0.0'}% margin
           </div>
         </div>
       </div>
@@ -164,7 +196,7 @@ const EntityDashboardPage = () => {
             </Link>
           </div>
           <div className="divide-y">
-            {recentTransactions.map(txn => (
+            {(recentTransactions || []).map(txn => (
               <div key={txn.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
                 <div className="flex items-center gap-3">
                   <div className={cn(
@@ -191,6 +223,9 @@ const EntityDashboardPage = () => {
               </div>
             ))}
           </div>
+          {(recentTransactions || []).length === 0 && (
+            <div className="p-6 text-sm text-gray-500 text-center">No transactions available.</div>
+          )}
         </div>
 
         {/* Pending Items */}
@@ -199,7 +234,7 @@ const EntityDashboardPage = () => {
             <h3 className="font-semibold">Needs Attention</h3>
           </div>
           <div className="divide-y">
-            {pendingItems.map(item => (
+            {(pendingItems || []).map(item => (
               <div key={item.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -217,6 +252,9 @@ const EntityDashboardPage = () => {
               </div>
             ))}
           </div>
+          {(pendingItems || []).length === 0 && (
+            <div className="p-6 text-sm text-gray-500 text-center">No pending items.</div>
+          )}
           <div className="p-4 border-t">
             <Button variant="outline" className="w-full" size="sm">View All Pending Items</Button>
           </div>

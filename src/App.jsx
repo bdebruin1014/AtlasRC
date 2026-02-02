@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -8,6 +8,7 @@ import { PermissionProvider } from '@/contexts/PermissionContext';
 import { TransactionEntryProvider } from '@/contexts/TransactionEntryContext';
 import TopNavigation from '@/components/TopNavigation';
 import LoadingState from '@/components/LoadingState';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { ChatButton } from '@/components/chat';
 import ReminderWidget from '@/components/ReminderWidget';
 
@@ -305,7 +306,14 @@ const AdminLayout = ({ children }) => (
 );
 
 const AccountingEntityLayout = ({ children }) => {
-  const entity = { name: 'Highland Park Development LLC', type: 'project', cashBalance: 485000, ytdRevenue: 3200000, ytdExpenses: 2485000 };
+  const { entityId } = useParams();
+  const entity = {
+    name: entityId ? `Entity ${entityId}` : 'Entity',
+    type: 'entity',
+    cashBalance: 0,
+    ytdRevenue: 0,
+    ytdExpenses: 0,
+  };
   return (
     <TransactionEntryProvider>
       <div className="flex h-[calc(100vh-40px)]">
@@ -442,7 +450,6 @@ const AppContent = () => (
     <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/opportunity/:opportunityId/*" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ENTITIES MODULE */}
@@ -524,8 +531,6 @@ const AppContent = () => (
     <Route path="/accounting/:entityId/expenses" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ExpenseManagementPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/:entityId/job-costing" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><JobCostingReportPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
     
-    <Route path="/accounting/:entityId/*" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-
     {/* Reports */}
     <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsLayout /></AppLayout></ProtectedRoute>}>
       <Route index element={<Navigate to="/reports/preset" replace />} />
@@ -568,7 +573,6 @@ const AppContent = () => (
     <Route path="/admin/audit-logs" element={<ProtectedRoute><AppLayout><AdminLayout><AuditLogsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/organization" element={<ProtectedRoute><AppLayout><AdminLayout><OrganizationSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/permissions" element={<ProtectedRoute><AppLayout><AdminLayout><UserPermissionsMatrixPage /></AdminLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/admin/*" element={<ProtectedRoute><AppLayout><AdminLayout><AdminPage /></AdminLayout></AppLayout></ProtectedRoute>} />
 
     {/* Operations */}
     <Route path="/operations" element={<ProtectedRoute><AppLayout><OperationsDashboard /></AppLayout></ProtectedRoute>} />
@@ -645,7 +649,14 @@ function App() {
         }}
       >
         <Helmet><title>Atlas | Real Estate Development Platform</title></Helmet>
-        <AuthProvider><PermissionProvider><AppContent /><Toaster /></PermissionProvider></AuthProvider>
+        <AuthProvider>
+          <PermissionProvider>
+            <ErrorBoundary>
+              <AppContent />
+            </ErrorBoundary>
+            <Toaster />
+          </PermissionProvider>
+        </AuthProvider>
         </Router>
       </QueryClientProvider>
   );

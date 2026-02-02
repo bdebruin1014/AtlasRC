@@ -38,8 +38,8 @@ const OpportunitiesPage = () => {
 
   // Filter opportunities by stage if URL param is present
   const filteredOpportunities = useMemo(() => {
-    if (!stageFilter) return opportunities;
-    return opportunities.filter(opp =>
+    if (!stageFilter) return opportunities || [];
+    return (opportunities || []).filter(opp =>
       opp.stage?.toLowerCase().replace(/\s+/g, '_') === stageFilter.toLowerCase()
     );
   }, [opportunities, stageFilter]);
@@ -127,15 +127,15 @@ const OpportunitiesPage = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {OPPORTUNITY_STAGES.map((stage) => (
+        {(OPPORTUNITY_STAGES || []).map((stage) => (
           <Card key={stage.key}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500">{stage.label}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.byStage[stage.key]?.count || 0}</div>
+              <div className="text-2xl font-bold">{summary?.byStage?.[stage.key]?.count || 0}</div>
               <div className="text-sm text-gray-500">
-                {formatCurrency(summary.byStage[stage.key]?.value || 0)}
+                {formatCurrency(summary?.byStage?.[stage.key]?.value || 0)}
               </div>
             </CardContent>
           </Card>
@@ -157,10 +157,10 @@ const OpportunitiesPage = () => {
       {/* Opportunities List/Grid View */}
       <Card>
         <CardHeader>
-          <CardTitle>{stageFilter ? `Filtered Opportunities (${filteredOpportunities.length})` : `All Opportunities (${opportunities.length})`}</CardTitle>
+          <CardTitle>{stageFilter ? `Filtered Opportunities (${(filteredOpportunities || []).length})` : `All Opportunities (${(opportunities || []).length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredOpportunities.length === 0 ? (
+          {(filteredOpportunities || []).length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {stageFilter ? 'No opportunities in this stage.' : 'No opportunities yet. Click "New Opportunity" to add one.'}
             </div>
@@ -179,7 +179,7 @@ const OpportunitiesPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOpportunities.map((opp) => (
+                  {(filteredOpportunities || []).map((opp) => (
                     <tr
                       key={opp.id}
                       className="border-b hover:bg-gray-50 cursor-pointer"
@@ -225,7 +225,7 @@ const OpportunitiesPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredOpportunities.map((opp) => (
+                {(filteredOpportunities || []).map((opp) => (
                 <Card
                   key={opp.id}
                   className="cursor-pointer hover:shadow-lg transition"

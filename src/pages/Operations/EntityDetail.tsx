@@ -13,40 +13,32 @@ import { entityService } from '@/services/entityService';
 
 // Default entity for fallback
 const defaultEntity = {
-  id: '1',
-  name: 'VanRock Holdings LLC',
+  id: '',
+  name: '',
   type: 'operating',
-  parentEntity: { id: '0', name: 'Olive Brynn LLC' },
-  taxId: '23-4567890',
-  legalStructure: 'LLC',
-  stateOfFormation: 'SC',
-  formationDate: '2020-01-15',
-  primaryContact: { id: '1', name: 'Bryan De Bruin', email: 'bryan@vanrock.com', phone: '(864) 555-0101' },
+  parentEntity: null as { id: string; name: string } | null,
+  taxId: '',
+  legalStructure: '',
+  stateOfFormation: '',
+  formationDate: '',
+  primaryContact: null as { id: string; name: string; email?: string; phone?: string } | null,
   address: {
-    line1: '123 Main Street',
-    line2: 'Suite 200',
-    city: 'Greenville',
-    state: 'SC',
-    zipCode: '29601',
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    zipCode: '',
   },
-  notes: 'Primary operating company for all real estate development activities.',
-  createdAt: '2020-01-15T10:00:00Z',
-  updatedAt: '2024-01-10T14:30:00Z',
-  childEntities: [
-    { id: '2', name: 'Red Cedar Homes', type: 'operating' },
-    { id: '3', name: 'Ambleside Development LLC', type: 'project' },
-    { id: '4', name: 'Driftwood JV LLC', type: 'project' },
-  ],
-  projects: [
-    { id: '1', name: 'Watson House Development', status: 'active', budget: 2100000 },
-    { id: '2', name: 'Oslo Townhomes', status: 'active', budget: 1500000 },
-    { id: '3', name: 'Cedar Mill Phase 1', status: 'completed', budget: 3200000 },
-  ],
+  notes: '',
+  createdAt: '',
+  updatedAt: '',
+  childEntities: [] as Array<{ id: string; name: string; type?: string }>,
+  projects: [] as Array<{ id: string; name: string; status?: string; budget?: number }>,
   financialSummary: {
-    totalRevenue: 4250000,
-    totalExpenses: 3100000,
-    netPosition: 1150000,
-    cashBalance: 485000,
+    totalRevenue: 0,
+    totalExpenses: 0,
+    netPosition: 0,
+    cashBalance: 0,
   },
 };
 
@@ -61,12 +53,14 @@ const EntityDetail: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [entity, setEntity] = useState<typeof defaultEntity | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     const loadEntity = async () => {
       if (!id) return;
       try {
+        setLoadError(null);
         const data = await entityService.getById(id);
         if (data) {
           // Get child entities
@@ -90,7 +84,7 @@ const EntityDetail: React.FC = () => {
             legalStructure: data.legal_structure || 'LLC',
             stateOfFormation: data.state_of_formation || 'SC',
             formationDate: data.formation_date || data.created_at,
-            primaryContact: data.primary_contact || defaultEntity.primaryContact,
+            primaryContact: data.primary_contact || null,
             address: {
               line1: data.address_line1 || '',
               line2: data.address_line2 || '',
@@ -106,15 +100,16 @@ const EntityDetail: React.FC = () => {
               name: c.name,
               type: c.type || 'operating',
             })) || [],
-            projects: defaultEntity.projects, // Projects loaded separately if needed
-            financialSummary: defaultEntity.financialSummary, // Would come from transactions aggregation
+            projects: [],
+            financialSummary: defaultEntity.financialSummary,
           });
         } else {
           setEntity(null);
         }
       } catch (error) {
-        console.warn('Using default entity data:', error);
-        setEntity(defaultEntity);
+        console.warn('Failed to load entity data:', error);
+        setLoadError('Failed to load entity data.');
+        setEntity(null);
       } finally {
         setLoading(false);
       }
@@ -134,6 +129,7 @@ const EntityDetail: React.FC = () => {
     return (
       <div className="p-6 text-center">
         <h2 className="text-xl font-semibold text-gray-900">Entity not found</h2>
+        {loadError && <p className="text-sm text-gray-500 mt-2">{loadError}</p>}
         <Button className="mt-4" onClick={() => navigate('/entities')}>
           Back to Entities
         </Button>
@@ -141,7 +137,7 @@ const EntityDetail: React.FC = () => {
     );
   }
 
-  const config = TYPE_CONFIG[entity.type as keyof typeof TYPE_CONFIG];
+  const config = TYPE_CONFIG[entity.type as keyof typeof TYPE_CONFIG] || TYPE_CONFIG.operating;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -285,7 +281,7 @@ const EntityDetail: React.FC = () => {
                 <CardContent>
                   {entity.childEntities.length > 0 ? (
                     <div className="space-y-2">
-                      {entity.childEntities.map((child) => {
+                      {(entity.childEntities || []).map((child) => {
                         const childConfig = TYPE_CONFIG[child.type as keyof typeof TYPE_CONFIG];
                         return (
                           <div
@@ -321,25 +317,25 @@ const EntityDetail: React.FC = () => {
                     <div className="p-4 bg-green-50 rounded-lg">
                       <p className="text-sm text-green-600">Total Revenue</p>
                       <p className="text-xl font-bold text-green-700">
-                        {formatCurrency(entity.financialSummary.totalRevenue, { compact: true })}
+                        {formatCurrency(entity.financialSummary?.totalRevenue || 0, { compact: true })}
                       </p>
                     </div>
                     <div className="p-4 bg-red-50 rounded-lg">
                       <p className="text-sm text-red-600">Total Expenses</p>
                       <p className="text-xl font-bold text-red-700">
-                        {formatCurrency(entity.financialSummary.totalExpenses, { compact: true })}
+                        {formatCurrency(entity.financialSummary?.totalExpenses || 0, { compact: true })}
                       </p>
                     </div>
                     <div className="p-4 bg-emerald-50 rounded-lg">
                       <p className="text-sm text-emerald-600">Net Position</p>
                       <p className="text-xl font-bold text-emerald-700">
-                        {formatCurrency(entity.financialSummary.netPosition, { compact: true })}
+                        {formatCurrency(entity.financialSummary?.netPosition || 0, { compact: true })}
                       </p>
                     </div>
                     <div className="p-4 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-600">Cash Balance</p>
                       <p className="text-xl font-bold text-blue-700">
-                        {formatCurrency(entity.financialSummary.cashBalance, { compact: true })}
+                        {formatCurrency(entity.financialSummary?.cashBalance || 0, { compact: true })}
                       </p>
                     </div>
                   </div>
@@ -353,7 +349,7 @@ const EntityDetail: React.FC = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Projects ({entity.projects.length})</CardTitle>
-                <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('/projects/new')}>
+                <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('/projects?create=true')}>
                   <Plus className="w-4 h-4 mr-2" />
                   New Project
                 </Button>
@@ -361,7 +357,7 @@ const EntityDetail: React.FC = () => {
               <CardContent>
                 {entity.projects.length > 0 ? (
                   <div className="space-y-2">
-                    {entity.projects.map((project) => (
+                    {(entity.projects || []).map((project) => (
                       <div
                         key={project.id}
                         className="flex items-center justify-between p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
@@ -387,7 +383,7 @@ const EntityDetail: React.FC = () => {
                   <div className="text-center py-8">
                     <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No projects linked to this entity</p>
-                    <Button className="mt-4" onClick={() => navigate('/projects/new')}>
+                    <Button className="mt-4" onClick={() => navigate('/projects?create=true')}>
                       Create First Project
                     </Button>
                   </div>
@@ -410,25 +406,25 @@ const EntityDetail: React.FC = () => {
                   <div className="p-4 bg-green-50 rounded-lg">
                     <p className="text-sm text-green-600">Total Revenue</p>
                     <p className="text-2xl font-bold text-green-700">
-                      {formatCurrency(entity.financialSummary.totalRevenue)}
+                      {formatCurrency(entity.financialSummary?.totalRevenue || 0)}
                     </p>
                   </div>
                   <div className="p-4 bg-red-50 rounded-lg">
                     <p className="text-sm text-red-600">Total Expenses</p>
                     <p className="text-2xl font-bold text-red-700">
-                      {formatCurrency(entity.financialSummary.totalExpenses)}
+                      {formatCurrency(entity.financialSummary?.totalExpenses || 0)}
                     </p>
                   </div>
                   <div className="p-4 bg-emerald-50 rounded-lg">
                     <p className="text-sm text-emerald-600">Net Position</p>
                     <p className="text-2xl font-bold text-emerald-700">
-                      {formatCurrency(entity.financialSummary.netPosition)}
+                      {formatCurrency(entity.financialSummary?.netPosition || 0)}
                     </p>
                   </div>
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-600">Cash Balance</p>
                     <p className="text-2xl font-bold text-blue-700">
-                      {formatCurrency(entity.financialSummary.cashBalance)}
+                      {formatCurrency(entity.financialSummary?.cashBalance || 0)}
                     </p>
                   </div>
                 </div>

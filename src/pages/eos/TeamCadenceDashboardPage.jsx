@@ -665,7 +665,6 @@ const TeamCadenceDashboardPage = () => {
         <NewSeriesModal
           onClose={() => setShowNewSeriesModal(false)}
           onSave={(series) => {
-            console.log('Creating series:', series);
             setShowNewSeriesModal(false);
           }}
         />

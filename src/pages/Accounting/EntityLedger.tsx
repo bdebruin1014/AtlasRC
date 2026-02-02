@@ -259,7 +259,6 @@ export default function EntityLedger() {
   };
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
-    console.log(`Exporting ledger as ${format}`);
     // Export implementation would go here
   };
 

@@ -141,7 +141,6 @@ const ContractRecordPage = () => {
 
   const handleSave = () => {
     // In real app, would save to database
-    console.log('Saving contract:', contract);
     setIsEditing(false);
   };
 

@@ -93,7 +93,6 @@ export default function AbbreviatedDealSheet({
 
   const handleSave = async (data) => {
     if (isDemoMode()) {
-      console.log('Demo mode: Would save deal sheet', data);
       if (onSave) onSave(data);
       return;
     }

@@ -41,7 +41,7 @@ const ProjectDetailPage = () => {
     setField,
     saveStatus,
     lastSaved,
-    error: saveError
+    error: saveError,
   } = useAutoSave(
     rawProject,
     async (data) => {
@@ -49,47 +49,14 @@ const ProjectDetailPage = () => {
         await updateProject(projectId, data);
       }
     },
-    1500 // 1.5 second debounce
+    1500
   );
 
-  // Get budget type info for display
-  const budgetTypeMap = {
-    'spec-build': 'spec-home',
-    'lot-development': 'horizontal-lot',
-    'build-to-rent': 'btr',
-    'fix-flip': 'spec-home',
-  };
+  const budgetTypeId = formData?.budget_type || rawProject?.budget_type;
+  const budgetTypeInfo = budgetTypes.find((type) => type.id === budgetTypeId);
 
-  const budgetType = budgetTypeMap[formData?.project_type] || 'spec-home';
-  const budgetTypeInfo = budgetTypes?.find(bt => bt.id === budgetType);
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-[#047857]" />
-        <span className="ml-2">Loading project...</span>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error || !rawProject) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <Building2 className="w-12 h-12 text-gray-300 mb-4" />
-        <h2 className="text-lg font-medium text-gray-900 mb-2">Project Not Found</h2>
-        <p className="text-gray-500 mb-4">{error || 'The requested project could not be found.'}</p>
-        <Button onClick={() => navigate('/projects')}>Back to Projects</Button>
-      </div>
-    );
-  }
-
-  // Get budget component based on project type
-  const getBudgetComponent = () => {
-    switch (budgetType) {
-      case 'spec-home':
-        return <IndividualSpecHomeBudget />;
+  const renderBudgetSection = () => {
+    switch (budgetTypeId) {
       case 'horizontal-lot':
         return <HorizontalLotDevelopmentBudget />;
       case 'btr':
@@ -169,6 +136,25 @@ const ProjectDetailPage = () => {
   const projectedSalePrice = budget * 1.5;
   const projectedProfit = budget * 0.25;
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        <span className="ml-2">Loading project...</span>
+      </div>
+    );
+  }
+
+  if (error || !rawProject) {
+    return (
+      <div className="p-6 text-center">
+        <h2 className="text-xl font-semibold text-gray-900">Project not found</h2>
+        <p className="text-gray-500 mt-2">{error || 'The requested project could not be loaded.'}</p>
+        <Button className="mt-4" onClick={() => navigate('/projects')}>Back to Projects</Button>
+      </div>
+    );
+  }
+
   const renderContent = () => {
     switch (activeSection) {
       case 'basic-info':
@@ -197,7 +183,7 @@ const ProjectDetailPage = () => {
                       <Select value={formData?.project_type || ''} onValueChange={(v) => setField('project_type', v)}>
                         <SelectTrigger className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
                         <SelectContent>
-                          {PROJECT_TYPES.map(t => (
+                          {(PROJECT_TYPES || []).map(t => (
                             <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -208,7 +194,7 @@ const ProjectDetailPage = () => {
                       <Select value={formData?.status || 'active'} onValueChange={(v) => setField('status', v)}>
                         <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {PROJECT_STATUSES.map(s => (
+                          {(PROJECT_STATUSES || []).map(s => (
                             <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
                           ))}
                         </SelectContent>
@@ -709,7 +695,7 @@ const ProjectDetailPage = () => {
       case 'budget':
         return (
           <div className="h-full">
-            {getBudgetComponent()}
+            {renderBudgetSection()}
           </div>
         );
 
@@ -1194,67 +1180,6 @@ const ProjectDetailPage = () => {
           </div>
         );
 
-      case 'project-settings':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Project Settings</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Project Status</h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Current Status</Label>
-                    <Select value={formData?.status || 'active'} onValueChange={(v) => setField('status', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="on-hold">On Hold</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Priority</Label>
-                    <Select value={formData?.priority || 'medium'} onValueChange={(v) => setField('priority', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Notifications</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" defaultChecked />
-                    <span className="text-sm">Budget threshold alerts</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" defaultChecked />
-                    <span className="text-sm">Schedule milestone reminders</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" defaultChecked />
-                    <span className="text-sm">Document expiration warnings</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-sm">Weekly summary emails</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return (
           <div className="p-6">
@@ -1298,7 +1223,7 @@ const ProjectDetailPage = () => {
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto">
-          {sidebarGroups.map((group) => (
+          {(sidebarGroups || []).map((group) => (
             <div key={group.id} className="mb-1">
               <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
                 <div className="flex items-center gap-2">
@@ -1309,7 +1234,7 @@ const ProjectDetailPage = () => {
               </button>
               {expandedGroups.includes(group.id) && (
                 <div className="ml-4 border-l border-gray-700 space-y-0.5">
-                  {group.items.map((item) => (
+                  {(group.items || []).map((item) => (
                     <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
                       {item.label}
                     </button>

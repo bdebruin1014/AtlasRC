@@ -198,7 +198,6 @@ const ActivityTimeline = ({ opportunityId, opportunityName = 'Opportunity' }) =>
   const handleAddActivity = () => {
     if (newActivityContent.trim()) {
       // In a real app, this would call an API
-      console.log('Adding activity:', { type: newActivityType, content: newActivityContent });
       setNewActivityContent('');
       setShowNewActivity(false);
     }

@@ -336,7 +336,7 @@ export default function NotificationCenter() {
             <div className="border-t border-gray-700 p-2 bg-[#1f1f1f]">
               <button
                 onClick={() => {
-                  navigate('/notifications');
+                  navigate('/settings/notifications');
                   setIsOpen(false);
                 }}
                 className="w-full py-2 text-xs text-center text-gray-400 hover:text-white transition-colors"

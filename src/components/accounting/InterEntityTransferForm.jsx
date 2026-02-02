@@ -117,7 +117,6 @@ const InterEntityTransferForm = ({ isOpen, onClose, currentEntityId, existingTra
         notes: formData.notes,
       };
 
-      console.log('Transfer data:', transferData);
 
       toast({
         title: 'Success',

@@ -433,7 +433,7 @@ export default function ExecutiveDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <div className="flex bg-gray-100 rounded-lg p-1">
-                {['week', 'month', 'quarter', 'year'].map((tf) => (
+                {(['week', 'month', 'quarter', 'year'] || []).map((tf) => (
                   <button
                     key={tf}
                     onClick={() => setTimeframe(tf)}
@@ -529,7 +529,7 @@ export default function ExecutiveDashboard() {
                   <CardContent className="p-0">
                     {/* Status Summary */}
                     <div className="flex items-center gap-6 px-6 py-3 border-b bg-gray-50">
-                      {PROJECT_STATUS_DATA.map((status) => (
+                      {(PROJECT_STATUS_DATA || []).map((status) => (
                         <div key={status.name} className="flex items-center gap-2">
                           <div
                             className="w-3 h-3 rounded-full"
@@ -543,7 +543,7 @@ export default function ExecutiveDashboard() {
 
                     {/* Project List */}
                     <div className="divide-y">
-                      {PROJECTS_HEALTH.map((project) => (
+                      {(PROJECTS_HEALTH || []).map((project) => (
                         <ProjectHealthRow
                           key={project.id}
                           project={project}
@@ -573,7 +573,7 @@ export default function ExecutiveDashboard() {
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y">
-                      {RECENT_ALERTS.map((alert) => (
+                      {(RECENT_ALERTS || []).map((alert) => (
                         <AlertItem key={alert.id} alert={alert} />
                       ))}
                     </div>
@@ -627,7 +627,7 @@ export default function ExecutiveDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {BUDGET_HEALTH_SUMMARY.map((cat) => {
+                    {(BUDGET_HEALTH_SUMMARY || []).map((cat) => {
                       const spentPercent = (cat.spent / cat.budgeted) * 100;
                       const isOver = spentPercent > 100;
 

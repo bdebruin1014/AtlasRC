@@ -29,7 +29,6 @@ const HomePlanLibraryPage = () => {
       setLoading(true);
       setError(null);
       const data = await getFloorPlans();
-      console.log('Loaded floor plans:', data);
       
       // Transform to match component format
       const transformedPlans = data.map((plan, idx) => ({
@@ -49,7 +48,6 @@ const HomePlanLibraryPage = () => {
         projectsUsing: 0,
         image: '/api/placeholder/400/300'
       }));
-      console.log('Transformed plans:', transformedPlans);
       setPlans(transformedPlans);
       setLoading(false);
     } catch (error) {

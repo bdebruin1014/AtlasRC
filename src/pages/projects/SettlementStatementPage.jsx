@@ -121,7 +121,6 @@ const SettlementStatementPage = () => {
   };
 
   const handleSave = () => {
-    console.log('Saving settlement:', settlement);
     setIsEditing(false);
   };
 

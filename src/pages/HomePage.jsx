@@ -215,7 +215,13 @@ const HomePage = () => {
   });
 
   // Get financial data for selected entity
-  const financials = FINANCIAL_DATA[selectedEntity] || FINANCIAL_DATA.consolidated;
+  const financials = FINANCIAL_DATA[selectedEntity] || FINANCIAL_DATA.consolidated || {};
+  const cashOnHand = financials?.cashOnHand ?? 0;
+  const netIncome = financials?.netIncome ?? 0;
+  const ytdRevenue = financials?.ytdRevenue ?? 0;
+  const equity = financials?.equity ?? 0;
+  const arReceivable = financials?.arReceivable ?? 0;
+  const apPayable = financials?.apPayable ?? 0;
 
   // Filter project health data
   const filteredProjects = projectTypeFilter === 'All'
@@ -325,7 +331,7 @@ const HomePage = () => {
 
             {/* 1. Stats Grid - Clickable Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {STATS.map((stat, index) => (
+              {(STATS || []).map((stat, index) => (
                 <Card
                   key={index}
                   className="border-gray-200 shadow-sm hover:shadow-md hover:border-[#2F855A]/30 transition-all cursor-pointer group"
@@ -365,7 +371,7 @@ const HomePage = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-end gap-2 h-32 mb-4">
-                  {PIPELINE_STAGES.map((stage) => (
+                  {(PIPELINE_STAGES || []).map((stage) => (
                     <div
                       key={stage.id}
                       className="flex-1 flex flex-col items-center cursor-pointer group"
@@ -384,7 +390,7 @@ const HomePage = () => {
                   ))}
                 </div>
                 <div className="grid grid-cols-6 gap-1 text-center">
-                  {PIPELINE_STAGES.map((stage) => (
+                  {(PIPELINE_STAGES || []).map((stage) => (
                     <div
                       key={stage.id}
                       className="space-y-1 cursor-pointer hover:bg-gray-50 rounded p-1 transition-colors"
@@ -411,7 +417,7 @@ const HomePage = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {DEMO_ENTITIES.map(e => (
+                          {(DEMO_ENTITIES || []).map(e => (
                             <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -427,37 +433,37 @@ const HomePage = () => {
                     <div className="p-3 bg-emerald-50 rounded-lg">
                       <p className="text-xs text-emerald-600 font-medium">Cash on Hand</p>
                       <p className="text-xl font-bold text-emerald-700">
-                        ${(financials.cashOnHand / 1000000).toFixed(2)}M
+                        ${(cashOnHand / 1000000).toFixed(2)}M
                       </p>
                     </div>
                     <div className="p-3 bg-blue-50 rounded-lg">
                       <p className="text-xs text-blue-600 font-medium">Net Income YTD</p>
                       <p className="text-xl font-bold text-blue-700 flex items-center gap-1">
-                        ${(financials.netIncome / 1000).toFixed(0)}K
+                        ${(netIncome / 1000).toFixed(0)}K
                         <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                       </p>
                     </div>
                     <div className="p-3 bg-indigo-50 rounded-lg">
                       <p className="text-xs text-indigo-600 font-medium">YTD Revenue</p>
                       <p className="text-xl font-bold text-indigo-700">
-                        ${(financials.ytdRevenue / 1000000).toFixed(2)}M
+                        ${(ytdRevenue / 1000000).toFixed(2)}M
                       </p>
                     </div>
                     <div className="p-3 bg-amber-50 rounded-lg">
                       <p className="text-xs text-amber-600 font-medium">Total Equity</p>
                       <p className="text-xl font-bold text-amber-700">
-                        ${(financials.equity / 1000000).toFixed(1)}M
+                        ${(equity / 1000000).toFixed(1)}M
                       </p>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">A/R Outstanding</span>
-                      <span className="font-medium">${(financials.arReceivable / 1000).toFixed(0)}K</span>
+                      <span className="font-medium">${(arReceivable / 1000).toFixed(0)}K</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">A/P Due</span>
-                      <span className="font-medium">${(financials.apPayable / 1000).toFixed(0)}K</span>
+                      <span className="font-medium">${(apPayable / 1000).toFixed(0)}K</span>
                     </div>
                   </div>
                 </CardContent>
@@ -476,7 +482,7 @@ const HomePage = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PROJECT_TYPES.map(t => (
+                        {(PROJECT_TYPES || []).map(t => (
                           <SelectItem key={t} value={t}>{t}</SelectItem>
                         ))}
                       </SelectContent>
@@ -494,14 +500,14 @@ const HomePage = () => {
                       <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(value) => `${value}%`} labelFormatter={(label) => label} />
                       <Bar dataKey="budget" name="Budget %" radius={[0, 4, 4, 0]} barSize={18}>
-                        {filteredProjects.map((entry, index) => (
+                        {(filteredProjects || []).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={HEALTH_COLORS[entry.status]} />
                         ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                   <div className="flex items-center justify-center gap-4 mt-2">
-                    {Object.entries(HEALTH_COLORS).map(([label, color]) => (
+                    {Object.entries(HEALTH_COLORS || {}).map(([label, color]) => (
                       <div key={label} className="flex items-center gap-1.5 text-xs text-gray-600">
                         <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
                         {label}
@@ -525,7 +531,7 @@ const HomePage = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TEAM_MEMBERS.map(m => (
+                      {(TEAM_MEMBERS || []).map(m => (
                         <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -536,20 +542,22 @@ const HomePage = () => {
                     {filteredActivity.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-4">No activity for this filter.</p>
                     ) : (
-                      filteredActivity.map((item, i) => (
-                        <div key={i} className="flex items-start gap-4 group cursor-pointer hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors">
-                          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", item.color)}>
-                            <item.icon className="w-4 h-4" />
+                      <>
+                        {(filteredActivity || []).map((item, i) => (
+                          <div key={i} className="flex items-start gap-4 group cursor-pointer hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors">
+                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", item.color)}>
+                              <item.icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-900">
+                                <span className="font-semibold">{item.user}</span> {item.action}{' '}
+                                <span className="font-medium text-gray-700">{item.target}</span>
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">{item.time}</p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-900">
-                              <span className="font-semibold">{item.user}</span> {item.action}{' '}
-                              <span className="font-medium text-gray-700">{item.target}</span>
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">{item.time}</p>
-                          </div>
-                        </div>
-                      ))
+                        ))}
+                      </>
                     )}
                   </div>
                   <Button variant="ghost" className="w-full mt-4 text-sm text-gray-500 hover:text-emerald-600" onClick={() => navigate('/admin/activity-log')}>View All Activity</Button>
@@ -564,7 +572,7 @@ const HomePage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {USER_TASKS.map((task) => {
+                    {(USER_TASKS || []).map((task) => {
                       const dueLabel = formatTaskDue(task.dueDate);
                       const isOverdue = dueLabel === 'Overdue';
                       const isToday = dueLabel === 'Today';
@@ -603,7 +611,7 @@ const HomePage = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {QUICK_ACTIONS.map((item) => (
+                  {(QUICK_ACTIONS || []).map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleQuickAction(item.id)}
@@ -654,7 +662,7 @@ const HomePage = () => {
                 <Select value={transactionForm.entity} onValueChange={(val) => setTransactionForm({ ...transactionForm, entity: val })}>
                   <SelectTrigger><SelectValue placeholder="Select Entity" /></SelectTrigger>
                   <SelectContent>
-                    {DEMO_ENTITIES.filter(e => e.id !== 'consolidated').map(e => (
+                    {(DEMO_ENTITIES || []).filter(e => e.id !== 'consolidated').map(e => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -780,7 +788,7 @@ const HomePage = () => {
                 <Select value={entityForm.type} onValueChange={(val) => setEntityForm({ ...entityForm, type: val })}>
                   <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
                   <SelectContent>
-                    {ENTITY_TYPES.map(t => (
+                    {(ENTITY_TYPES || []).map(t => (
                       <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                     ))}
                   </SelectContent>

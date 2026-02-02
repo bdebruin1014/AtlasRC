@@ -125,7 +125,6 @@ const TransactionModalsDark = () => {
   const { subtotal, total } = calculateTotals();
 
   const handleSave = () => {
-    console.log('Saving transaction:', { type: activeModal, formData, lineItems, selectedEntity });
     closeModal();
   };
 

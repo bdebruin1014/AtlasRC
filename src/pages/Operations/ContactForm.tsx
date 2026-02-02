@@ -251,7 +251,7 @@ export default function ContactForm() {
         state: formData.state,
         zip: formData.zip_code,
         notes: formData.notes,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: (formData.tags || '').split(',').map(t => t.trim()).filter(Boolean),
       };
 
       if (isEditing && id) {
@@ -409,7 +409,7 @@ export default function ContactForm() {
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CONTACT_TYPES.map((type) => (
+                        {(CONTACT_TYPES || []).map((type) => (
                           <SelectItem key={type.value} value={type.value}>
                             {type.label}
                           </SelectItem>
@@ -587,7 +587,7 @@ export default function ContactForm() {
                         <SelectValue placeholder="Select state" />
                       </SelectTrigger>
                       <SelectContent>
-                        {US_STATES.map((state) => (
+                        {(US_STATES || []).map((state) => (
                           <SelectItem key={state.value} value={state.value}>
                             {state.label}
                           </SelectItem>

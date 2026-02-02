@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus, Search, Filter, LayoutGrid, List, Building2, MapPin,
   DollarSign, Calendar, ChevronRight, MoreVertical, Eye, Edit2,
@@ -14,9 +14,10 @@ import ProjectModal from '@/components/ProjectModal';
 
 const ProjectsPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { projects: rawProjects, isLoading, error, refetch } = useProjects();
   const { createProject, updateProject, deleteProject, isLoading: isSaving } = useProjectActions();
-  const summary = useProjectSummary(rawProjects);
+  const summary = useProjectSummary(rawProjects || []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
@@ -26,6 +27,14 @@ const ProjectsPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [projectFinancials, setProjectFinancials] = useState({});
+
+  useEffect(() => {
+    const shouldCreate = searchParams.get('create') === 'true';
+    if (shouldCreate) {
+      setEditingProject(null);
+      setModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Fetch financials for all projects
   useEffect(() => {
@@ -41,7 +50,7 @@ const ProjectsPage = () => {
 
       for (const chunk of chunks) {
         const results = await Promise.all(
-          chunk.map(async (p) => {
+          (chunk || []).map(async (p) => {
             try {
               const financials = await projectService.getFinancials(p.id);
               return { id: p.id, financials };
@@ -62,7 +71,7 @@ const ProjectsPage = () => {
   }, [rawProjects]);
 
   // Transform projects to display format
-  const projects = rawProjects.map(p => {
+  const projects = (rawProjects || []).map(p => {
     const financials = projectFinancials[p.id] || {};
     return {
       id: p.id,
@@ -84,6 +93,14 @@ const ProjectsPage = () => {
     setModalOpen(true);
   };
 
+  const handleCloseModal = () => {
+    if (searchParams.get('create') === 'true') {
+      searchParams.delete('create');
+      setSearchParams(searchParams);
+    }
+    setModalOpen(false);
+  };
+
   const handleEdit = (project) => {
     setEditingProject(project.raw);
     setModalOpen(true);
@@ -102,7 +119,7 @@ const ProjectsPage = () => {
     } else {
       await createProject(data);
     }
-    setModalOpen(false);
+    handleCloseModal();
     refetch();
   };
 
@@ -319,7 +336,7 @@ const ProjectsPage = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="all">All Statuses</option>
-                {PROJECT_STATUSES.map(s => (
+                {(PROJECT_STATUSES || []).map(s => (
                   <option key={s.key} value={s.key}>{s.label}</option>
                 ))}
               </select>
@@ -332,7 +349,7 @@ const ProjectsPage = () => {
                 onChange={(e) => setTypeFilter(e.target.value)}
               >
                 <option value="all">All Types</option>
-                {PROJECT_TYPES.map(t => (
+                {(PROJECT_TYPES || []).map(t => (
                   <option key={t.key} value={t.key}>{t.label}</option>
                 ))}
               </select>
@@ -340,7 +357,7 @@ const ProjectsPage = () => {
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Summary</label>
               <div className="text-sm text-gray-600 mt-2">
-                {summary.total} projects • ${(summary.totalBudget / 1000000).toFixed(1)}M budget
+                {(summary?.total || 0)} projects • ${(((summary?.totalBudget || 0) / 1000000)).toFixed(1)}M budget
               </div>
             </div>
             <div className="flex items-end">
@@ -355,7 +372,7 @@ const ProjectsPage = () => {
       {/* Grid View */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProjects.map((project) => (
+          {(filteredProjects || []).map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
         </div>
@@ -379,7 +396,7 @@ const ProjectsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredProjects.map((project) => (
+              {(filteredProjects || []).map((project) => (
                 <ProjectRow key={project.id} project={project} />
               ))}
             </tbody>
@@ -402,7 +419,7 @@ const ProjectsPage = () => {
       {/* Project Modal */}
       <ProjectModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleCloseModal}
         project={editingProject}
         onSave={handleSave}
         isLoading={isSaving}

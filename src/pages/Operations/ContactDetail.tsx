@@ -16,55 +16,36 @@ import { contactService, type Contact as ServiceContact } from '@/services/conta
 
 // Default contact for fallback
 const defaultContact = {
-  id: '1',
+  id: '',
   contactType: 'individual',
-  firstName: 'John',
-  lastName: 'Smith',
-  company: 'Smith Construction Co.',
-  jobTitle: 'Owner',
-  roles: ['contractor', 'vendor'],
-  emails: [
-    { email: 'john@smithconstruction.com', type: 'Work', isPrimary: true },
-    { email: 'john.smith@gmail.com', type: 'Personal', isPrimary: false },
-  ],
-  phones: [
-    { number: '(864) 555-0101', type: 'Mobile', isPrimary: true },
-    { number: '(864) 555-0102', type: 'Work', isPrimary: false },
-  ],
-  preferredContact: 'Phone',
+  firstName: '',
+  lastName: '',
+  company: '',
+  jobTitle: '',
+  roles: [] as string[],
+  emails: [] as Array<{ email: string; type: string; isPrimary?: boolean }>,
+  phones: [] as Array<{ number: string; type: string; isPrimary?: boolean }>,
+  preferredContact: '',
   address: {
-    line1: '456 Construction Way',
+    line1: '',
     line2: '',
-    city: 'Greenville',
-    state: 'SC',
-    zipCode: '29601',
+    city: '',
+    state: '',
+    zipCode: '',
   },
-  website: 'https://smithconstruction.com',
-  linkedin: 'https://linkedin.com/in/johnsmith',
-  w9OnFile: true,
-  paymentTerms: 'Net 30',
-  vendorNumber: 'VND-001',
-  tags: ['Reliable', 'Quality Work'],
-  notes: 'Great contractor for foundation and framing work. Always delivers on time.',
-  createdAt: '2023-01-15T10:00:00Z',
-  updatedAt: '2024-01-10T14:30:00Z',
-  opportunities: [
-    { id: '1', address: '123 Oak Street', stage: 'Negotiating', value: 85000 },
-  ],
-  projects: [
-    { id: '1', name: 'Watson House Development', role: 'General Contractor', status: 'active' },
-    { id: '2', name: 'Oslo Townhomes', role: 'Foundation Contractor', status: 'active' },
-    { id: '3', name: 'Cedar Mill Phase 1', role: 'Framing Contractor', status: 'completed' },
-  ],
-  transactions: [
-    { id: '1', date: '2024-01-15', description: 'Foundation work payment', amount: 45000 },
-    { id: '2', date: '2024-01-05', description: 'Framing labor', amount: 32000 },
-    { id: '3', date: '2023-12-20', description: 'Material deposit', amount: 15000 },
-  ],
-  notes_history: [
-    { id: '1', content: 'Discussed upcoming project timeline. John confirmed availability for Q2.', date: '2024-01-10', user: 'Bryan De Bruin' },
-    { id: '2', content: 'Met on-site to review foundation plans. Made some minor adjustments.', date: '2023-12-15', user: 'Bryan De Bruin' },
-  ],
+  website: '',
+  linkedin: '',
+  w9OnFile: false,
+  paymentTerms: '',
+  vendorNumber: '',
+  tags: [] as string[],
+  notes: '',
+  createdAt: '',
+  updatedAt: '',
+  opportunities: [] as Array<{ id: string; address: string; stage?: string; value?: number }>,
+  projects: [] as Array<{ id: string; name: string; role?: string; status?: string }>,
+  transactions: [] as Array<{ id: string; date: string; description: string; amount: number }>,
+  notes_history: [] as Array<{ id: string; content: string; date: string; user: string }>,
 };
 
 const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -86,6 +67,7 @@ const ContactDetail: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState<typeof defaultContact | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [newNote, setNewNote] = useState('');
 
@@ -93,6 +75,7 @@ const ContactDetail: React.FC = () => {
     const loadContact = async () => {
       if (!id) return;
       try {
+        setLoadError(null);
         const data = await contactService.getById(id);
         if (data) {
           // Map service data to component format
@@ -124,8 +107,9 @@ const ContactDetail: React.FC = () => {
           setContact(null);
         }
       } catch (error) {
-        console.warn('Using default contact data:', error);
-        setContact(defaultContact);
+        console.warn('Failed to load contact data:', error);
+        setLoadError('Failed to load contact data.');
+        setContact(null);
       } finally {
         setLoading(false);
       }
@@ -158,6 +142,7 @@ const ContactDetail: React.FC = () => {
     return (
       <div className="p-6 text-center">
         <h2 className="text-xl font-semibold text-gray-900">Contact not found</h2>
+        {loadError && <p className="text-sm text-gray-500 mt-2">{loadError}</p>}
         <Button className="mt-4" onClick={() => navigate('/contacts')}>
           Back to Contacts
         </Button>
@@ -165,9 +150,9 @@ const ContactDetail: React.FC = () => {
     );
   }
 
-  const primaryEmail = contact.emails.find((e) => e.isPrimary) || contact.emails[0];
-  const primaryPhone = contact.phones.find((p) => p.isPrimary) || contact.phones[0];
-  const totalTransacted = contact.transactions.reduce((sum, t) => sum + t.amount, 0);
+  const primaryEmail = contact.emails?.find((e) => e.isPrimary) || contact.emails?.[0];
+  const primaryPhone = contact.phones?.find((p) => p.isPrimary) || contact.phones?.[0];
+  const totalTransacted = (contact.transactions || []).reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -194,7 +179,7 @@ const ContactDetail: React.FC = () => {
                     <p className="text-gray-500">{contact.jobTitle} at {contact.company}</p>
                   )}
                   <div className="flex gap-1 mt-1">
-                    {contact.roles.map((role) => {
+                    {(contact.roles || []).map((role) => {
                       const config = TYPE_CONFIG[role] || TYPE_CONFIG.other;
                       return (
                         <Badge key={role} className={config.color}>
@@ -251,7 +236,7 @@ const ContactDetail: React.FC = () => {
                     <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
                       <Mail className="w-4 h-4" /> Email Addresses
                     </h4>
-                    {contact.emails.map((email, idx) => (
+                    {(contact.emails || []).map((email, idx) => (
                       <div key={idx} className="mb-1">
                         <a href={`mailto:${email.email}`} className="text-emerald-600 hover:text-emerald-700">
                           {email.email}
@@ -266,7 +251,7 @@ const ContactDetail: React.FC = () => {
                     <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-2">
                       <Phone className="w-4 h-4" /> Phone Numbers
                     </h4>
-                    {contact.phones.map((phone, idx) => (
+                    {(contact.phones || []).map((phone, idx) => (
                       <div key={idx} className="mb-1">
                         <a href={`tel:${phone.number}`} className="text-emerald-600 hover:text-emerald-700">
                           {phone.number}
@@ -346,7 +331,7 @@ const ContactDetail: React.FC = () => {
                   <CardContent>
                     <p className="text-gray-700">{contact.notes}</p>
                     <div className="flex flex-wrap gap-2 mt-4">
-                      {contact.tags.map((tag) => (
+                      {(contact.tags || []).map((tag) => (
                         <Badge key={tag} variant="outline">{tag}</Badge>
                       ))}
                     </div>
@@ -369,7 +354,7 @@ const ContactDetail: React.FC = () => {
               <CardContent>
                 {contact.opportunities.length > 0 ? (
                   <div className="space-y-2">
-                    {contact.opportunities.map((opp) => (
+                    {(contact.opportunities || []).map((opp) => (
                       <div
                         key={opp.id}
                         className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -402,7 +387,7 @@ const ContactDetail: React.FC = () => {
               <CardContent>
                 {contact.projects.length > 0 ? (
                   <div className="space-y-2">
-                    {contact.projects.map((project) => (
+                    {(contact.projects || []).map((project) => (
                       <div
                         key={project.id}
                         className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -438,7 +423,7 @@ const ContactDetail: React.FC = () => {
               <CardContent>
                 {contact.transactions.length > 0 ? (
                   <div className="space-y-2">
-                    {contact.transactions.map((txn) => (
+                    {(contact.transactions || []).map((txn) => (
                       <div
                         key={txn.id}
                         className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -485,7 +470,7 @@ const ContactDetail: React.FC = () => {
 
                 {/* Notes Timeline */}
                 <div className="border-t pt-6 space-y-4">
-                  {contact.notes_history.map((note) => (
+                  {(contact.notes_history || []).map((note) => (
                     <div key={note.id} className="flex gap-4">
                       <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <User className="w-4 h-4 text-gray-500" />

@@ -98,7 +98,6 @@ const OpportunityPipelineKanban = () => {
   const handleDrop = (e, stageId) => {
     e.preventDefault();
     if (draggedCard) {
-      console.log(`Moving ${draggedCard.name} to ${stageId}`);
       // In real app, update the opportunity's stage
     }
     setDraggedCard(null);

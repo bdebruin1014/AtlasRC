@@ -594,7 +594,7 @@ const OpportunityForm: React.FC = () => {
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
-                    {US_STATES.map(state => (
+                    {(US_STATES || []).map(state => (
                       <SelectItem key={state.value} value={state.value}>{state.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -620,7 +620,7 @@ const OpportunityForm: React.FC = () => {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROPERTY_TYPES.map(type => (
+                  {(PROPERTY_TYPES || []).map(type => (
                     <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -658,7 +658,7 @@ const OpportunityForm: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STAGES.map(stage => (
+                  {(STAGES || []).map(stage => (
                     <SelectItem key={stage.value} value={stage.value}>{stage.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -683,7 +683,7 @@ const OpportunityForm: React.FC = () => {
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
-                  {LEAD_SOURCES.map(source => (
+                  {(LEAD_SOURCES || []).map(source => (
                     <SelectItem key={source.value} value={source.value}>{source.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -811,7 +811,7 @@ const OpportunityForm: React.FC = () => {
             <div className="md:col-span-2">
               <Label>Seller Motivation (select all that apply)</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {MOTIVATION_TYPES.map(motivation => (
+                {(MOTIVATION_TYPES || []).map(motivation => (
                   <Button
                     key={motivation.value}
                     type="button"
@@ -905,7 +905,7 @@ const OpportunityForm: React.FC = () => {
                       <SelectValue placeholder="Select condition" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PROPERTY_CONDITIONS.map(condition => (
+                      {(PROPERTY_CONDITIONS || []).map(condition => (
                         <SelectItem key={condition.value} value={condition.value}>{condition.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -1034,7 +1034,7 @@ const OpportunityForm: React.FC = () => {
               </div>
               {attachments.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  {attachments.map((file, index) => (
+                  {(attachments || []).map((file, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                       <span className="text-sm truncate">{file.name}</span>
                       <Button
@@ -1065,7 +1065,7 @@ const OpportunityForm: React.FC = () => {
             <div>
               <Label>Tags</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {TAGS_OPTIONS.map(tag => (
+                {(TAGS_OPTIONS || []).map(tag => (
                   <Button
                     key={tag}
                     type="button"

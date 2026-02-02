@@ -292,7 +292,6 @@ export default function ProjectLedger() {
   };
 
   const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
-    console.log(`Exporting project ledger as ${format}`);
   };
 
   if (isLoading) {

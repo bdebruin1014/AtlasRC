@@ -28,7 +28,6 @@ export default function OpportunityFinancials({ opportunity, onNavigateToDealAna
   };
 
   const handleSaveDealSheet = async (data) => {
-    console.log('Deal sheet saved:', data);
     // Deal sheet is saved by the component itself
     // This callback can be used for additional actions like showing a toast
   };
@@ -42,7 +41,6 @@ export default function OpportunityFinancials({ opportunity, onNavigateToDealAna
     });
 
     // Could navigate to a project creation page with pre-filled data
-    console.log('Create project from deal sheet:', data);
     // navigate(`/projects/new?${queryParams.toString()}`);
 
     // For now, show an alert

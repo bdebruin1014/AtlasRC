@@ -76,10 +76,7 @@ const SEC_EXEMPTIONS = [
 const LEGAL_STRUCTURES = ENTITY_TYPES;
 
 // Default entities for fallback
-const defaultParentEntities = [
-  { id: '1', name: 'Olive Brynn LLC' },
-  { id: '2', name: 'VanRock Holdings LLC' },
-];
+const defaultParentEntities = [];
 
 interface FormData {
   name: string;
@@ -158,7 +155,7 @@ const EntityForm: React.FC = () => {
         const allEntities = await entityService.getAll();
         if (allEntities && allEntities.length > 0) {
           // Filter out current entity from parent selection
-          const available = allEntities
+          const available = (allEntities || [])
             .filter((e: any) => e.id !== id)
             .map((e: any) => ({ id: e.id, name: e.name }));
           setParentEntities(available);
@@ -445,7 +442,7 @@ const EntityForm: React.FC = () => {
                   <SelectValue placeholder="Select purpose" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ENTITY_PURPOSES.map(purpose => (
+                  {(ENTITY_PURPOSES || []).map(purpose => (
                     <SelectItem key={purpose.value} value={purpose.value}>
                       <div>
                         <div className="font-medium">{purpose.label}</div>
@@ -466,7 +463,7 @@ const EntityForm: React.FC = () => {
                   <SelectValue placeholder="Select legal structure" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ENTITY_TYPES.map(type => (
+                  {(ENTITY_TYPES || []).map(type => (
                     <SelectItem key={type.value} value={type.value}>
                       <div>
                         <div className="font-medium">{type.label}</div>
@@ -488,7 +485,7 @@ const EntityForm: React.FC = () => {
                     <SelectValue placeholder="Select project type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PROJECT_TYPES.map(type => (
+                    {(PROJECT_TYPES || []).map(type => (
                       <SelectItem key={type.value} value={type.value}>
                         <div>
                           <div className="font-medium">{type.label}</div>
@@ -509,7 +506,7 @@ const EntityForm: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">None (top-level)</SelectItem>
-                  {parentEntities.map(entity => (
+                  {(parentEntities || []).map(entity => (
                     <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -550,7 +547,7 @@ const EntityForm: React.FC = () => {
                     <SelectValue placeholder="Select SEC exemption" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SEC_EXEMPTIONS.map(exemption => (
+                    {(SEC_EXEMPTIONS || []).map(exemption => (
                       <SelectItem key={exemption.value} value={exemption.value}>
                         <div>
                           <div className="font-medium">{exemption.label}</div>
@@ -594,7 +591,7 @@ const EntityForm: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {US_STATES.map(state => (
+                  {(US_STATES || []).map(state => (
                     <SelectItem key={state.value} value={state.value}>{state.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -698,7 +695,7 @@ const EntityForm: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {US_STATES.map(state => (
+                    {(US_STATES || []).map(state => (
                       <SelectItem key={state.value} value={state.value}>{state.label}</SelectItem>
                     ))}
                   </SelectContent>

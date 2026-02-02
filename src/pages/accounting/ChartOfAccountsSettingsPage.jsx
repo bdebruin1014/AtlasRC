@@ -126,8 +126,7 @@ const ChartOfAccountsSettingsPage = () => {
       if (template) {
         // Create basic accounts for each category in the template
         // In a real implementation, this would load from a template file
-        await accountService.applyTemplate?.(templateId, entityId) ||
-          console.log('Template application not implemented in service');
+        await accountService.applyTemplate?.(templateId, entityId);
       }
 
       toast({

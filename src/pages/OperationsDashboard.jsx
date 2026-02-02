@@ -117,8 +117,8 @@ const OperationsDashboard = () => {
                  </div>
               </div>
 
-              <div 
-                onClick={() => navigate('/operations/sales')}
+                     <div 
+                        onClick={() => navigate('/operations/tasks')}
                 className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-emerald-200 cursor-pointer transition-all flex items-center gap-4 group"
               >
                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center group-hover:bg-amber-100 transition-colors">
@@ -133,7 +133,7 @@ const OperationsDashboard = () => {
 
            {/* Summary Cards */}
            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-              {stats.map((stat, i) => (
+              {(stats || []).map((stat, i) => (
                  <Card key={i} className="border-gray-200 shadow-sm">
                     <CardContent className="p-6">
                        <div className="flex justify-between items-start">
@@ -179,7 +179,7 @@ const OperationsDashboard = () => {
                     </CardHeader>
                     <CardContent className="p-0">
                        <div className="divide-y divide-gray-100">
-                          {myTasks.map(task => (
+                          {(myTasks || []).map(task => (
                              <div key={task.id} className="p-4 hover:bg-gray-50 transition-colors flex items-start gap-3 group">
                                 <input type="checkbox" className="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
                                 <div className="flex-1 min-w-0">
@@ -207,7 +207,7 @@ const OperationsDashboard = () => {
                     </CardHeader>
                     <CardContent className="p-6">
                        <div className="relative pl-4 border-l border-gray-200 space-y-6">
-                          {recentActivity.map((item, i) => (
+                          {(recentActivity || []).map((item, i) => (
                              <div key={i} className="relative pl-6 group">
                                 <div className={cn(
                                    "absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 bg-white transition-colors",
@@ -273,7 +273,7 @@ const OperationsDashboard = () => {
                     </CardHeader>
                     <CardContent className="p-0">
                        <div className="divide-y divide-gray-100">
-                          {upcomingEvents.map(evt => (
+                          {(upcomingEvents || []).map(evt => (
                              <div key={evt.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
                                 <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-lg border",
                                    evt.type === 'meeting' ? "bg-blue-50 text-blue-600 border-blue-100" :
@@ -301,7 +301,7 @@ const OperationsDashboard = () => {
                     </CardHeader>
                     <CardContent className="p-4">
                        <div className="grid grid-cols-2 gap-3">
-                          {salesPipeline.map((stage, i) => (
+                          {(salesPipeline || []).map((stage, i) => (
                              <div key={i} className="p-3 bg-gray-50 rounded border border-gray-100 text-center">
                                 <div className={cn("w-2 h-2 rounded-full mx-auto mb-1", stage.color)} />
                                 <div className="text-xl font-bold text-gray-900">{stage.count}</div>
@@ -319,13 +319,13 @@ const OperationsDashboard = () => {
            <div className="mt-8">
                <h3 className="text-lg font-bold text-gray-900 mb-4">More Tools</h3>
                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {[
+                  {([
                      { label: 'Manage Tasks', icon: CheckSquare, path: '/operations/tasks', color: 'text-blue-600' },
                      { label: 'View Listings', icon: Home, path: '/operations/sales/listings', color: 'text-emerald-600' },
                      { label: 'Manage Agents', icon: Users, path: '/operations/sales/agents', color: 'text-amber-600' },
                      { label: 'View Calendar', icon: CalendarIcon, path: '/operations/calendar', color: 'text-purple-600' },
                      { label: 'Run Report', icon: FileText, path: '/reports', color: 'text-gray-600' },
-                  ].map((link, i) => (
+                  ] || []).map((link, i) => (
                      <div 
                         key={i} 
                         onClick={() => navigate(link.path)}

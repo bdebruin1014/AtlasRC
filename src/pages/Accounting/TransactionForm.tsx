@@ -64,18 +64,9 @@ const RECURRING_FREQUENCIES = [
 ];
 
 // Default data for fallback
-const defaultEntities = [
-  { id: '1', name: 'VanRock Holdings LLC' },
-  { id: '2', name: 'Watson House LLC' },
-  { id: '3', name: 'Oslo Development LLC' },
-  { id: '4', name: 'Cedar Mill Partners' }
-];
+const defaultEntities = [];
 
-const defaultProjects = [
-  { id: '1', name: 'Watson House Development', entityId: '2' },
-  { id: '2', name: 'Oslo Townhomes', entityId: '3' },
-  { id: '3', name: 'Cedar Mill Mixed Use', entityId: '4' }
-];
+const defaultProjects = [];
 
 interface EntityData {
   id: string;
@@ -129,6 +120,7 @@ const TransactionForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
   const [entities, setEntities] = useState<EntityData[]>(defaultEntities);
   const [projects, setProjects] = useState<ProjectData[]>(defaultProjects);
 
@@ -175,17 +167,18 @@ const TransactionForm: React.FC = () => {
           projectService.getAll()
         ]);
         if (entitiesData?.length) {
-          setEntities(entitiesData.map((e: { id: string; name: string }) => ({ id: e.id, name: e.name })));
+          setEntities((entitiesData || []).map((e: { id: string; name: string }) => ({ id: e.id, name: e.name })));
         }
         if (projectsData?.length) {
-          setProjects(projectsData.map((p: { id: string; name: string; entity_id?: string }) => ({
+          setProjects((projectsData || []).map((p: { id: string; name: string; entity_id?: string }) => ({
             id: p.id,
             name: p.name,
             entityId: p.entity_id || ''
           })));
         }
       } catch (error) {
-        console.warn('Using default entity/project data:', error);
+        console.warn('Failed to load entity/project data:', error);
+        setReferenceError('Failed to load reference data. Some options may be unavailable.');
       }
     };
     loadReferenceData();
@@ -518,6 +511,11 @@ const TransactionForm: React.FC = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {referenceError && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-3 text-sm">
+            {referenceError}
+          </div>
+        )}
         {/* Section 1: Transaction Basics */}
         <Card>
           <CardHeader>
@@ -550,7 +548,7 @@ const TransactionForm: React.FC = () => {
                   <SelectValue placeholder="Select entity" />
                 </SelectTrigger>
                 <SelectContent>
-                  {entities.map(entity => (
+                  {(entities || []).map(entity => (
                     <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -569,7 +567,7 @@ const TransactionForm: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">None</SelectItem>
-                  {filteredProjects.map(project => (
+                  {(filteredProjects || []).map(project => (
                     <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -627,7 +625,7 @@ const TransactionForm: React.FC = () => {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map(cat => (
+                    {(categories || []).map(cat => (
                       <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -689,7 +687,7 @@ const TransactionForm: React.FC = () => {
                   <SelectValue placeholder="Select method" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAYMENT_METHODS.map(method => (
+                  {(PAYMENT_METHODS || []).map(method => (
                     <SelectItem key={method.value} value={method.value}>{method.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -873,7 +871,7 @@ const TransactionForm: React.FC = () => {
             </div>
             {attachments.length > 0 && (
               <div className="mt-4 space-y-2">
-                {attachments.map((file, index) => (
+                {(attachments || []).map((file, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                     <span className="text-sm truncate">{file.name}</span>
                     <Button
@@ -922,7 +920,7 @@ const TransactionForm: React.FC = () => {
                       <SelectValue placeholder="Select frequency" />
                     </SelectTrigger>
                     <SelectContent>
-                      {RECURRING_FREQUENCIES.map(freq => (
+                      {(RECURRING_FREQUENCIES || []).map(freq => (
                         <SelectItem key={freq.value} value={freq.value}>{freq.label}</SelectItem>
                       ))}
                     </SelectContent>

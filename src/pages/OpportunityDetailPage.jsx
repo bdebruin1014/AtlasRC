@@ -89,6 +89,8 @@ const OpportunityDetailPage = () => {
   const [mailingSaving, setMailingSaving] = useState(false);
   const [commSaving, setCommSaving] = useState(false);
 
+  const mailings = mailingRecords;
+
   const [newMailing, setNewMailing] = useState({ type: 'Letter', template: '', notes: '' });
   const [newComm, setNewComm] = useState({ type: 'phone', direction: 'outbound', contact: '', summary: '', duration: '' });
 
@@ -458,7 +460,7 @@ const OpportunityDetailPage = () => {
                   <Select value={formData?.stage || 'Prospecting'} onValueChange={(v) => setField('stage', v)}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {OPPORTUNITY_STAGES.map(s => (
+                      {(OPPORTUNITY_STAGES || []).map(s => (
                         <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -469,7 +471,7 @@ const OpportunityDetailPage = () => {
                   <Select value={formData?.property_type || 'vacant-lot'} onValueChange={(v) => setField('property_type', v)}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {OPPORTUNITY_TYPES.map(t => (
+                      {(OPPORTUNITY_TYPES || []).map(t => (
                         <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -763,17 +765,11 @@ const OpportunityDetailPage = () => {
       case 'tasks':
         return <OpportunityTasks opportunity={opportunity} />;
       
-      case 'property-details':
-        return <OpportunityPropertyDetails opportunity={opportunity} />;
-      
       case 'contacts':
         return <OpportunityContacts opportunity={opportunity} />;
       
       case 'comps':
         return <OpportunityComparables opportunity={opportunity} />;
-      
-      case 'files':
-        return <OpportunityFiles />;
       
       case 'mailing':
         return (
@@ -801,7 +797,7 @@ const OpportunityDetailPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {mailingRecords.map((record) => (
+                  {(mailingRecords || []).map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -891,7 +887,7 @@ const OpportunityDetailPage = () => {
             </div>
 
             <div className="space-y-3">
-              {communications.map((comm) => (
+              {(communications || []).map((comm) => (
                 <div key={comm.id} className="bg-white border rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -1003,7 +999,7 @@ const OpportunityDetailPage = () => {
             </div>
 
             <div className="space-y-4">
-              {esignedDocs.map((doc) => (
+              {(esignedDocs || []).map((doc) => (
                 <div key={doc.id} className="bg-white border rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -1023,7 +1019,7 @@ const OpportunityDetailPage = () => {
                           {doc.completedDate && <span>Completed: {doc.completedDate}</span>}
                         </div>
                         <div className="flex items-center gap-3 mt-3">
-                          {doc.signers.map((signer, idx) => (
+                          {(doc.signers || []).map((signer, idx) => (
                             <div key={idx} className="flex items-center gap-2 text-sm">
                               <div className={cn(
                                 "w-6 h-6 rounded-full flex items-center justify-center text-xs",
@@ -1180,7 +1176,7 @@ const OpportunityDetailPage = () => {
                 <h3 className="font-medium mb-4">Contact History</h3>
                 {communications.length > 0 ? (
                   <div className="space-y-2">
-                    {communications.slice(0, 5).map((comm, idx) => (
+                    {(communications || []).slice(0, 5).map((comm, idx) => (
                       <div key={idx} className="p-2 bg-gray-50 rounded text-sm">
                         <div className="flex justify-between">
                           <span className="font-medium">{comm.type}</span>
@@ -1400,8 +1396,8 @@ const OpportunityDetailPage = () => {
                 <h3 className="font-medium mb-4">Activity Timeline</h3>
                 <div className="space-y-3">
                   {[
-                    ...communications.map(c => ({ type: 'comm', ...c })),
-                    ...mailings.map(m => ({ type: 'mail', ...m })),
+                    ...(communications || []).map(c => ({ type: 'comm', ...c })),
+                    ...(mailings || []).map(m => ({ type: 'mail', ...m })),
                   ].sort((a, b) => new Date(b.date || b.sentDate) - new Date(a.date || a.sentDate)).slice(0, 10).map((item, idx) => (
                     <div key={idx} className="flex items-start gap-3 p-2 bg-gray-50 rounded">
                       <div className={`w-2 h-2 rounded-full mt-1.5 ${item.type === 'comm' ? 'bg-blue-500' : 'bg-purple-500'}`} />
@@ -1412,7 +1408,7 @@ const OpportunityDetailPage = () => {
                       </div>
                     </div>
                   ))}
-                  {communications.length === 0 && mailings.length === 0 && (
+                  {(communications || []).length === 0 && (mailings || []).length === 0 && (
                     <p className="text-gray-500 text-sm text-center py-4">No activity recorded yet.</p>
                   )}
                 </div>
@@ -1448,7 +1444,7 @@ const OpportunityDetailPage = () => {
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto">
-          {sidebarGroups.map((group) => (
+          {(sidebarGroups || []).map((group) => (
             <div key={group.id} className="mb-2">
               <button
                 onClick={() => toggleGroup(group.id)}
@@ -1459,7 +1455,7 @@ const OpportunityDetailPage = () => {
               </button>
               {expandedGroups.includes(group.id) && (
                 <div className="space-y-0.5">
-                  {group.items.map((item) => {
+                  {(group.items || []).map((item) => {
                     const IconComponent = item.icon;
                     return (
                       <button
@@ -1525,7 +1521,7 @@ const OpportunityDetailPage = () => {
         {/* Stage Progress Bar */}
         <div className="bg-white border-b px-6 py-3">
           <div className="flex items-center gap-2">
-            {stages.map((stage, idx) => {
+            {(stages || []).map((stage, idx) => {
               const isCurrent = stage.id === formData?.stage;
               const isPast = stages.findIndex(s => s.id === formData?.stage) > idx;
               return (
