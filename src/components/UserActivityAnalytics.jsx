@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { isDemoMode } from '@/lib/utils';
+import { sessionDataService } from '@/services/sessionDataService';
+import { useSessionAnalytics } from '@/hooks/useSessionData';
 import {
   Activity,
   Users,
@@ -104,17 +106,58 @@ export default function UserActivityAnalytics() {
   const [dateRange, setDateRange] = useState('week');
   const [selectedUser, setSelectedUser] = useState(null);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [dateRange]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      if (isDemoMode()) {
-        setAnalytics(demoAnalytics);
+      // Fetch analytics from session data service
+      const analyticsData = await sessionDataService.getAnalytics(dateRange);
+
+      if (analyticsData) {
+        // Transform the data to match expected format
+        const transformedAnalytics = {
+          summary: {
+            active_users_today: analyticsData.summary?.activeUsersToday || demoAnalytics.summary.active_users_today,
+            active_users_week: analyticsData.summary?.activeUsersWeek || demoAnalytics.summary.active_users_week,
+            total_actions_today: analyticsData.summary?.totalActionsToday || demoAnalytics.summary.total_actions_today,
+            total_actions_week: analyticsData.summary?.totalActionsWeek || demoAnalytics.summary.total_actions_week,
+            avg_session_duration: analyticsData.summary?.avgSessionDuration || demoAnalytics.summary.avg_session_duration,
+            pages_per_session: analyticsData.summary?.pagesPerSession || demoAnalytics.summary.pages_per_session
+          },
+          trends: {
+            users: analyticsData.trends?.users || demoAnalytics.trends.users,
+            actions: analyticsData.trends?.actions || demoAnalytics.trends.actions,
+            sessions: analyticsData.trends?.sessions || demoAnalytics.trends.sessions,
+            engagement: analyticsData.trends?.engagement || demoAnalytics.trends.engagement
+          },
+          activityByHour: analyticsData.hourlyActivity?.length > 0
+            ? analyticsData.hourlyActivity.map(h => ({
+                hour: `${h.hour}${h.hour < 12 ? 'am' : 'pm'}`,
+                actions: h.total_actions || h.actions || 0
+              }))
+            : demoAnalytics.activityByHour,
+          activityByDay: demoAnalytics.activityByDay, // Would need weekly data aggregation
+          topUsers: analyticsData.topUsers?.length > 0
+            ? analyticsData.topUsers.map(u => ({
+                id: u.user_id,
+                name: u.full_name || 'Unknown',
+                email: u.email || '',
+                actions: u.actions_today || 0,
+                sessions: u.sessions_today || 0,
+                last_active: u.last_active_at || new Date().toISOString()
+              }))
+            : demoAnalytics.topUsers,
+          actionTypes: demoAnalytics.actionTypes, // Would need action type breakdown
+          moduleUsage: analyticsData.moduleUsage?.length > 0
+            ? analyticsData.moduleUsage.map(m => ({
+                module: m.module?.charAt(0).toUpperCase() + m.module?.slice(1) || 'Unknown',
+                usage: m.total_actions > 0 ? Math.round(m.total_actions / (analyticsData.summary?.totalActionsToday || 1) * 100) : 0,
+                color: getModuleColor(m.module)
+              }))
+            : demoAnalytics.moduleUsage,
+          recentActivity: demoAnalytics.recentActivity // Would need real activity data
+        };
+        setAnalytics(transformedAnalytics);
       } else {
-        // In production, fetch from analytics API
         setAnalytics(demoAnalytics);
       }
     } catch (error) {
@@ -123,7 +166,27 @@ export default function UserActivityAnalytics() {
     } finally {
       setLoading(false);
     }
+  }, [dateRange]);
+
+  // Helper function to get module colors
+  const getModuleColor = (module) => {
+    const colors = {
+      projects: '#3b82f6',
+      contacts: '#10b981',
+      documents: '#8b5cf6',
+      accounting: '#f59e0b',
+      reports: '#ef4444',
+      opportunities: '#06b6d4',
+      pipeline: '#06b6d4',
+      admin: '#6b7280',
+      other: '#9ca3af'
+    };
+    return colors[module?.toLowerCase()] || '#9ca3af';
   };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
