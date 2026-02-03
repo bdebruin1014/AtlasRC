@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 const AccountingEntitiesListPage = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('list'); // list, hierarchy
+  const [viewMode, setViewMode] = useState('grid'); // grid, list, hierarchy
   const [typeFilter, setTypeFilter] = useState('all');
   const [expandedNodes, setExpandedNodes] = useState(['ent-olive', 'ent-vanrock']);
 
@@ -267,7 +267,7 @@ const AccountingEntitiesListPage = () => {
           {/* Entity info */}
           <div 
             className="flex-1 flex items-center gap-4 py-1"
-            onClick={() => navigate(`/accounting/${node.id}`)}
+            onClick={() => navigate(`/accounting/entities/${node.id}`)}
           >
             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", typeConfig.bg)}>
               <Building2 className={cn("w-4 h-4", typeConfig.text)} />
@@ -311,7 +311,7 @@ const AccountingEntitiesListPage = () => {
               className="p-1 hover:bg-gray-200 rounded"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/accounting/${node.id}`);
+                navigate(`/accounting/entities/${node.id}`);
               }}
             >
               <ExternalLink className="w-4 h-4 text-gray-400" />
@@ -347,7 +347,10 @@ const AccountingEntitiesListPage = () => {
           <Button variant="outline" onClick={() => navigate('/accounting/hierarchy')}>
             <GitBranch className="w-4 h-4 mr-2" />Ownership Hierarchy
           </Button>
-          <Button className="bg-[#047857] hover:bg-[#065f46]">
+          <Button variant="outline" onClick={() => alert('Open import dialog')}>
+            <Download className="w-4 h-4 mr-2" />Import Entities
+          </Button>
+          <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => alert('Open EntityFormModal')}>
             <Plus className="w-4 h-4 mr-2" />New Entity
           </Button>
         </div>
@@ -424,6 +427,12 @@ const AccountingEntitiesListPage = () => {
         </select>
         <div className="flex border rounded-md">
           <button
+            onClick={() => setViewMode('grid')}
+            className={cn("px-3 py-2 text-sm flex items-center gap-1", viewMode === 'grid' ? "bg-[#047857] text-white" : "text-gray-500 hover:bg-gray-100")}
+          >
+            <LayoutGrid className="w-4 h-4" />Grid
+          </button>
+          <button
             onClick={() => setViewMode('list')}
             className={cn("px-3 py-2 text-sm flex items-center gap-1", viewMode === 'list' ? "bg-[#047857] text-white" : "text-gray-500 hover:bg-gray-100")}
           >
@@ -440,6 +449,70 @@ const AccountingEntitiesListPage = () => {
           <Download className="w-4 h-4 mr-2" />Export
         </Button>
       </div>
+
+      {/* Grid View */}
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredEntities.map(entity => {
+            const typeConfig = getTypeConfig(entity.type);
+            const needsAttention = entity.openTransactions > 10;
+            return (
+              <div
+                key={entity.id}
+                onClick={() => navigate(`/accounting/entities/${entity.id}`)}
+                className={cn(
+                  "bg-white border rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg hover:border-[#047857]",
+                  needsAttention && "border-l-4 border-l-amber-500"
+                )}
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", typeConfig.bg)}>
+                    <Building2 className={cn("w-6 h-6", typeConfig.text)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate">{entity.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={cn("px-2 py-0.5 rounded text-xs font-medium", typeConfig.bg, typeConfig.text)}>
+                        {typeConfig.label}
+                      </span>
+                      <span className="text-xs text-gray-500">{entity.state}</span>
+                    </div>
+                  </div>
+                  {needsAttention && (
+                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded p-2">
+                    <p className="text-xs text-gray-500">Cash Balance</p>
+                    <p className="font-semibold text-green-600">{formatCurrency(entity.cashBalance)}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded p-2">
+                    <p className="text-xs text-gray-500">YTD Revenue</p>
+                    <p className="font-semibold">{formatCurrency(entity.ytdRevenue)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded text-xs",
+                      entity.status === 'active' ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                    )}>
+                      {entity.status}
+                    </span>
+                    {entity.openTransactions > 0 && (
+                      <span className="text-xs text-gray-500">{entity.openTransactions} open items</span>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Hierarchy View */}
       {viewMode === 'hierarchy' && (
@@ -482,7 +555,7 @@ const AccountingEntitiesListPage = () => {
                   <tr 
                     key={entity.id} 
                     className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => navigate(`/accounting/${entity.id}`)}
+                    onClick={() => navigate(`/accounting/entities/${entity.id}`)}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -529,12 +602,16 @@ const AccountingEntitiesListPage = () => {
       )}
 
       {/* Empty State */}
-      {filteredEntities.length === 0 && viewMode === 'list' && (
+      {filteredEntities.length === 0 && (viewMode === 'list' || viewMode === 'grid') && (
         <div className="text-center py-12 bg-white border rounded-lg">
           <Building2 className="w-12 h-12 mx-auto text-gray-300 mb-4" />
           <h3 className="text-lg font-medium mb-1">No entities found</h3>
-          <p className="text-sm text-gray-500 mb-4">Create your first entity to get started</p>
-          <Button className="bg-[#047857] hover:bg-[#065f46]">
+          <p className="text-sm text-gray-500 mb-4">
+            {searchQuery || typeFilter !== 'all'
+              ? "Try adjusting your search or filters"
+              : "Add your first entity to get started with accounting"}
+          </p>
+          <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => alert('Open EntityFormModal')}>
             <Plus className="w-4 h-4 mr-2" />New Entity
           </Button>
         </div>

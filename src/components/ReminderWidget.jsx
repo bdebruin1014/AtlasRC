@@ -125,18 +125,28 @@ const ReminderWidget = () => {
         .eq('status', 'pending')
         .order('due_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        // Silently handle missing table errors - just use empty data
+        // Table may not exist yet (42P01) or schema mismatch
+        const isTableMissing = error.code === '42P01' ||
+                               error.message?.includes('does not exist') ||
+                               error.code === 'PGRST204' ||
+                               error.code === '400';
+        if (!isTableMissing && import.meta.env.DEV) {
+          console.debug('Reminders: table not available, using empty list');
+        }
+        setReminders([]);
+        setLoadError(true);
+        return;
+      }
       setReminders(data || []);
     } catch (error) {
+      // Gracefully handle any unexpected errors
       setReminders([]);
       setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }
-
-  if (!loading && loadError) {
-    return null;
   }
 
   const filteredReminders = useMemo(() => {
@@ -183,6 +193,10 @@ const ReminderWidget = () => {
       return r.status === 'pending' && dueDate >= today && dueDate < tomorrow;
     }).length;
   }, [reminders]);
+
+  if (!loading && loadError) {
+    return null;
+  }
 
   function formatDueDate(dateString) {
     const date = new Date(dateString);

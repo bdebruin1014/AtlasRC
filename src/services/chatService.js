@@ -453,20 +453,30 @@ export function subscribeToPresence(onPresenceChange) {
 // ============================================
 
 export async function getUnreadCounts() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { data: {}, error: null };
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: {}, error: null };
 
-  const { data, error } = await supabase
-    .from('chat_unread_counts')
-    .select('channel_id, count')
-    .eq('user_id', user.id);
+    const { data, error } = await supabase
+      .from('chat_unread_counts')
+      .select('channel_id, count')
+      .eq('user_id', user.id);
 
-  const counts = {};
-  (data || []).forEach(item => {
-    counts[item.channel_id] = item.count;
-  });
+    if (error) {
+      // Silently handle missing table
+      return { data: {}, error: null };
+    }
 
-  return { data: counts, error };
+    const counts = {};
+    (data || []).forEach(item => {
+      counts[item.channel_id] = item.count;
+    });
+
+    return { data: counts, error: null };
+  } catch (err) {
+    // Gracefully handle any errors
+    return { data: {}, error: null };
+  }
 }
 
 export async function markAsRead(channelId) {

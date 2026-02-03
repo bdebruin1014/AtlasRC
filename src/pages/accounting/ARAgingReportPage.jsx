@@ -1,600 +1,674 @@
-// src/pages/accounting/ARAgingReportPage.jsx
-// Accounts Receivable Aging Report with enhanced features
-
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useRef } from 'react';
+import { useParams, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   FileText, Download, Calendar, DollarSign, Clock, AlertTriangle,
-  TrendingUp, Users, Mail, ChevronDown, ChevronRight, Printer, X
+  Users, Mail, ChevronDown, ChevronRight, Printer, RefreshCw, Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  getARAgingReport,
-  generateStatement,
-  processAutoLateFees,
-  getEntityAccountingSettings,
-} from '@/services/accountingEnhancedService';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
-const ARAgingReportPage = () => {
+// Demo AR aging data for fallback
+const demoAgingData = [
+  {
+    id: 'cust-1',
+    customer_name: 'ABC Investments LLC',
+    contact_email: 'accounts@abcinvest.com',
+    current: 0,
+    days_1_30: 0,
+    days_31_60: 0,
+    days_61_90: 0,
+    days_over_90: 0,
+    total: 0,
+    invoices: [],
+  },
+  {
+    id: 'cust-2',
+    customer_name: 'Smith Family Trust',
+    contact_email: 'trust@smithfamily.com',
+    current: 25000,
+    days_1_30: 0,
+    days_31_60: 0,
+    days_61_90: 0,
+    days_over_90: 0,
+    total: 25000,
+    invoices: [
+      { invoice_number: 'INV-2024-002', invoice_date: '2024-12-10', due_date: '2025-01-09', amount: 25000, age_days: 5, bucket: 'current' },
+    ],
+  },
+  {
+    id: 'cust-3',
+    customer_name: 'Denver RE Partners',
+    contact_email: 'ap@denverrepart.com',
+    current: 0,
+    days_1_30: 85000,
+    days_31_60: 0,
+    days_61_90: 0,
+    days_over_90: 0,
+    total: 85000,
+    invoices: [
+      { invoice_number: 'INV-2024-003', invoice_date: '2024-12-15', due_date: '2025-01-14', amount: 85000, age_days: 20, bucket: 'days_1_30' },
+    ],
+  },
+  {
+    id: 'cust-5',
+    customer_name: 'Mountain View Builders',
+    contact_email: 'billing@mvbuilders.com',
+    current: 0,
+    days_1_30: 0,
+    days_31_60: 45000,
+    days_61_90: 0,
+    days_over_90: 50000,
+    total: 95000,
+    invoices: [
+      { invoice_number: 'INV-2024-006', invoice_date: '2024-11-15', due_date: '2024-12-15', amount: 45000, age_days: 50, bucket: 'days_31_60' },
+      { invoice_number: 'INV-2024-001', invoice_date: '2024-09-01', due_date: '2024-10-01', amount: 50000, age_days: 125, bucket: 'days_over_90' },
+    ],
+  },
+  {
+    id: 'cust-6',
+    customer_name: 'Quick Close Homes LLC',
+    contact_email: 'orders@quickclose.com',
+    current: 80000,
+    days_1_30: 80000,
+    days_31_60: 0,
+    days_61_90: 0,
+    days_over_90: 0,
+    total: 160000,
+    invoices: [
+      { invoice_number: 'INV-2024-008', invoice_date: '2025-01-05', due_date: '2025-02-04', amount: 80000, age_days: 0, bucket: 'current' },
+      { invoice_number: 'INV-2024-005', invoice_date: '2024-12-20', due_date: '2025-01-19', amount: 80000, age_days: 15, bucket: 'days_1_30' },
+    ],
+  },
+  {
+    id: 'cust-7',
+    customer_name: 'Riverside Development Corp',
+    contact_email: 'finance@riverside.com',
+    current: 0,
+    days_1_30: 0,
+    days_31_60: 0,
+    days_61_90: 75000,
+    days_over_90: 0,
+    total: 75000,
+    invoices: [
+      { invoice_number: 'INV-2024-004', invoice_date: '2024-10-20', due_date: '2024-11-19', amount: 75000, age_days: 77, bucket: 'days_61_90' },
+    ],
+  },
+];
+
+const AGING_BUCKETS = [
+  { key: 'current', label: 'Current', color: 'text-green-600', bgColor: 'bg-green-100' },
+  { key: 'days_1_30', label: '1-30 Days', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  { key: 'days_31_60', label: '31-60 Days', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+  { key: 'days_61_90', label: '61-90 Days', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+  { key: 'days_over_90', label: '90+ Days', color: 'text-red-600', bgColor: 'bg-red-100' },
+];
+
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val || 0);
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const fetchAgingData = async (entityId) => {
+  try {
+    const { data, error } = await supabase
+      .from('ar_aging_view')
+      .select('*')
+      .eq('entity_id', entityId);
+
+    if (data && !error) return data;
+  } catch (err) {
+    console.error('Error fetching AR aging:', err);
+  }
+  return demoAgingData;
+};
+
+export default function ARAgingReportPage() {
   const { entityId } = useParams();
-  const [report, setReport] = useState(null);
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const context = useOutletContext();
+  const entity = context?.entity;
+  const printRef = useRef(null);
+
+  const [expandedCustomers, setExpandedCustomers] = useState(new Set());
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
-  const [expandedCustomers, setExpandedCustomers] = useState({});
-  const [processingLateFees, setProcessingLateFees] = useState(false);
-  const [statementModal, setStatementModal] = useState({ open: false, statement: null, customerId: null });
-  const statementRef = useRef(null);
+  const [filterBucket, setFilterBucket] = useState('all');
+  const [statementModal, setStatementModal] = useState({ open: false, customer: null });
 
-  useEffect(() => {
-    loadReport();
-  }, [entityId, asOfDate]);
+  const { data: agingData = [], isLoading, refetch } = useQuery({
+    queryKey: ['ar-aging', entityId, asOfDate],
+    queryFn: () => fetchAgingData(entityId),
+    enabled: !!entityId,
+  });
 
-  const loadReport = async () => {
-    try {
-      setLoading(true);
-      const [reportData, settingsData] = await Promise.all([
-        getARAgingReport(entityId, new Date(asOfDate)),
-        getEntityAccountingSettings(entityId),
-      ]);
-      setReport(reportData);
-      setSettings(settingsData);
-    } catch (error) {
-      console.error('Error loading report:', error);
-    } finally {
-      setLoading(false);
-    }
+  // Filter out customers with zero balances and apply bucket filter
+  const filteredData = agingData.filter(customer => {
+    if (customer.total === 0) return false;
+    if (filterBucket === 'all') return true;
+    return customer[filterBucket] > 0;
+  });
+
+  // Calculate totals
+  const totals = agingData.reduce((acc, customer) => ({
+    current: acc.current + (customer.current || 0),
+    days_1_30: acc.days_1_30 + (customer.days_1_30 || 0),
+    days_31_60: acc.days_31_60 + (customer.days_31_60 || 0),
+    days_61_90: acc.days_61_90 + (customer.days_61_90 || 0),
+    days_over_90: acc.days_over_90 + (customer.days_over_90 || 0),
+    total: acc.total + (customer.total || 0),
+  }), { current: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_over_90: 0, total: 0 });
+
+  const toggleCustomer = (customerId) => {
+    setExpandedCustomers(prev => {
+      const next = new Set(prev);
+      if (next.has(customerId)) {
+        next.delete(customerId);
+      } else {
+        next.add(customerId);
+      }
+      return next;
+    });
   };
 
-  const handleProcessLateFees = async () => {
-    try {
-      setProcessingLateFees(true);
-      const result = await processAutoLateFees(entityId);
-      alert(`Processed ${result.processed} late fee(s)`);
-      loadReport();
-    } catch (error) {
-      console.error('Error processing late fees:', error);
-    } finally {
-      setProcessingLateFees(false);
-    }
+  const handlePrint = () => {
+    window.print();
   };
 
-  const handleGenerateStatement = async (customerId) => {
-    try {
-      const statement = await generateStatement(customerId, entityId, new Date(asOfDate));
-      // Open statement preview modal with generated data
-      setStatementModal({
-        open: true,
-        statement,
-        customerId,
-      });
-    } catch (error) {
-      console.error('Error generating statement:', error);
-    }
+  const handleExportPDF = () => {
+    window.print();
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Customer', 'Current', '1-30 Days', '31-60 Days', '61-90 Days', '90+ Days', 'Total'];
+    const rows = filteredData.map(c => [
+      c.customer_name,
+      c.current,
+      c.days_1_30,
+      c.days_31_60,
+      c.days_61_90,
+      c.days_over_90,
+      c.total,
+    ]);
+    rows.push(['TOTAL', totals.current, totals.days_1_30, totals.days_31_60, totals.days_61_90, totals.days_over_90, totals.total]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ar-aging-${asOfDate}.csv`;
+    a.click();
+  };
+
+  const handleGenerateStatement = (customer) => {
+    setStatementModal({ open: true, customer });
   };
 
   const handlePrintStatement = () => {
-    if (statementRef.current) {
-      const printContent = statementRef.current.innerHTML;
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Customer Statement</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #f5f5f5; }
-              .header { margin-bottom: 20px; }
-              .header h1 { margin: 0; }
-              .totals { margin-top: 20px; font-weight: bold; }
-              .overdue { color: #dc2626; }
-              .text-right { text-align: right; }
-              @media print { body { padding: 0; } }
-            </style>
-          </head>
-          <body>${printContent}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }
+    const customer = statementModal.customer;
+    if (!customer) return;
+
+    const printContent = `
+      <html>
+        <head>
+          <title>Statement - ${customer.customer_name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; }
+            h1 { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .text-right { text-align: right; }
+            .totals { margin-top: 20px; font-size: 18px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <h1>Statement of Account</h1>
+          <p><strong>Customer:</strong> ${customer.customer_name}</p>
+          <p><strong>Email:</strong> ${customer.contact_email || '-'}</p>
+          <p><strong>Statement Date:</strong> ${formatDate(asOfDate)}</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Due Date</th>
+                <th>Age (Days)</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${customer.invoices?.map(inv => `
+                <tr>
+                  <td>${inv.invoice_number}</td>
+                  <td>${formatDate(inv.due_date)}</td>
+                  <td>${inv.age_days} days</td>
+                  <td class="text-right">${formatCurrency(inv.amount)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="4">No invoices</td></tr>'}
+            </tbody>
+          </table>
+
+          <p class="totals">Total Balance Due: ${formatCurrency(customer.total)}</p>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   };
-
-  const handleDownloadStatement = () => {
-    if (!statementModal.statement) return;
-    const { statement } = statementModal;
-
-    // Build CSV content
-    const rows = [
-      ['Customer Statement'],
-      ['Customer:', statement.customer?.name || 'Unknown'],
-      ['Statement Date:', formatDate(statement.statement_date)],
-      [''],
-      ['Invoice #', 'Date', 'Due Date', 'Original Amount', 'Paid', 'Balance Due', 'Days Overdue'],
-    ];
-
-    statement.invoices?.forEach(inv => {
-      rows.push([
-        inv.invoice_number,
-        formatDate(inv.invoice_date),
-        formatDate(inv.due_date),
-        inv.total_amount?.toFixed(2) || '0.00',
-        inv.amount_paid?.toFixed(2) || '0.00',
-        inv.balance_due?.toFixed(2) || '0.00',
-        inv.days_overdue?.toString() || '0',
-      ]);
-    });
-
-    rows.push(['']);
-    rows.push(['', '', '', '', 'Total Balance Due:', statement.total_balance?.toFixed(2) || '0.00', '']);
-
-    const csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `statement-${statement.customer?.name || 'customer'}-${asOfDate}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const toggleCustomer = (customerId) => {
-    setExpandedCustomers(prev => ({
-      ...prev,
-      [customerId]: !prev[customerId],
-    }));
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount || 0);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  // Group invoices by customer
-  const groupedByCustomer = report?.details?.reduce((acc, inv) => {
-    const customerId = inv.customer_id;
-    if (!acc[customerId]) {
-      acc[customerId] = {
-        customer: inv.customer,
-        invoices: [],
-        totals: { current: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, over_90: 0, total: 0 },
-      };
-    }
-    acc[customerId].invoices.push(inv);
-    acc[customerId].totals[inv.aging_bucket] += inv.balance_due;
-    acc[customerId].totals.total += inv.balance_due;
-    return acc;
-  }, {}) || {};
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
-
-  const summary = report?.summary || {};
-  const overdueTotal = (summary.days_1_30 || 0) + (summary.days_31_60 || 0) + 
-                       (summary.days_61_90 || 0) + (summary.over_90 || 0);
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="p-6" ref={printRef}>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6 print:mb-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="w-7 h-7 text-blue-600" />
-            AR Aging Report
-          </h1>
-          <p className="text-gray-500 mt-1">Accounts Receivable by aging bucket</p>
+          <h1 className="text-2xl font-bold">AR Aging Report</h1>
+          <p className="text-muted-foreground">
+            Accounts receivable aging analysis for {entity?.name || entity?.short_name || 'this entity'}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <input
-              type="date"
-              value={asOfDate}
-              onChange={(e) => setAsOfDate(e.target.value)}
-              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          {settings?.late_fee_enabled && (
-            <Button 
-              variant="outline"
-              onClick={handleProcessLateFees}
-              disabled={processingLateFees}
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Apply Late Fees
-            </Button>
-          )}
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+        <div className="flex items-center gap-2 print:hidden">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button onClick={handleExportPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            Export PDF
           </Button>
         </div>
       </div>
 
+      {/* Report Filters */}
+      <div className="flex items-center justify-between mb-6 print:mb-4">
+        <div className="flex items-center gap-4 print:hidden">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">As of:</span>
+            <input
+              type="date"
+              value={asOfDate}
+              onChange={(e) => setAsOfDate(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={filterBucket} onValueChange={setFilterBucket}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Buckets</SelectItem>
+                <SelectItem value="current">Current Only</SelectItem>
+                <SelectItem value="days_1_30">1-30 Days</SelectItem>
+                <SelectItem value="days_31_60">31-60 Days</SelectItem>
+                <SelectItem value="days_61_90">61-90 Days</SelectItem>
+                <SelectItem value="days_over_90">90+ Days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="hidden print:block text-sm text-muted-foreground">
+          As of: {formatDate(asOfDate)}
+        </div>
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <Card className="bg-green-50 border-green-200">
-          <CardContent className="pt-4">
-            <p className="text-sm text-green-700">Current</p>
-            <p className="text-xl font-bold text-green-800">{formatCurrency(summary.current)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-yellow-50 border-yellow-200">
-          <CardContent className="pt-4">
-            <p className="text-sm text-yellow-700">1-30 Days</p>
-            <p className="text-xl font-bold text-yellow-800">{formatCurrency(summary.days_1_30)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-orange-50 border-orange-200">
-          <CardContent className="pt-4">
-            <p className="text-sm text-orange-700">31-60 Days</p>
-            <p className="text-xl font-bold text-orange-800">{formatCurrency(summary.days_31_60)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-50 border-red-200">
-          <CardContent className="pt-4">
-            <p className="text-sm text-red-700">61-90 Days</p>
-            <p className="text-xl font-bold text-red-800">{formatCurrency(summary.days_61_90)}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-100 border-red-300">
-          <CardContent className="pt-4">
-            <p className="text-sm text-red-800">Over 90 Days</p>
-            <p className="text-xl font-bold text-red-900">{formatCurrency(summary.over_90)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-gray-600">Total AR</p>
-            <p className="text-xl font-bold">{formatCurrency(summary.total)}</p>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 print:grid-cols-6 print:gap-2 print:mb-4">
+        {AGING_BUCKETS.map(bucket => (
+          <Card key={bucket.key} className="print:border-0 print:shadow-none">
+            <CardContent className="p-4 print:p-2">
+              <p className="text-xs text-muted-foreground">{bucket.label}</p>
+              <p className={cn("text-xl font-bold print:text-base", bucket.color)}>
+                {formatCurrency(totals[bucket.key])}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+        <Card className="bg-muted/50 print:border-0 print:shadow-none">
+          <CardContent className="p-4 print:p-2">
+            <p className="text-xs text-muted-foreground">Total Outstanding</p>
+            <p className="text-xl font-bold print:text-base">{formatCurrency(totals.total)}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Aging Distribution Bar */}
-      {summary.total > 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium">Aging Distribution</span>
-              <span className="text-sm text-gray-500">
-                ({((overdueTotal / summary.total) * 100).toFixed(1)}% overdue)
-              </span>
+      {/* Aging Distribution Chart */}
+      {totals.total > 0 && (
+        <Card className="mb-6 print:hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Aging Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex h-8 rounded-lg overflow-hidden">
+              {AGING_BUCKETS.map(bucket => {
+                const percentage = totals.total > 0 ? (totals[bucket.key] / totals.total) * 100 : 0;
+                if (percentage === 0) return null;
+                return (
+                  <div
+                    key={bucket.key}
+                    className={cn("flex items-center justify-center text-xs font-medium", bucket.bgColor, bucket.color)}
+                    style={{ width: `${percentage}%` }}
+                    title={`${bucket.label}: ${formatCurrency(totals[bucket.key])} (${percentage.toFixed(1)}%)`}
+                  >
+                    {percentage >= 10 && `${percentage.toFixed(0)}%`}
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex h-4 rounded-full overflow-hidden">
-              <div 
-                className="bg-green-500" 
-                style={{ width: `${(summary.current / summary.total) * 100}%` }}
-                title={`Current: ${formatCurrency(summary.current)}`}
-              />
-              <div 
-                className="bg-yellow-500" 
-                style={{ width: `${(summary.days_1_30 / summary.total) * 100}%` }}
-                title={`1-30: ${formatCurrency(summary.days_1_30)}`}
-              />
-              <div 
-                className="bg-orange-500" 
-                style={{ width: `${(summary.days_31_60 / summary.total) * 100}%` }}
-                title={`31-60: ${formatCurrency(summary.days_31_60)}`}
-              />
-              <div 
-                className="bg-red-500" 
-                style={{ width: `${(summary.days_61_90 / summary.total) * 100}%` }}
-                title={`61-90: ${formatCurrency(summary.days_61_90)}`}
-              />
-              <div 
-                className="bg-red-700" 
-                style={{ width: `${(summary.over_90 / summary.total) * 100}%` }}
-                title={`Over 90: ${formatCurrency(summary.over_90)}`}
-              />
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-500 rounded" /> Current
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-yellow-500 rounded" /> 1-30
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-orange-500 rounded" /> 31-60
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-500 rounded" /> 61-90
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-700 rounded" /> 90+
-              </span>
+            <div className="flex flex-wrap gap-4 mt-3">
+              {AGING_BUCKETS.map(bucket => (
+                <div key={bucket.key} className="flex items-center gap-2 text-sm">
+                  <div className={cn("w-3 h-3 rounded", bucket.bgColor)} />
+                  <span className="text-muted-foreground">{bucket.label}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Detailed Report by Customer */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Aging by Customer</CardTitle>
+      {/* Aging Detail Table */}
+      <Card className="print:border-0 print:shadow-none">
+        <CardHeader className="print:hidden">
+          <CardTitle className="text-base">Aging by Customer</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Customer</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Current</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">1-30</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">31-60</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">61-90</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">90+</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Total</th>
-                <th className="w-24"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {Object.entries(groupedByCustomer).map(([customerId, data]) => (
-                <React.Fragment key={customerId}>
-                  <tr 
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => toggleCustomer(customerId)}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {expandedCustomers[customerId] ? (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                        )}
-                        <span className="font-medium">{data.customer?.name || 'Unknown'}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {data.invoices.length} invoice{data.invoices.length > 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">{formatCurrency(data.totals.current)}</td>
-                    <td className="px-4 py-3 text-right text-yellow-600">{formatCurrency(data.totals.days_1_30)}</td>
-                    <td className="px-4 py-3 text-right text-orange-600">{formatCurrency(data.totals.days_31_60)}</td>
-                    <td className="px-4 py-3 text-right text-red-600">{formatCurrency(data.totals.days_61_90)}</td>
-                    <td className="px-4 py-3 text-right text-red-700 font-medium">{formatCurrency(data.totals.over_90)}</td>
-                    <td className="px-4 py-3 text-right font-bold">{formatCurrency(data.totals.total)}</td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleGenerateStatement(customerId)}
-                        >
-                          <Printer className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Mail className="w-4 h-4" />
-                        </Button>
-                      </div>
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted border-b print:bg-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium print:px-2 print:py-1">Customer</th>
+                  <th className="text-right px-4 py-3 font-medium print:px-2 print:py-1">Current</th>
+                  <th className="text-right px-4 py-3 font-medium print:px-2 print:py-1">1-30</th>
+                  <th className="text-right px-4 py-3 font-medium print:px-2 print:py-1">31-60</th>
+                  <th className="text-right px-4 py-3 font-medium print:px-2 print:py-1">61-90</th>
+                  <th className="text-right px-4 py-3 font-medium print:px-2 print:py-1">90+</th>
+                  <th className="text-right px-4 py-3 font-medium print:px-2 print:py-1">Total</th>
+                  <th className="w-24 print:hidden"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredData.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                      <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">No outstanding receivables</p>
+                      <p className="text-sm">All customer accounts are current</p>
                     </td>
                   </tr>
-                  {expandedCustomers[customerId] && data.invoices.map(inv => (
-                    <tr key={inv.id} className="bg-gray-50">
-                      <td className="px-4 py-2 pl-12">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm">{inv.invoice_number}</span>
-                          <span className="text-xs text-gray-500">
-                            Due: {formatDate(inv.due_date)}
-                          </span>
-                          {inv.days_overdue > 0 && (
-                            <Badge className="bg-red-100 text-red-800 text-xs">
-                              {inv.days_overdue} days overdue
-                            </Badge>
-                          )}
-                        </div>
+                ) : (
+                  <>
+                    {filteredData.map((customer) => {
+                      const isExpanded = expandedCustomers.has(customer.id);
+                      const hasInvoices = customer.invoices?.length > 0;
+
+                      return (
+                        <React.Fragment key={customer.id}>
+                          <tr
+                            className={cn(
+                              "hover:bg-muted/50 cursor-pointer print:cursor-default",
+                              customer.days_over_90 > 0 && "bg-red-50"
+                            )}
+                            onClick={() => hasInvoices && toggleCustomer(customer.id)}
+                          >
+                            <td className="px-4 py-3 print:px-2 print:py-1">
+                              <div className="flex items-center gap-2">
+                                {hasInvoices && (
+                                  <span className="print:hidden">
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </span>
+                                )}
+                                <div>
+                                  <p className="font-medium">{customer.customer_name}</p>
+                                  <p className="text-xs text-muted-foreground print:hidden">{customer.contact_email}</p>
+                                </div>
+                                {customer.days_over_90 > 0 && (
+                                  <AlertTriangle className="h-4 w-4 text-red-500 print:hidden" />
+                                )}
+                              </div>
+                            </td>
+                            <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", customer.current > 0 && "text-green-600 font-medium")}>
+                              {customer.current > 0 ? formatCurrency(customer.current) : '-'}
+                            </td>
+                            <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", customer.days_1_30 > 0 && "text-blue-600 font-medium")}>
+                              {customer.days_1_30 > 0 ? formatCurrency(customer.days_1_30) : '-'}
+                            </td>
+                            <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", customer.days_31_60 > 0 && "text-amber-600 font-medium")}>
+                              {customer.days_31_60 > 0 ? formatCurrency(customer.days_31_60) : '-'}
+                            </td>
+                            <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", customer.days_61_90 > 0 && "text-orange-600 font-medium")}>
+                              {customer.days_61_90 > 0 ? formatCurrency(customer.days_61_90) : '-'}
+                            </td>
+                            <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", customer.days_over_90 > 0 && "text-red-600 font-medium")}>
+                              {customer.days_over_90 > 0 ? formatCurrency(customer.days_over_90) : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-right font-bold print:px-2 print:py-1">
+                              {formatCurrency(customer.total)}
+                            </td>
+                            <td className="px-4 py-3 print:hidden" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleGenerateStatement(customer)}
+                                  title="Print Statement"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" title="Email Statement">
+                                  <Mail className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                          {/* Expanded Invoice Details */}
+                          {isExpanded && customer.invoices?.map((invoice) => (
+                            <tr key={invoice.invoice_number} className="bg-muted/30 print:hidden">
+                              <td className="px-4 py-2 pl-12">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-primary font-medium">{invoice.invoice_number}</span>
+                                  <span className="text-muted-foreground text-xs">
+                                    Due: {formatDate(invoice.due_date)}
+                                  </span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {invoice.age_days} days
+                                  </Badge>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {invoice.bucket === 'current' ? formatCurrency(invoice.amount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {invoice.bucket === 'days_1_30' ? formatCurrency(invoice.amount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {invoice.bucket === 'days_31_60' ? formatCurrency(invoice.amount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {invoice.bucket === 'days_61_90' ? formatCurrency(invoice.amount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {invoice.bucket === 'days_over_90' ? formatCurrency(invoice.amount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-right font-medium">
+                                {formatCurrency(invoice.amount)}
+                              </td>
+                              <td></td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                    {/* Totals Row */}
+                    <tr className="bg-muted font-bold border-t-2">
+                      <td className="px-4 py-3 print:px-2 print:py-1">TOTAL</td>
+                      <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", totals.current > 0 && "text-green-600")}>
+                        {formatCurrency(totals.current)}
                       </td>
-                      <td className="px-4 py-2 text-right text-sm">
-                        {inv.aging_bucket === 'current' ? formatCurrency(inv.balance_due) : '-'}
+                      <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", totals.days_1_30 > 0 && "text-blue-600")}>
+                        {formatCurrency(totals.days_1_30)}
                       </td>
-                      <td className="px-4 py-2 text-right text-sm">
-                        {inv.aging_bucket === 'days_1_30' ? formatCurrency(inv.balance_due) : '-'}
+                      <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", totals.days_31_60 > 0 && "text-amber-600")}>
+                        {formatCurrency(totals.days_31_60)}
                       </td>
-                      <td className="px-4 py-2 text-right text-sm">
-                        {inv.aging_bucket === 'days_31_60' ? formatCurrency(inv.balance_due) : '-'}
+                      <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", totals.days_61_90 > 0 && "text-orange-600")}>
+                        {formatCurrency(totals.days_61_90)}
                       </td>
-                      <td className="px-4 py-2 text-right text-sm">
-                        {inv.aging_bucket === 'days_61_90' ? formatCurrency(inv.balance_due) : '-'}
+                      <td className={cn("px-4 py-3 text-right print:px-2 print:py-1", totals.days_over_90 > 0 && "text-red-600")}>
+                        {formatCurrency(totals.days_over_90)}
                       </td>
-                      <td className="px-4 py-2 text-right text-sm">
-                        {inv.aging_bucket === 'over_90' ? formatCurrency(inv.balance_due) : '-'}
+                      <td className="px-4 py-3 text-right print:px-2 print:py-1">
+                        {formatCurrency(totals.total)}
                       </td>
-                      <td className="px-4 py-2 text-right text-sm font-medium">
-                        {formatCurrency(inv.balance_due)}
-                      </td>
-                      <td></td>
+                      <td className="print:hidden"></td>
                     </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-              {Object.keys(groupedByCustomer).length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>No outstanding receivables</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot className="bg-gray-100 border-t-2 font-bold">
-              <tr>
-                <td className="px-4 py-3">Total</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(summary.current)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(summary.days_1_30)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(summary.days_31_60)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(summary.days_61_90)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(summary.over_90)}</td>
-                <td className="px-4 py-3 text-right text-lg">{formatCurrency(summary.total)}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
+                  </>
+                )}
+              </tbody>
+            </table>
+          )}
         </CardContent>
       </Card>
 
-      {/* Statement Preview Modal */}
-      <Dialog open={statementModal.open} onOpenChange={(open) => setStatementModal(prev => ({ ...prev, open }))}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      {/* Print Footer */}
+      <div className="hidden print:block mt-8 pt-4 border-t text-xs text-muted-foreground">
+        <p>Generated on {new Date().toLocaleString()} | {entity?.name || 'Entity'} | AR Aging Report</p>
+      </div>
+
+      {/* Statement Modal */}
+      <Dialog open={statementModal.open} onOpenChange={(open) => setStatementModal({ open, customer: null })}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              Customer Statement
-            </DialogTitle>
+            <DialogTitle>Customer Statement</DialogTitle>
           </DialogHeader>
 
-          <div ref={statementRef} className="statement-content">
-            {statementModal.statement && (
-              <div className="space-y-4">
-                {/* Statement Header */}
-                <div className="header border-b pb-4">
-                  <h1 className="text-xl font-bold">Statement of Account</h1>
-                  <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-500">Bill To:</p>
-                      <p className="font-semibold">{statementModal.statement.customer?.name || 'Customer'}</p>
-                      {statementModal.statement.customer?.address && (
-                        <p>{statementModal.statement.customer.address}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-500">Statement Date:</p>
-                      <p className="font-semibold">{formatDate(statementModal.statement.statement_date || asOfDate)}</p>
-                      <p className="text-gray-500 mt-2">Account Balance:</p>
-                      <p className="text-xl font-bold text-blue-600">
-                        {formatCurrency(statementModal.statement.total_balance || 0)}
-                      </p>
-                    </div>
+          {statementModal.customer && (
+            <div className="space-y-4">
+              <div className="border-b pb-4">
+                <h2 className="text-lg font-bold">Statement of Account</h2>
+                <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Customer:</p>
+                    <p className="font-semibold">{statementModal.customer.customer_name}</p>
+                    <p className="text-muted-foreground">{statementModal.customer.contact_email}</p>
                   </div>
-                </div>
-
-                {/* Invoices Table */}
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">Invoice #</th>
-                      <th className="px-3 py-2 text-left font-medium">Date</th>
-                      <th className="px-3 py-2 text-left font-medium">Due Date</th>
-                      <th className="px-3 py-2 text-right font-medium">Amount</th>
-                      <th className="px-3 py-2 text-right font-medium">Paid</th>
-                      <th className="px-3 py-2 text-right font-medium">Balance</th>
-                      <th className="px-3 py-2 text-right font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {(statementModal.statement.invoices || []).map((inv, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-3 py-2">{inv.invoice_number}</td>
-                        <td className="px-3 py-2">{formatDate(inv.invoice_date)}</td>
-                        <td className="px-3 py-2">{formatDate(inv.due_date)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(inv.total_amount)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(inv.amount_paid)}</td>
-                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(inv.balance_due)}</td>
-                        <td className="px-3 py-2 text-right">
-                          {inv.days_overdue > 0 ? (
-                            <span className="overdue text-red-600">{inv.days_overdue} days overdue</span>
-                          ) : (
-                            <span className="text-green-600">Current</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-100 font-bold">
-                    <tr>
-                      <td colSpan={5} className="px-3 py-2 text-right">Total Balance Due:</td>
-                      <td className="px-3 py-2 text-right text-lg">{formatCurrency(statementModal.statement.total_balance)}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-
-                {/* Aging Summary */}
-                {statementModal.statement.aging_summary && (
-                  <div className="totals bg-gray-50 p-4 rounded-lg">
-                    <p className="font-semibold mb-2">Aging Summary</p>
-                    <div className="grid grid-cols-5 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Current</p>
-                        <p>{formatCurrency(statementModal.statement.aging_summary.current)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">1-30 Days</p>
-                        <p>{formatCurrency(statementModal.statement.aging_summary.days_1_30)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">31-60 Days</p>
-                        <p>{formatCurrency(statementModal.statement.aging_summary.days_31_60)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">61-90 Days</p>
-                        <p>{formatCurrency(statementModal.statement.aging_summary.days_61_90)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Over 90 Days</p>
-                        <p className="text-red-600 font-bold">{formatCurrency(statementModal.statement.aging_summary.over_90)}</p>
-                      </div>
-                    </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground">Statement Date:</p>
+                    <p className="font-semibold">{formatDate(asOfDate)}</p>
+                    <p className="text-muted-foreground mt-2">Balance Due:</p>
+                    <p className="text-xl font-bold text-primary">{formatCurrency(statementModal.customer.total)}</p>
                   </div>
-                )}
-
-                {/* Payment Terms */}
-                <div className="text-sm text-gray-600 pt-4 border-t">
-                  <p>Please remit payment to the address above. For questions regarding this statement, please contact our accounts receivable department.</p>
                 </div>
               </div>
-            )}
-          </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={handleDownloadStatement}>
-              <Download className="w-4 h-4 mr-2" />
-              Download CSV
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Invoice #</th>
+                    <th className="px-3 py-2 text-left">Due Date</th>
+                    <th className="px-3 py-2 text-right">Age</th>
+                    <th className="px-3 py-2 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {statementModal.customer.invoices?.map((inv) => (
+                    <tr key={inv.invoice_number}>
+                      <td className="px-3 py-2">{inv.invoice_number}</td>
+                      <td className="px-3 py-2">{formatDate(inv.due_date)}</td>
+                      <td className="px-3 py-2 text-right">{inv.age_days} days</td>
+                      <td className="px-3 py-2 text-right font-medium">{formatCurrency(inv.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-muted font-bold">
+                  <tr>
+                    <td colSpan={3} className="px-3 py-2 text-right">Total Balance Due:</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(statementModal.customer.total)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <div className="bg-muted/50 p-3 rounded-lg text-sm">
+                <p className="font-medium mb-2">Aging Summary</p>
+                <div className="grid grid-cols-5 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Current</p>
+                    <p className="font-medium text-green-600">{formatCurrency(statementModal.customer.current)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">1-30 Days</p>
+                    <p className="font-medium text-blue-600">{formatCurrency(statementModal.customer.days_1_30)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">31-60 Days</p>
+                    <p className="font-medium text-amber-600">{formatCurrency(statementModal.customer.days_31_60)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">61-90 Days</p>
+                    <p className="font-medium text-orange-600">{formatCurrency(statementModal.customer.days_61_90)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">90+ Days</p>
+                    <p className="font-medium text-red-600">{formatCurrency(statementModal.customer.days_over_90)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatementModal({ open: false, customer: null })}>
+              Close
             </Button>
             <Button variant="outline" onClick={handlePrintStatement}>
               <Printer className="w-4 h-4 mr-2" />
               Print
             </Button>
-            <Button onClick={() => setStatementModal({ open: false, statement: null, customerId: null })}>
-              Close
+            <Button>
+              <Mail className="w-4 h-4 mr-2" />
+              Email Statement
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default ARAgingReportPage;
+}

@@ -58,7 +58,7 @@ const navItems = [
 
 const AccountingSidebar = ({ entityName }) => {
   const { entityId } = useParams();
-  const basePath = `/accounting/entity/${entityId}`;
+  const basePath = `/accounting/${entityId}`;
 
   return (
     <TransactionEntryProvider>

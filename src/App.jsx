@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -11,6 +11,7 @@ import LoadingState from '@/components/LoadingState';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ChatButton } from '@/components/chat';
 import ReminderWidget from '@/components/ReminderWidget';
+import { supabase } from '@/lib/supabase';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 
@@ -39,6 +40,9 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 // ACCOUNTING MODULE
 // ============================================
 const AccountingSidebar = lazy(() => import('@/components/AccountingSidebar'));
+const EntityAccountingSidebar = lazy(() => import('@/components/accounting/EntityAccountingSidebar'));
+const EntityAccountingLayoutNew = lazy(() => import('@/layouts/EntityAccountingLayout'));
+const PlaceholderPage = lazy(() => import('@/pages/accounting/entity/PlaceholderPage'));
 const AccountingEntitiesListPage = lazy(() => import('@/pages/accounting/AccountingEntitiesListPage'));
 const EntityOwnershipHierarchyPage = lazy(() => import('@/pages/accounting/EntityOwnershipHierarchyPage'));
 const EntityDashboardPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
@@ -57,14 +61,32 @@ const Vendors1099Page = lazy(() => import('@/pages/accounting/Vendors1099Page'))
 const BatchPaymentsPage = lazy(() => import('@/pages/accounting/BatchPaymentsPage'));
 const ARAgingReportPage = lazy(() => import('@/pages/accounting/ARAgingReportPage'));
 const EntityAccountingSettingsPage = lazy(() => import('@/pages/accounting/EntityAccountingSettingsPage'));
-const ChartOfAccountsSettingsPage = lazy(() => import('@/pages/accounting/ChartOfAccountsSettingsPage'));
-const BankAccountsSetupPage = lazy(() => import('@/pages/accounting/BankAccountsSetupPage'));
+// Deprecated: ChartOfAccountsSettingsPage - functionality merged into EntityAccountingSettingsPage tabs
+// Deprecated: BankAccountsSetupPage - functionality merged into EntityAccountingSettingsPage tabs
 
 // Accounting Priority 2 (Phase 8)
 const BankFeedsPage = lazy(() => import('@/pages/accounting/BankFeedsPage'));
 const PayrollPage = lazy(() => import('@/pages/accounting/PayrollPage'));
 const ExpenseManagementPage = lazy(() => import('@/pages/accounting/ExpenseManagementPage'));
 const JobCostingReportPage = lazy(() => import('@/pages/accounting/JobCostingReportPage'));
+const IntercompanyTransactionsPage = lazy(() => import('@/pages/accounting/IntercompanyTransactionsPage'));
+const DueToFromPage = lazy(() => import('@/pages/accounting/DueToFromPage'));
+const LoansPayablePage = lazy(() => import('@/pages/accounting/LoansPayablePage'));
+
+// Financial Reports
+const TrialBalancePage = lazy(() => import('@/pages/accounting/TrialBalancePage'));
+const BalanceSheetPage = lazy(() => import('@/pages/accounting/BalanceSheetPage'));
+const IncomeStatementPage = lazy(() => import('@/pages/accounting/IncomeStatementPage'));
+const CashFlowStatementPage = lazy(() => import('@/pages/accounting/CashFlowStatementPage'));
+const MonthEndClosePage = lazy(() => import('@/pages/accounting/MonthEndClosePage'));
+const FiscalPeriodsPage = lazy(() => import('@/pages/accounting/FiscalPeriodsPage'));
+const EntityFilesPage = lazy(() => import('@/pages/accounting/EntityFilesPage'));
+const EntityCommunicationsPage = lazy(() => import('@/pages/accounting/EntityCommunicationsPage'));
+
+// Bank Accounts & Reconciliation (Phase 13)
+const BankAccountsPage = lazy(() => import('@/pages/accounting/BankAccountsPage'));
+const BankTransactionsPage = lazy(() => import('@/pages/accounting/BankTransactionsPage'));
+const BankReconciliationPage = lazy(() => import('@/pages/accounting/BankReconciliationPage'));
 
 // New Accounting Pages (TypeScript)
 const AccountingDashboardPage = lazy(() => import('@/pages/Accounting/AccountingDashboard'));
@@ -307,21 +329,97 @@ const AdminLayout = ({ children }) => (
 
 const AccountingEntityLayout = ({ children }) => {
   const { entityId } = useParams();
-  const entity = {
-    name: entityId ? `Entity ${entityId}` : 'Entity',
-    type: 'entity',
-    cashBalance: 0,
-    ytdRevenue: 0,
-    ytdExpenses: 0,
-  };
+  const [entity, setEntity] = React.useState(null);
+  const [taskCount, setTaskCount] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchEntity = async () => {
+      setLoading(true);
+      try {
+        // Try to fetch from Supabase first
+        const { data, error } = await supabase
+          .from('entities')
+          .select('*')
+          .eq('id', entityId)
+          .single();
+
+        if (data && !error) {
+          setEntity(data);
+
+          // Fetch task count
+          const { count } = await supabase
+            .from('entity_tasks')
+            .select('*', { count: 'exact', head: true })
+            .eq('entity_id', entityId)
+            .in('status', ['pending', 'in_progress']);
+          setTaskCount(count || 0);
+        } else {
+          // Fallback to mock data for demo
+          const mockEntities = {
+            'ent-001': { name: 'VanRock Holdings LLC', type: 'holding', cash_balance: 485000, ytd_revenue: 1250000, ytd_expenses: 890000 },
+            'ent-002': { name: 'Olive Brynn LLC', type: 'holding', cash_balance: 892000, ytd_revenue: 450000, ytd_expenses: 125000 },
+            'ent-003': { name: 'Highland Park Development LLC', type: 'project', cash_balance: 125000, ytd_revenue: 0, ytd_expenses: 1850000 },
+            'ent-004': { name: 'Riverside Commons LLC', type: 'project', cash_balance: 340000, ytd_revenue: 3200000, ytd_expenses: 2100000 },
+            'ent-005': { name: 'Cedar Mill Phase 2 LLC', type: 'project', cash_balance: 75000, ytd_revenue: 0, ytd_expenses: 450000 },
+            'ent-006': { name: 'VanRock Property Management LLC', type: 'operating', cash_balance: 95000, ytd_revenue: 385000, ytd_expenses: 290000 },
+            'ent-olive': { name: 'Olive Brynn LLC', type: 'holding', cash_balance: 892000, ytd_revenue: 450000, ytd_expenses: 125000 },
+            'ent-vanrock': { name: 'VanRock Holdings LLC', type: 'holding', cash_balance: 485000, ytd_revenue: 1250000, ytd_expenses: 890000 },
+            'ent-highland': { name: 'Highland Park Development LLC', type: 'project', cash_balance: 125000, ytd_revenue: 0, ytd_expenses: 1850000 },
+            'ent-riverside': { name: 'Riverside Commons LLC', type: 'project', cash_balance: 340000, ytd_revenue: 3200000, ytd_expenses: 2100000 },
+            'ent-cedar': { name: 'Cedar Mill Phase 2 LLC', type: 'project', cash_balance: 75000, ytd_revenue: 0, ytd_expenses: 450000 },
+            'ent-propman': { name: 'VanRock Property Management LLC', type: 'operating', cash_balance: 95000, ytd_revenue: 385000, ytd_expenses: 290000 },
+          };
+          const mock = mockEntities[entityId] || { name: `Entity ${entityId}`, type: 'entity', cash_balance: 0, ytd_revenue: 0, ytd_expenses: 0 };
+          setEntity({ id: entityId, ...mock });
+          setTaskCount(3); // Demo task count
+        }
+      } catch (err) {
+        console.error('Error fetching entity:', err);
+        setEntity({ id: entityId, name: `Entity ${entityId}`, type: 'entity', cash_balance: 0, ytd_revenue: 0, ytd_expenses: 0 });
+      }
+      setLoading(false);
+    };
+
+    if (entityId) {
+      fetchEntity();
+    }
+  }, [entityId]);
+
   return (
     <TransactionEntryProvider>
-      <div className="flex h-[calc(100vh-40px)]">
-        <Suspense fallback={<LoadingState />}><AccountingSidebar entity={entity} /></Suspense>
-        <div className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></div>
-      </div>
+      <ErrorBoundary>
+        <div className="flex h-[calc(100vh-40px)]">
+          <Suspense fallback={<LoadingState />}>
+            <EntityAccountingSidebar entity={entity} taskCount={taskCount} />
+          </Suspense>
+          <div className="flex-1 overflow-auto">
+            <Suspense fallback={<LoadingState />}>
+              {loading ? <LoadingState /> : children}
+            </Suspense>
+          </div>
+        </div>
+      </ErrorBoundary>
     </TransactionEntryProvider>
   );
+};
+
+// Legacy route redirect - converts old /accounting/:entityId to /accounting/entities/:entityId
+const LegacyAccountingRedirect = () => {
+  const { entityId, '*': rest } = useParams();
+  const newPath = `/accounting/entities/${entityId}${rest ? `/${rest}` : '/dashboard'}`;
+  return <Navigate to={newPath} replace />;
+};
+
+// Legacy route redirect - converts old /entities routes to /accounting/entities
+const LegacyEntitiesRedirect = () => {
+  const { entityId, '*': rest } = useParams();
+  const location = useLocation();
+  if (!entityId) {
+    return <Navigate to="/accounting/entities" replace />;
+  }
+  const subPath = rest || location.pathname.split(`/entities/${entityId}`)[1] || '';
+  return <Navigate to={`/accounting/entities/${entityId}${subPath ? `/${subPath}` : '/dashboard'}`} replace />;
 };
 
 // ============================================
@@ -457,6 +555,8 @@ const AppContent = () => (
     <Route path="/entities" element={<ProtectedRoute><AppLayout><EntitiesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/entities/list" element={<ProtectedRoute><AppLayout><EntitiesListPage /></AppLayout></ProtectedRoute>} />
     <Route path="/entities/new" element={<ProtectedRoute><AppLayout><EntityFormPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/entities/:entityId" element={<ProtectedRoute><AppLayout><EntityDetailPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/entities/:entityId/edit" element={<ProtectedRoute><AppLayout><EntityFormPage /></AppLayout></ProtectedRoute>} />
     <Route path="/entity/:entityId" element={<ProtectedRoute><AppLayout><EntityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/entity/:entityId/edit" element={<ProtectedRoute><AppLayout><EntityFormPage /></AppLayout></ProtectedRoute>} />
 
@@ -479,58 +579,105 @@ const AppContent = () => (
     {/* ============================================ */}
     {/* ACCOUNTING MODULE */}
     {/* ============================================ */}
-    <Route path="/accounting" element={<ProtectedRoute><AppLayout><AccountingEntitiesListPage /></AppLayout></ProtectedRoute>} />
+    {/* Redirect /accounting to /accounting/entities */}
+    <Route path="/accounting" element={<Navigate to="/accounting/entities" replace />} />
+
+    {/* Global accounting tools (no entity context) */}
     <Route path="/accounting/dashboard" element={<ProtectedRoute><AppLayout><AccountingDashboardPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/chart-of-accounts" element={<ProtectedRoute><AppLayout><ChartOfAccountsPage /></AppLayout></ProtectedRoute>} />
-
-    {/* Transaction Routes */}
-    <Route path="/accounting/transactions" element={<ProtectedRoute><AppLayout><AccountingDashboardPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/transactions/new" element={<ProtectedRoute><AppLayout><TransactionFormPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/transactions/:transactionId" element={<ProtectedRoute><AppLayout><TransactionDetailPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/transactions/:transactionId/edit" element={<ProtectedRoute><AppLayout><TransactionFormPage /></AppLayout></ProtectedRoute>} />
-
-    {/* Ledger Routes */}
-    <Route path="/accounting/entity-ledger/:entityId" element={<ProtectedRoute><AppLayout><EntityLedgerPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/project-ledger/:projectId" element={<ProtectedRoute><AppLayout><ProjectLedgerPage /></AppLayout></ProtectedRoute>} />
-
-    {/* Accounting Enhancements (Phase 12) */}
     <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
-    
-    {/* Entity-Specific Accounting Routes */}
-    <Route path="/accounting/:entityId" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/dashboard" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/chart-of-accounts" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityChartOfAccountsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/banking" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityBankingPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/transactions" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityTransactionsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/ownership" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityOwnershipPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/tasks" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityTasksPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/journal-entries" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityTransactionsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/reconciliation" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReconciliationPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/invoices" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityInvoicesPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/bills" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityBillsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/payments" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/intercompany" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/due-to-from" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityDashboardPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/reports" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReportsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/trial-balance" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReportsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/cash-flow" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityReportsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    
-    {/* Accounting Enhancements - Phase 7 */}
-    <Route path="/accounting/:entityId/vendors-1099" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><Vendors1099Page /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/batch-payments" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><BatchPaymentsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/ar-aging" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ARAgingReportPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/settings" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><EntityAccountingSettingsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/settings/chart-of-accounts" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ChartOfAccountsSettingsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/settings/bank-accounts" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><BankAccountsSetupPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    
-    {/* Accounting Priority 2 - Phase 8 */}
-    <Route path="/accounting/:entityId/bank-feeds" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><BankFeedsPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/payroll" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><PayrollPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/expenses" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><ExpenseManagementPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/:entityId/job-costing" element={<ProtectedRoute><AppLayout><AccountingEntityLayout><JobCostingReportPage /></AccountingEntityLayout></AppLayout></ProtectedRoute>} />
-    
+
+    {/* ============================================ */}
+    {/* ENTITY ACCOUNTING ROUTES - Canonical Pattern: /accounting/entities/:entityId/... */}
+    {/* ============================================ */}
+
+    {/* Entity List (no sidebar) */}
+    <Route path="/accounting/entities" element={<ProtectedRoute><AppLayout><AccountingEntitiesListPage /></AppLayout></ProtectedRoute>} />
+
+    {/* Entity Detail Pages - WITH SIDEBAR (using nested routes with Outlet) */}
+    <Route path="/accounting/entities/:entityId" element={<ProtectedRoute><AppLayout><EntityAccountingLayoutNew /></AppLayout></ProtectedRoute>}>
+      {/* Default to dashboard */}
+      <Route index element={<Navigate to="dashboard" replace />} />
+
+      {/* MANAGE */}
+      <Route path="dashboard" element={<Suspense fallback={<LoadingState />}><EntityDashboardPage /></Suspense>} />
+      <Route path="details" element={<Suspense fallback={<LoadingState />}><EntityDashboardPage /></Suspense>} />
+      <Route path="tasks" element={<Suspense fallback={<LoadingState />}><EntityTasksPage /></Suspense>} />
+
+      {/* BANKING */}
+      <Route path="bank-accounts" element={<Suspense fallback={<LoadingState />}><BankAccountsPage /></Suspense>} />
+      <Route path="bank-accounts/:bankAccountId" element={<Suspense fallback={<LoadingState />}><BankAccountsPage /></Suspense>} />
+      <Route path="bank-accounts/:bankAccountId/transactions" element={<Suspense fallback={<LoadingState />}><BankTransactionsPage /></Suspense>} />
+      <Route path="bank-accounts/:bankAccountId/reconcile" element={<Suspense fallback={<LoadingState />}><BankReconciliationPage /></Suspense>} />
+      <Route path="bank-feeds" element={<Suspense fallback={<LoadingState />}><BankFeedsPage /></Suspense>} />
+      <Route path="credit-cards" element={<Suspense fallback={<LoadingState />}><BankAccountsPage /></Suspense>} />
+
+      {/* TRANSACTIONS */}
+      <Route path="transactions" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
+      <Route path="journal-entries" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
+      <Route path="journal-entries/new" element={<Suspense fallback={<LoadingState />}><TransactionFormPage /></Suspense>} />
+      <Route path="journal-entries/:entryId" element={<Suspense fallback={<LoadingState />}><TransactionFormPage /></Suspense>} />
+      <Route path="reconciliation" element={<Suspense fallback={<LoadingState />}><BankReconciliationPage /></Suspense>} />
+
+      {/* RECEIVABLES (AR) */}
+      <Route path="invoices" element={<Suspense fallback={<LoadingState />}><EntityInvoicesPage /></Suspense>} />
+      <Route path="invoices/new" element={<Suspense fallback={<LoadingState />}><EntityInvoicesPage /></Suspense>} />
+      <Route path="invoices/:invoiceId" element={<Suspense fallback={<LoadingState />}><EntityInvoicesPage /></Suspense>} />
+      <Route path="customers" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="ar-aging" element={<Suspense fallback={<LoadingState />}><ARAgingReportPage /></Suspense>} />
+
+      {/* PAYABLES (AP) */}
+      <Route path="bills" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
+      <Route path="bills/new" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
+      <Route path="bills/:billId" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
+      <Route path="vendors" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="batch-payments" element={<Suspense fallback={<LoadingState />}><BatchPaymentsPage /></Suspense>} />
+      <Route path="1099" element={<Suspense fallback={<LoadingState />}><Vendors1099Page /></Suspense>} />
+      <Route path="expenses" element={<Suspense fallback={<LoadingState />}><ExpenseManagementPage /></Suspense>} />
+
+      {/* LOANS */}
+      <Route path="loans" element={<Suspense fallback={<LoadingState />}><LoansPayablePage /></Suspense>} />
+      <Route path="loans/:loanId" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+
+      {/* PAYROLL */}
+      <Route path="payroll" element={<Suspense fallback={<LoadingState />}><PayrollPage /></Suspense>} />
+
+      {/* INTERCOMPANY */}
+      <Route path="intercompany" element={<Suspense fallback={<LoadingState />}><IntercompanyTransactionsPage /></Suspense>} />
+      <Route path="due-to-from" element={<Suspense fallback={<LoadingState />}><DueToFromPage /></Suspense>} />
+
+      {/* REPORTS */}
+      <Route path="reports" element={<Suspense fallback={<LoadingState />}><EntityReportsPage /></Suspense>} />
+      <Route path="trial-balance" element={<Suspense fallback={<LoadingState />}><TrialBalancePage /></Suspense>} />
+      <Route path="balance-sheet" element={<Suspense fallback={<LoadingState />}><BalanceSheetPage /></Suspense>} />
+      <Route path="income-statement" element={<Suspense fallback={<LoadingState />}><IncomeStatementPage /></Suspense>} />
+      <Route path="cash-flow" element={<Suspense fallback={<LoadingState />}><CashFlowStatementPage /></Suspense>} />
+      <Route path="job-costing" element={<Suspense fallback={<LoadingState />}><JobCostingReportPage /></Suspense>} />
+
+      {/* MONTH-END */}
+      <Route path="month-end" element={<Suspense fallback={<LoadingState />}><MonthEndClosePage /></Suspense>} />
+      <Route path="fiscal-periods" element={<Suspense fallback={<LoadingState />}><FiscalPeriodsPage /></Suspense>} />
+
+      {/* SETTINGS */}
+      <Route path="files" element={<Suspense fallback={<LoadingState />}><EntityFilesPage /></Suspense>} />
+      <Route path="communications" element={<Suspense fallback={<LoadingState />}><EntityCommunicationsPage /></Suspense>} />
+      <Route path="settings" element={<Suspense fallback={<LoadingState />}><EntityAccountingSettingsPage /></Suspense>} />
+
+      {/* Catch-all for unbuilt pages */}
+      <Route path="*" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+    </Route>
+
+    {/* Legacy/deprecated routes - redirect to canonical pattern */}
+    <Route path="/accounting/:entityId" element={<LegacyAccountingRedirect />} />
+    <Route path="/accounting/:entityId/*" element={<LegacyAccountingRedirect />} />
+
+    {/* Legacy /entities routes - redirect to /accounting/entities */}
+    <Route path="/entities" element={<Navigate to="/accounting/entities" replace />} />
+    <Route path="/entities/:entityId" element={<LegacyEntitiesRedirect />} />
+    <Route path="/entities/:entityId/*" element={<LegacyEntitiesRedirect />} />
+
     {/* Reports */}
     <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsLayout /></AppLayout></ProtectedRoute>}>
       <Route index element={<Navigate to="/reports/preset" replace />} />

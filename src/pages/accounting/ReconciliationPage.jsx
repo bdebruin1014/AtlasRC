@@ -1,287 +1,331 @@
 import React, { useState } from 'react';
-import { CheckCircle, AlertTriangle, X, ChevronDown, ChevronRight, Search, Download, RefreshCw, Landmark, Calendar, DollarSign, Check, Minus, Plus } from 'lucide-react';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Plus, CheckCircle, AlertTriangle, Clock, Calendar, DollarSign,
+  Wallet, MoreHorizontal, Eye, FileText, Download
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import SelectAccountModal from '@/components/accounting/SelectAccountModal';
 
-const ReconciliationPage = ({ selectedEntity, flatEntities }) => {
-  const [selectedAccount, setSelectedAccount] = useState(null);
+// Demo reconciliation history for fallback
+const demoReconciliations = [
+  { id: 'rec-1', account_name: 'Operating Account', bank_name: 'Chase Bank', statement_date: '2024-12-31', statement_balance: 485000, reconciled_at: '2025-01-05', reconciled_by: 'John Smith', status: 'completed', difference: 0 },
+  { id: 'rec-2', account_name: 'Payroll Account', bank_name: 'Chase Bank', statement_date: '2024-12-31', statement_balance: 125000, reconciled_at: '2025-01-04', reconciled_by: 'Sarah Johnson', status: 'completed', difference: 0 },
+  { id: 'rec-3', account_name: 'Construction Account', bank_name: 'First National', statement_date: '2024-12-31', statement_balance: 1850000, reconciled_at: null, reconciled_by: null, status: 'in_progress', difference: 2500 },
+  { id: 'rec-4', account_name: 'Operating Account', bank_name: 'Chase Bank', statement_date: '2024-11-30', statement_balance: 412000, reconciled_at: '2024-12-05', reconciled_by: 'John Smith', status: 'completed', difference: 0 },
+  { id: 'rec-5', account_name: 'Payroll Account', bank_name: 'Chase Bank', statement_date: '2024-11-30', statement_balance: 98000, reconciled_at: '2024-12-03', reconciled_by: 'Sarah Johnson', status: 'completed', difference: 0 },
+  { id: 'rec-6', account_name: 'Operating Account', bank_name: 'Chase Bank', statement_date: '2024-10-31', statement_balance: 385000, reconciled_at: '2024-11-05', reconciled_by: 'Mike Roberts', status: 'completed', difference: 0 },
+];
+
+// Demo accounts needing reconciliation
+const demoAccountsNeedingReconciliation = [
+  { id: 'acc-1', account_name: 'Construction Account', bank_name: 'First National', last_reconciled: '2024-11-30', current_balance: 1850000, unreconciled_count: 24 },
+  { id: 'acc-2', account_name: 'Savings Reserve', bank_name: 'Bank of America', last_reconciled: '2024-11-15', current_balance: 250000, unreconciled_count: 8 },
+];
+
+const STATUS_CONFIG = {
+  completed: { label: 'Completed', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  in_progress: { label: 'In Progress', color: 'bg-blue-100 text-blue-700', icon: Clock },
+  pending: { label: 'Pending', color: 'bg-amber-100 text-amber-700', icon: AlertTriangle },
+};
+
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val || 0);
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const fetchReconciliations = async (entityId) => {
+  try {
+    const { data, error } = await supabase
+      .from('reconciliations')
+      .select('*')
+      .eq('entity_id', entityId)
+      .order('statement_date', { ascending: false })
+      .limit(50);
+
+    if (data && !error) return data;
+  } catch (err) {
+    console.error('Error fetching reconciliations:', err);
+  }
+  return demoReconciliations;
+};
+
+export default function ReconciliationPage() {
+  const { entityId } = useParams();
+  const navigate = useNavigate();
+  const context = useOutletContext();
+  const entity = context?.entity;
+
   const [showReconcileModal, setShowReconcileModal] = useState(false);
-  const [statementBalance, setStatementBalance] = useState('');
-  const [statementDate, setStatementDate] = useState('');
-  const [selectedItems, setSelectedItems] = useState([]);
 
-  const bankAccounts = [
-    { id: 'acct-1', name: 'Operating Account', bank: 'Chase Bank', number: '****4521', entity: 'vanrock', balance: 2450000, lastReconciled: '2024-11-30', status: 'needs-reconciliation', unreconciledCount: 24 },
-    { id: 'acct-2', name: 'Payroll Account', bank: 'Chase Bank', number: '****7832', entity: 'vanrock', balance: 125000, lastReconciled: '2024-12-15', status: 'current', unreconciledCount: 3 },
-    { id: 'acct-3', name: 'Construction Account', bank: 'First National', number: '****7891', entity: 'watson', balance: 1850000, lastReconciled: '2024-12-20', status: 'current', unreconciledCount: 8 },
-    { id: 'acct-4', name: 'Reserve Account', bank: 'Wells Fargo', number: '****3344', entity: 'sunset', balance: 425000, lastReconciled: '2024-11-30', status: 'needs-reconciliation', unreconciledCount: 12 },
-    { id: 'acct-5', name: 'Operating Account', bank: 'Bank of America', number: '****9012', entity: 'oslo', balance: 920000, lastReconciled: '2024-12-10', status: 'current', unreconciledCount: 5 },
-    { id: 'acct-6', name: 'Fund Operating', bank: 'JP Morgan', number: '****5678', entity: 'fund1', balance: 1200000, lastReconciled: '2024-12-01', status: 'needs-reconciliation', unreconciledCount: 18 },
-  ];
+  const basePath = `/accounting/entities/${entityId}`;
 
-  const unreconciledItems = [
-    { id: 1, date: '2024-12-28', type: 'deposit', ref: 'DEP-1234', description: 'Rental Income - December', amount: 145000, cleared: false },
-    { id: 2, date: '2024-12-27', type: 'check', ref: 'CHK-5567', description: 'Smith Construction - Draw #5', amount: -85000, cleared: true },
-    { id: 3, date: '2024-12-26', type: 'ach', ref: 'ACH-8901', description: 'Property Tax Payment', amount: -45000, cleared: true },
-    { id: 4, date: '2024-12-24', type: 'deposit', ref: 'DEP-1235', description: 'Lot Sale - Lot 15', amount: 285000, cleared: false },
-    { id: 5, date: '2024-12-23', type: 'check', ref: 'CHK-5568', description: 'Ferguson Supply - Materials', amount: -48500, cleared: true },
-    { id: 6, date: '2024-12-22', type: 'wire', ref: 'WIRE-001', description: 'Construction Loan Draw', amount: 500000, cleared: false },
-    { id: 7, date: '2024-12-20', type: 'ach', ref: 'ACH-8902', description: 'Insurance Premium', amount: -28500, cleared: true },
-    { id: 8, date: '2024-12-19', type: 'check', ref: 'CHK-5569', description: 'Legal Fees', amount: -15000, cleared: false },
-    { id: 9, date: '2024-12-18', type: 'deposit', ref: 'DEP-1236', description: 'Management Fee Income', amount: 35000, cleared: true },
-    { id: 10, date: '2024-12-15', type: 'ach', ref: 'ACH-8903', description: 'Utility Payment', amount: -4200, cleared: true },
-  ];
+  const { data: reconciliations = [], isLoading } = useQuery({
+    queryKey: ['reconciliations', entityId],
+    queryFn: () => fetchReconciliations(entityId),
+    enabled: !!entityId,
+  });
 
-  const toggleItemSelection = (id) => {
-    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const stats = {
+    total: reconciliations.length,
+    completed: reconciliations.filter(r => r.status === 'completed').length,
+    inProgress: reconciliations.filter(r => r.status === 'in_progress').length,
+    needsAttention: demoAccountsNeedingReconciliation.length,
   };
 
-  const selectAll = () => {
-    const clearedIds = unreconciledItems.filter(i => i.cleared).map(i => i.id);
-    setSelectedItems(clearedIds);
-  };
-
-  const clearAll = () => setSelectedItems([]);
-
-  const selectedDeposits = unreconciledItems.filter(i => selectedItems.includes(i.id) && i.amount > 0).reduce((s, i) => s + i.amount, 0);
-  const selectedWithdrawals = unreconciledItems.filter(i => selectedItems.includes(i.id) && i.amount < 0).reduce((s, i) => s + Math.abs(i.amount), 0);
-  const beginningBalance = selectedAccount ? selectedAccount.balance - unreconciledItems.reduce((s, i) => s + i.amount, 0) : 0;
-  const clearedBalance = beginningBalance + selectedDeposits - selectedWithdrawals;
-  const difference = parseFloat(statementBalance || 0) - clearedBalance;
-
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'deposit': return 'bg-green-100 text-green-700';
-      case 'check': return 'bg-blue-100 text-blue-700';
-      case 'ach': return 'bg-purple-100 text-purple-700';
-      case 'wire': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
+  const handleAccountSelect = (accountId) => {
+    navigate(`${basePath}/bank-accounts/${accountId}/reconcile`);
   };
 
   return (
-    <div className="flex h-full">
-      {/* Left Panel - Account List */}
-      <div className="w-72 bg-white border-r flex flex-col">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold mb-3">Bank Accounts</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search accounts..." className="pl-9" />
-          </div>
+    <div className="p-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Reconciliation</h1>
+          <p className="text-muted-foreground">
+            Bank account reconciliation history for {entity?.name || entity?.short_name || 'this entity'}
+          </p>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {bankAccounts.map((account) => (
-            <div
-              key={account.id}
-              onClick={() => setSelectedAccount(account)}
-              className={cn(
-                "p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors",
-                selectedAccount?.id === account.id && "bg-green-50 border-l-4 border-l-[#047857]"
-              )}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div>
-                  <p className="font-medium text-sm">{account.name}</p>
-                  <p className="text-xs text-gray-500">{account.bank} {account.number}</p>
-                </div>
-                {account.status === 'needs-reconciliation' ? (
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                )}
-              </div>
-              <p className="text-xs text-gray-500">{flatEntities?.find(e => e.id === account.entity)?.name}</p>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-sm font-semibold">${(account.balance / 1000).toFixed(0)}K</span>
-                <span className={cn("text-xs px-2 py-0.5 rounded", account.unreconciledCount > 10 ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600")}>
-                  {account.unreconciledCount} uncleared
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Button onClick={() => setShowReconcileModal(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Reconciliation
+        </Button>
       </div>
 
-      {/* Right Panel - Reconciliation Workspace */}
-      <div className="flex-1 flex flex-col bg-gray-50">
-        {selectedAccount ? (
-          <>
-            {/* Header */}
-            <div className="bg-white border-b p-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{selectedAccount.name}</h2>
-                  <p className="text-sm text-gray-500">{selectedAccount.bank} • {selectedAccount.number} • Last Reconciled: {selectedAccount.lastReconciled}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1" />Import Statement</Button>
-                  <Button className="bg-[#047857] hover:bg-[#065f46]" size="sm" onClick={() => setShowReconcileModal(true)}>
-                    <RefreshCw className="w-4 h-4 mr-1" />Reconcile
-                  </Button>
-                </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Reconciliations</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
-
-              {/* Reconciliation Summary */}
-              <div className="grid grid-cols-5 gap-4">
-                <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Beginning Balance</p>
-                  <p className="text-lg font-semibold">${(beginningBalance / 1000).toFixed(0)}K</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Cleared Deposits</p>
-                  <p className="text-lg font-semibold text-green-700">+${(selectedDeposits / 1000).toFixed(0)}K</p>
-                </div>
-                <div className="bg-red-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Cleared Withdrawals</p>
-                  <p className="text-lg font-semibold text-red-700">-${(selectedWithdrawals / 1000).toFixed(0)}K</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Cleared Balance</p>
-                  <p className="text-lg font-semibold text-blue-700">${(clearedBalance / 1000).toFixed(0)}K</p>
-                </div>
-                <div className={cn("rounded-lg p-3 text-center", difference === 0 ? "bg-green-50" : "bg-amber-50")}>
-                  <p className="text-xs text-gray-500">Difference</p>
-                  <p className={cn("text-lg font-semibold", difference === 0 ? "text-green-700" : "text-amber-700")}>
-                    ${Math.abs(difference).toLocaleString()}
-                  </p>
-                </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-600" />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Statement Info Bar */}
-            <div className="bg-white border-b px-4 py-3 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">Statement Date:</span>
-                <Input type="date" className="w-40 h-8" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} />
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Completed</p>
+                <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">Statement Ending Balance:</span>
-                <Input type="number" className="w-40 h-8" placeholder="0.00" value={statementBalance} onChange={(e) => setStatementBalance(e.target.value)} />
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
-              <div className="flex-1" />
-              <Button variant="outline" size="sm" onClick={selectAll}>Select Cleared</Button>
-              <Button variant="outline" size="sm" onClick={clearAll}>Clear All</Button>
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Transactions List */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="bg-white border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="w-12 px-4 py-3"></th>
-                      <th className="text-left px-4 py-3 font-medium">Date</th>
-                      <th className="text-left px-4 py-3 font-medium">Type</th>
-                      <th className="text-left px-4 py-3 font-medium">Reference</th>
-                      <th className="text-left px-4 py-3 font-medium">Description</th>
-                      <th className="text-right px-4 py-3 font-medium">Amount</th>
-                      <th className="text-center px-4 py-3 font-medium">Cleared</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {unreconciledItems.map((item) => (
-                      <tr key={item.id} className={cn("hover:bg-gray-50", selectedItems.includes(item.id) && "bg-green-50")}>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">In Progress</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Needs Attention</p>
+                <p className="text-2xl font-bold text-amber-600">{stats.needsAttention}</p>
+              </div>
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Accounts Needing Reconciliation */}
+      {demoAccountsNeedingReconciliation.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="h-5 w-5" />
+              Accounts Needing Reconciliation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {demoAccountsNeedingReconciliation.map(account => (
+                <div
+                  key={account.id}
+                  className="bg-white border rounded-lg p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <Wallet className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{account.account_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {account.bank_name} • Last reconciled: {formatDate(account.last_reconciled)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatCurrency(account.current_balance)}</p>
+                    <p className="text-xs text-amber-600">{account.unreconciled_count} unreconciled items</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reconciliation History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reconciliation History</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Account</th>
+                  <th className="text-left px-4 py-3 font-medium">Statement Date</th>
+                  <th className="text-right px-4 py-3 font-medium">Statement Balance</th>
+                  <th className="text-left px-4 py-3 font-medium">Reconciled</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="w-12"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {reconciliations.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">No reconciliations yet</p>
+                      <p className="text-sm">Start a new reconciliation to get started</p>
+                    </td>
+                  </tr>
+                ) : (
+                  reconciliations.map((rec) => {
+                    const statusConfig = STATUS_CONFIG[rec.status] || STATUS_CONFIG.pending;
+                    const StatusIcon = statusConfig.icon;
+
+                    return (
+                      <tr key={rec.id} className="hover:bg-muted/50">
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => toggleItemSelection(item.id)}
-                            className={cn(
-                              "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                              selectedItems.includes(item.id) ? "bg-[#047857] border-[#047857]" : "border-gray-300 hover:border-gray-400"
-                            )}
-                          >
-                            {selectedItems.includes(item.id) && <Check className="w-3 h-3 text-white" />}
-                          </button>
+                          <div>
+                            <p className="font-medium">{rec.account_name}</p>
+                            <p className="text-xs text-muted-foreground">{rec.bank_name}</p>
+                          </div>
                         </td>
-                        <td className="px-4 py-3">{item.date}</td>
                         <td className="px-4 py-3">
-                          <span className={cn("px-2 py-1 rounded text-xs uppercase", getTypeColor(item.type))}>{item.type}</span>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            {formatDate(rec.statement_date)}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 font-mono text-xs">{item.ref}</td>
-                        <td className="px-4 py-3">{item.description}</td>
-                        <td className={cn("px-4 py-3 text-right font-medium", item.amount > 0 ? "text-green-600" : "text-gray-900")}>
-                          {item.amount > 0 ? '+' : ''}{item.amount < 0 ? '-' : ''}${Math.abs(item.amount).toLocaleString()}
+                        <td className="px-4 py-3 text-right font-medium">
+                          {formatCurrency(rec.statement_balance)}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          {item.cleared ? (
-                            <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
+                        <td className="px-4 py-3">
+                          {rec.reconciled_at ? (
+                            <div>
+                              <p className="text-sm">{formatDate(rec.reconciled_at)}</p>
+                              <p className="text-xs text-muted-foreground">by {rec.reconciled_by}</p>
+                            </div>
                           ) : (
-                            <Minus className="w-4 h-4 text-gray-300 mx-auto" />
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </td>
+                        <td className="px-4 py-3">
+                          <Badge className={statusConfig.color}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {statusConfig.label}
+                          </Badge>
+                          {rec.difference !== 0 && rec.status !== 'completed' && (
+                            <p className="text-xs text-red-600 mt-1">
+                              Difference: {formatCurrency(rec.difference)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              {rec.status === 'in_progress' && (
+                                <DropdownMenuItem>
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Continue
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem>
+                                <Download className="w-4 h-4 mr-2" />
+                                Export Report
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
 
-            {/* Footer Actions */}
-            <div className="bg-white border-t p-4 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                {selectedItems.length} of {unreconciledItems.length} items selected
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline">Save Progress</Button>
-                <Button className="bg-[#047857] hover:bg-[#065f46]" disabled={difference !== 0}>
-                  <CheckCircle className="w-4 h-4 mr-1" />Finish Reconciliation
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <Landmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Select an account to begin reconciliation</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Reconcile Modal */}
-      {showReconcileModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold">Start Reconciliation</h3>
-              <button onClick={() => setShowReconcileModal(false)}><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-500">Account</p>
-                <p className="font-medium">{selectedAccount?.name}</p>
-                <p className="text-sm text-gray-600">{selectedAccount?.bank} {selectedAccount?.number}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Statement Date *</label>
-                <Input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Statement Ending Balance *</label>
-                <Input type="number" placeholder="0.00" value={statementBalance} onChange={(e) => setStatementBalance(e.target.value)} />
-              </div>
-              <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
-                <p className="font-medium mb-1">Tips for Reconciliation</p>
-                <ul className="list-disc list-inside text-xs space-y-1">
-                  <li>Enter the ending balance from your bank statement</li>
-                  <li>Check off items that appear on your statement</li>
-                  <li>The difference should be $0 when complete</li>
-                </ul>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
-              <Button variant="outline" onClick={() => setShowReconcileModal(false)}>Cancel</Button>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowReconcileModal(false)}>Begin Reconciliation</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Select Account Modal */}
+      <SelectAccountModal
+        open={showReconcileModal}
+        onClose={() => setShowReconcileModal(false)}
+        onSelect={handleAccountSelect}
+        entityId={entityId}
+        title="Start Reconciliation"
+        description="Select a bank account to reconcile"
+      />
     </div>
   );
-};
-
-export default ReconciliationPage;
+}

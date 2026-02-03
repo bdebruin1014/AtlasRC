@@ -49,7 +49,8 @@ const TYPE_CONFIG = {
 };
 
 const EntityDetail: React.FC = () => {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params.entityId || params.id; // Support both route parameter names
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [entity, setEntity] = useState<typeof defaultEntity | null>(null);
@@ -168,6 +169,13 @@ const EntityDetail: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/accounting/entities/${entity.id}/bank-accounts`)}
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Bank Accounts
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate(`/accounting/entities/${entity.id}/ledger`)}

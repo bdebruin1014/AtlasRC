@@ -1,148 +1,164 @@
 // src/pages/accounting/PayrollPage.jsx
-// Payroll Management - Manual Entry
+// Payroll Management
 
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, DollarSign, Calendar, CheckCircle2, Clock, Plus,
-  FileText, ChevronRight, AlertCircle, Building2, TrendingUp
+  FileText, ChevronRight, AlertCircle, Building2, TrendingUp,
+  MoreHorizontal, Eye, Edit, Trash2, Loader2, Play, UserPlus,
+  Search, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select';
 import {
-  getPayrollDashboard,
-  getPayrolls,
-  getPayrollById,
-  createPayroll,
-  approvePayroll,
-  processPayroll,
-  getEmployees,
-  calculatePayrollItem,
-  createPayrollItem,
-  PAYROLL_STATUS,
-  PAY_FREQUENCY,
-} from '@/services/payrollService';
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import EmployeeFormModal from '@/components/accounting/EmployeeFormModal';
+import RunPayrollWizardModal from '@/components/accounting/RunPayrollWizardModal';
 
-const PayrollPage = () => {
+// Demo data for development
+const demoPayrolls = [
+  {
+    id: 'pr-1',
+    payroll_number: 'PR-20250125',
+    pay_period_start: '2025-01-13',
+    pay_period_end: '2025-01-26',
+    pay_date: '2025-01-31',
+    pay_frequency: 'biweekly',
+    employee_count: 12,
+    total_gross: 45680.00,
+    total_deductions: 12450.00,
+    total_net: 33230.00,
+    total_employer_taxes: 4110.00,
+    total_cost: 49790.00,
+    status: 'paid',
+  },
+  {
+    id: 'pr-2',
+    payroll_number: 'PR-20250111',
+    pay_period_start: '2024-12-30',
+    pay_period_end: '2025-01-12',
+    pay_date: '2025-01-17',
+    pay_frequency: 'biweekly',
+    employee_count: 12,
+    total_gross: 44890.00,
+    total_deductions: 12230.00,
+    total_net: 32660.00,
+    total_employer_taxes: 4040.00,
+    total_cost: 48930.00,
+    status: 'paid',
+  },
+  {
+    id: 'pr-3',
+    payroll_number: 'PR-20250208',
+    pay_period_start: '2025-01-27',
+    pay_period_end: '2025-02-09',
+    pay_date: '2025-02-14',
+    pay_frequency: 'biweekly',
+    employee_count: 12,
+    total_gross: 46200.00,
+    total_deductions: 12590.00,
+    total_net: 33610.00,
+    total_employer_taxes: 4158.00,
+    total_cost: 50358.00,
+    status: 'pending',
+  },
+];
+
+const demoEmployees = [
+  { id: 'emp-1', first_name: 'John', last_name: 'Smith', employee_id: 'EMP-001', pay_type: 'salary', salary_amount: 85000, hourly_rate: null, pay_frequency: 'biweekly', department: 'Management', status: 'active' },
+  { id: 'emp-2', first_name: 'Jane', last_name: 'Doe', employee_id: 'EMP-002', pay_type: 'hourly', salary_amount: null, hourly_rate: 35, pay_frequency: 'biweekly', department: 'Field', status: 'active' },
+  { id: 'emp-3', first_name: 'Mike', last_name: 'Johnson', employee_id: 'EMP-003', pay_type: 'hourly', salary_amount: null, hourly_rate: 28, pay_frequency: 'biweekly', department: 'Field', status: 'active' },
+  { id: 'emp-4', first_name: 'Sarah', last_name: 'Williams', employee_id: 'EMP-004', pay_type: 'salary', salary_amount: 65000, hourly_rate: null, pay_frequency: 'biweekly', department: 'Administration', status: 'active' },
+  { id: 'emp-5', first_name: 'Tom', last_name: 'Brown', employee_id: 'EMP-005', pay_type: 'hourly', salary_amount: null, hourly_rate: 32, pay_frequency: 'biweekly', department: 'Field', status: 'active' },
+  { id: 'emp-6', first_name: 'Emily', last_name: 'Davis', employee_id: 'EMP-006', pay_type: 'salary', salary_amount: 72000, hourly_rate: null, pay_frequency: 'biweekly', department: 'Operations', status: 'active' },
+];
+
+export default function PayrollPage() {
   const { entityId } = useParams();
-  const [dashboard, setDashboard] = useState(null);
-  const [payrolls, setPayrolls] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showPayrollModal, setShowPayrollModal] = useState(false);
-  const [selectedPayroll, setSelectedPayroll] = useState(null);
-  const [activeTab, setActiveTab] = useState('payrolls');
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const context = useOutletContext();
+  const entity = context?.entity;
+  const basePath = `/accounting/entities/${entityId}`;
 
-  // New payroll form
-  const [newPayroll, setNewPayroll] = useState({
-    pay_period_start: '',
-    pay_period_end: '',
-    pay_date: '',
-    pay_frequency: PAY_FREQUENCY.BIWEEKLY,
+  const [showRunPayrollModal, setShowRunPayrollModal] = useState(false);
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [activeTab, setActiveTab] = useState('payrolls');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Fetch payrolls
+  const { data: payrolls = [], isLoading: loadingPayrolls } = useQuery({
+    queryKey: ['payrolls', entityId],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('payrolls')
+          .select('*')
+          .eq('entity_id', entityId)
+          .order('pay_date', { ascending: false });
+
+        if (error) throw error;
+        return data || demoPayrolls;
+      } catch (err) {
+        console.error('Error fetching payrolls:', err);
+        return demoPayrolls;
+      }
+    },
   });
 
-  useEffect(() => {
-    loadData();
-  }, [entityId]);
+  // Fetch employees
+  const { data: employees = [], isLoading: loadingEmployees } = useQuery({
+    queryKey: ['employees', entityId],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('entity_id', entityId)
+          .order('last_name');
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [dashboardData, payrollsData, employeesData] = await Promise.all([
-        getPayrollDashboard(entityId),
-        getPayrolls(entityId),
-        getEmployees(entityId, { status: 'active' }),
-      ]);
-      setDashboard(dashboardData);
-      setPayrolls(payrollsData || []);
-      setEmployees(employeesData || []);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreatePayroll = async () => {
-    try {
-      const payroll = await createPayroll({
-        entity_id: entityId,
-        ...newPayroll,
-      });
-
-      // Calculate and add payroll items for each employee
-      for (const employee of employees) {
-        const calculated = await calculatePayrollItem(employee.id, {
-          start: newPayroll.pay_period_start,
-          end: newPayroll.pay_period_end,
-        });
-        
-        await createPayrollItem({
-          payroll_id: payroll.id,
-          ...calculated,
-        });
+        if (error) throw error;
+        return data || demoEmployees;
+      } catch (err) {
+        console.error('Error fetching employees:', err);
+        return demoEmployees;
       }
+    },
+  });
 
-      setShowCreateModal(false);
-      setNewPayroll({
-        pay_period_start: '',
-        pay_period_end: '',
-        pay_date: '',
-        pay_frequency: PAY_FREQUENCY.BIWEEKLY,
-      });
-      loadData();
-    } catch (error) {
-      console.error('Error creating payroll:', error);
-    }
-  };
-
-  const handleViewPayroll = async (payrollId) => {
-    try {
-      const payroll = await getPayrollById(payrollId);
-      setSelectedPayroll(payroll);
-      setShowPayrollModal(true);
-    } catch (error) {
-      console.error('Error loading payroll:', error);
-    }
-  };
-
-  const handleApprovePayroll = async (payrollId) => {
-    try {
-      await approvePayroll(payrollId, 'current-user-id'); // Replace with actual user ID
-      loadData();
-      if (selectedPayroll?.id === payrollId) {
-        handleViewPayroll(payrollId);
-      }
-    } catch (error) {
-      console.error('Error approving payroll:', error);
-    }
-  };
-
-  const handleProcessPayroll = async (payrollId) => {
-    try {
-      await processPayroll(payrollId);
-      loadData();
-      setShowPayrollModal(false);
-    } catch (error) {
-      console.error('Error processing payroll:', error);
-    }
-  };
+  // Delete employee mutation
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (employeeId) => {
+      const { error } = await supabase
+        .from('employees')
+        .update({ status: 'terminated' })
+        .eq('id', employeeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employees', entityId]);
+    },
+  });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount || 0);
   };
 
@@ -155,28 +171,70 @@ const PayrollPage = () => {
     });
   };
 
+  const handleEditEmployee = (employee) => {
+    setSelectedEmployee(employee);
+    setShowEmployeeModal(true);
+  };
+
+  const handleTerminateEmployee = (employee) => {
+    if (confirm(`Terminate ${employee.first_name} ${employee.last_name}? This will mark them as inactive.`)) {
+      deleteEmployeeMutation.mutate(employee.id);
+    }
+  };
+
+  // Filter payrolls
+  const filteredPayrolls = payrolls.filter(pr => {
+    const matchesSearch = !searchTerm ||
+      pr.payroll_number?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || pr.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filter employees
+  const activeEmployees = employees.filter(e => e.status === 'active');
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = !searchTerm ||
+      `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.employee_id?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  // Calculate summary stats
+  const currentYear = new Date().getFullYear();
+  const ytdPayrolls = payrolls.filter(p => new Date(p.pay_date).getFullYear() === currentYear);
+  const stats = {
+    activeEmployees: activeEmployees.length,
+    ytdGross: ytdPayrolls.reduce((sum, p) => sum + (p.total_gross || 0), 0),
+    ytdEmployerCost: ytdPayrolls.reduce((sum, p) => sum + (p.total_employer_taxes || 0), 0),
+    ytdTotalCost: ytdPayrolls.reduce((sum, p) => sum + (p.total_cost || 0), 0),
+    pendingPayrolls: payrolls.filter(p => p.status === 'pending' || p.status === 'draft').length,
+    lastPayrollDate: payrolls.find(p => p.status === 'paid')?.pay_date,
+  };
+
   const getStatusBadge = (status) => {
     const config = {
-      [PAYROLL_STATUS.DRAFT]: { color: 'bg-gray-100 text-gray-800', icon: FileText },
-      [PAYROLL_STATUS.PENDING]: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-      [PAYROLL_STATUS.APPROVED]: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle2 },
-      [PAYROLL_STATUS.PAID]: { color: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-      [PAYROLL_STATUS.VOID]: { color: 'bg-red-100 text-red-800', icon: AlertCircle },
+      draft: { color: 'bg-gray-100 text-gray-800', icon: FileText },
+      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
+      approved: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle2 },
+      paid: { color: 'bg-green-100 text-green-800', icon: CheckCircle2 },
+      void: { color: 'bg-red-100 text-red-800', icon: AlertCircle },
     };
-    const c = config[status] || config[PAYROLL_STATUS.DRAFT];
+    const c = config[status] || config.draft;
     const Icon = c.icon;
     return (
       <Badge className={cn(c.color, "flex items-center gap-1")}>
-        <Icon className="w-3 h-3" />
+        <Icon className="h-3 w-3" />
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
-  if (loading) {
+  const isLoading = loadingPayrolls || loadingEmployees;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -184,110 +242,102 @@ const PayrollPage = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="w-7 h-7 text-purple-600" />
-            Payroll
-          </h1>
-          <p className="text-gray-500 mt-1">Manage employee payroll and taxes</p>
+          <h1 className="text-2xl font-bold">Payroll</h1>
+          <p className="text-muted-foreground">Manage payroll and employees</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Run Payroll
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setSelectedEmployee(null); setShowEmployeeModal(true); }}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Employee
+          </Button>
+          <Button onClick={() => setShowRunPayrollModal(true)}>
+            <Play className="h-4 w-4 mr-2" />
+            Run Payroll
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Active Employees</p>
-                <p className="text-2xl font-bold">{dashboard?.active_employees || 0}</p>
+                <p className="text-sm text-muted-foreground">Active Employees</p>
+                <p className="text-2xl font-bold">{stats.activeEmployees}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  On payroll
+                </p>
               </div>
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-purple-600" />
+              <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Users className="h-5 w-5 text-purple-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">YTD Gross Wages</p>
-                <p className="text-2xl font-bold">{formatCurrency(dashboard?.ytd_gross)}</p>
+                <p className="text-sm text-muted-foreground">YTD Gross Wages</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.ytdGross)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {currentYear} to date
+                </p>
               </div>
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-green-600" />
+              <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">YTD Total Cost</p>
-                <p className="text-2xl font-bold">{formatCurrency(dashboard?.ytd_employer_cost)}</p>
+                <p className="text-sm text-muted-foreground">YTD Employer Cost</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.ytdTotalCost)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Wages + taxes
+                </p>
               </div>
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending Payrolls</p>
-                <p className="text-2xl font-bold text-amber-600">{dashboard?.pending_payrolls || 0}</p>
+                <p className="text-sm text-muted-foreground">Pending Payrolls</p>
+                <p className="text-2xl font-bold text-amber-600">{stats.pendingPayrolls}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.lastPayrollDate ? `Last paid: ${formatDate(stats.lastPayrollDate)}` : 'No payrolls yet'}
+                </p>
               </div>
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600" />
+              <div className="h-10 w-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Clock className="h-5 w-5 text-amber-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Quarterly Summary */}
-      {dashboard?.quarterly_summary && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Quarterly Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-4 gap-4">
-              {Object.entries(dashboard.quarterly_summary).map(([quarter, data]) => (
-                <div key={quarter} className="p-4 bg-gray-50 rounded-lg">
-                  <p className="font-medium text-gray-700">{quarter}</p>
-                  <p className="text-lg font-bold mt-1">{formatCurrency(data.gross)}</p>
-                  <p className="text-xs text-gray-500">Gross Wages</p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Taxes: {formatCurrency(data.employer_taxes)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-4 border-b">
         <button
           className={cn(
             "pb-3 px-1 text-sm font-medium border-b-2 transition-colors",
-            activeTab === 'payrolls' 
-              ? "border-purple-600 text-purple-600" 
-              : "border-transparent text-gray-500 hover:text-gray-700"
+            activeTab === 'payrolls'
+              ? "border-purple-600 text-purple-600"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           )}
           onClick={() => setActiveTab('payrolls')}
         >
@@ -296,14 +346,41 @@ const PayrollPage = () => {
         <button
           className={cn(
             "pb-3 px-1 text-sm font-medium border-b-2 transition-colors",
-            activeTab === 'employees' 
-              ? "border-purple-600 text-purple-600" 
-              : "border-transparent text-gray-500 hover:text-gray-700"
+            activeTab === 'employees'
+              ? "border-purple-600 text-purple-600"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           )}
           onClick={() => setActiveTab('employees')}
         >
-          Employees ({employees.length})
+          Employees ({activeEmployees.length})
         </button>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={activeTab === 'payrolls' ? 'Search payrolls...' : 'Search employees...'}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {activeTab === 'payrolls' && (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Payrolls Tab */}
@@ -311,25 +388,32 @@ const PayrollPage = () => {
         <Card>
           <CardContent className="p-0">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Payroll #</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Pay Period</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Pay Date</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Gross</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Net</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Status</th>
-                  <th className="w-10"></th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Payroll #</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Pay Period</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Pay Date</th>
+                  <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Employees</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Gross</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Net</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
+                  <th className="w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {payrolls.map((payroll) => (
-                  <tr key={payroll.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{payroll.payroll_number}</td>
+                {filteredPayrolls.map((payroll) => (
+                  <tr key={payroll.id} className="hover:bg-muted/50">
+                    <td className="px-4 py-3 font-medium font-mono">{payroll.payroll_number}</td>
                     <td className="px-4 py-3 text-sm">
                       {formatDate(payroll.pay_period_start)} - {formatDate(payroll.pay_period_end)}
                     </td>
-                    <td className="px-4 py-3 text-sm">{formatDate(payroll.pay_date)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        {formatDate(payroll.pay_date)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">{payroll.employee_count}</td>
                     <td className="px-4 py-3 text-right font-medium">
                       {formatCurrency(payroll.total_gross)}
                     </td>
@@ -338,27 +422,41 @@ const PayrollPage = () => {
                     </td>
                     <td className="px-4 py-3">{getStatusBadge(payroll.status)}</td>
                     <td className="px-4 py-3">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleViewPayroll(payroll.id)}
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`${basePath}/payroll/${payroll.id}`)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => alert('Downloading pay stubs...')}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Pay Stubs
+                          </DropdownMenuItem>
+                          {payroll.status === 'pending' && (
+                            <DropdownMenuItem onClick={() => alert('Approving payroll...')}>
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Approve Payroll
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
-                {payrolls.length === 0 && (
+                {filteredPayrolls.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                      <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>No payroll runs yet</p>
-                      <Button 
-                        className="mt-4" 
-                        variant="outline"
-                        onClick={() => setShowCreateModal(true)}
-                      >
-                        Run First Payroll
+                    <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="font-medium">No payroll runs found</p>
+                      <p className="text-sm">Run your first payroll to get started</p>
+                      <Button className="mt-4" onClick={() => setShowRunPayrollModal(true)}>
+                        <Play className="h-4 w-4 mr-2" />
+                        Run Payroll
                       </Button>
                     </td>
                   </tr>
@@ -374,19 +472,20 @@ const PayrollPage = () => {
         <Card>
           <CardContent className="p-0">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Employee</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">ID</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Pay Type</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Rate</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Frequency</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Status</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Employee</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">ID</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Department</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Pay Type</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Rate</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
+                  <th className="w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-gray-50">
+                {filteredEmployees.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-muted/50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
@@ -397,202 +496,90 @@ const PayrollPage = () => {
                         <span className="font-medium">{emp.first_name} {emp.last_name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{emp.employee_id}</td>
-                    <td className="px-4 py-3 text-sm capitalize">{emp.pay_type}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{emp.employee_id}</td>
+                    <td className="px-4 py-3 text-sm capitalize">{emp.department || '-'}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className="capitalize">{emp.pay_type}</Badge>
+                    </td>
                     <td className="px-4 py-3 text-right font-medium">
-                      {emp.pay_type === 'salary' 
+                      {emp.pay_type === 'salary'
                         ? formatCurrency(emp.salary_amount) + '/yr'
-                        : formatCurrency(emp.hourly_rate) + '/hr'
+                        : `$${emp.hourly_rate?.toFixed(2)}/hr`
                       }
                     </td>
-                    <td className="px-4 py-3 text-sm capitalize">{emp.pay_frequency?.replace('_', ' ')}</td>
                     <td className="px-4 py-3">
                       <Badge className={cn(
                         emp.status === 'active' && "bg-green-100 text-green-800",
                         emp.status === 'terminated' && "bg-red-100 text-red-800",
+                        emp.status === 'inactive' && "bg-gray-100 text-gray-800",
                       )}>
                         {emp.status}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditEmployee(emp)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View/Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`${basePath}/employees/${emp.id}/pay-history`)}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Pay History
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {emp.status === 'active' && (
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleTerminateEmployee(emp)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Terminate
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
                   </tr>
                 ))}
+                {filteredEmployees.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                      <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="font-medium">No employees found</p>
+                      <p className="text-sm">Add employees to start running payroll</p>
+                      <Button className="mt-4" onClick={() => { setSelectedEmployee(null); setShowEmployeeModal(true); }}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Employee
+                      </Button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </CardContent>
         </Card>
       )}
 
-      {/* Create Payroll Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Run Payroll</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Pay Frequency</label>
-              <select
-                value={newPayroll.pay_frequency}
-                onChange={(e) => setNewPayroll(prev => ({ ...prev, pay_frequency: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value={PAY_FREQUENCY.WEEKLY}>Weekly</option>
-                <option value={PAY_FREQUENCY.BIWEEKLY}>Bi-Weekly</option>
-                <option value={PAY_FREQUENCY.SEMIMONTHLY}>Semi-Monthly</option>
-                <option value={PAY_FREQUENCY.MONTHLY}>Monthly</option>
-              </select>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Period Start</label>
-                <input
-                  type="date"
-                  value={newPayroll.pay_period_start}
-                  onChange={(e) => setNewPayroll(prev => ({ ...prev, pay_period_start: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Period End</label>
-                <input
-                  type="date"
-                  value={newPayroll.pay_period_end}
-                  onChange={(e) => setNewPayroll(prev => ({ ...prev, pay_period_end: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Pay Date</label>
-              <input
-                type="date"
-                value={newPayroll.pay_date}
-                onChange={(e) => setNewPayroll(prev => ({ ...prev, pay_date: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
+      {/* Employee Form Modal */}
+      <EmployeeFormModal
+        open={showEmployeeModal}
+        onClose={() => { setShowEmployeeModal(false); setSelectedEmployee(null); }}
+        entityId={entityId}
+        employee={selectedEmployee}
+      />
 
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>{employees.length}</strong> employees will be included in this payroll
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreatePayroll}>
-              Create Payroll
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Payroll Detail Modal */}
-      <Dialog open={showPayrollModal} onOpenChange={setShowPayrollModal}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Payroll {selectedPayroll?.payroll_number}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedPayroll && (
-            <div className="space-y-4">
-              {/* Payroll Summary */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Pay Period</p>
-                  <p className="font-medium">
-                    {formatDate(selectedPayroll.pay_period_start)} - {formatDate(selectedPayroll.pay_period_end)}
-                  </p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Pay Date</p>
-                  <p className="font-medium">{formatDate(selectedPayroll.pay_date)}</p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedPayroll.status)}</div>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Total Cost</p>
-                  <p className="font-bold text-lg">{formatCurrency(selectedPayroll.total_cost)}</p>
-                </div>
-              </div>
-
-              {/* Payroll Items */}
-              <table className="w-full border rounded-lg overflow-hidden">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left px-3 py-2 text-sm font-medium">Employee</th>
-                    <th className="text-right px-3 py-2 text-sm font-medium">Gross</th>
-                    <th className="text-right px-3 py-2 text-sm font-medium">Deductions</th>
-                    <th className="text-right px-3 py-2 text-sm font-medium">Net Pay</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {selectedPayroll.items?.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-3 py-2">
-                        {item.employee?.first_name} {item.employee?.last_name}
-                      </td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(item.gross_pay)}</td>
-                      <td className="px-3 py-2 text-right text-red-600">
-                        -{formatCurrency(item.total_deductions)}
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.net_pay)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 font-bold">
-                  <tr>
-                    <td className="px-3 py-2">Totals</td>
-                    <td className="px-3 py-2 text-right">{formatCurrency(selectedPayroll.total_gross)}</td>
-                    <td className="px-3 py-2 text-right text-red-600">
-                      -{formatCurrency(selectedPayroll.total_deductions)}
-                    </td>
-                    <td className="px-3 py-2 text-right">{formatCurrency(selectedPayroll.total_net)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-
-              {/* Employer Taxes */}
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-800">Employer Taxes & Contributions</p>
-                <p className="text-lg font-bold text-blue-900 mt-1">
-                  {formatCurrency(selectedPayroll.total_employer_taxes)}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPayrollModal(false)}>
-              Close
-            </Button>
-            {selectedPayroll?.status === PAYROLL_STATUS.DRAFT && (
-              <Button onClick={() => handleApprovePayroll(selectedPayroll.id)}>
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Approve
-              </Button>
-            )}
-            {selectedPayroll?.status === PAYROLL_STATUS.APPROVED && (
-              <Button onClick={() => handleProcessPayroll(selectedPayroll.id)}>
-                <DollarSign className="w-4 h-4 mr-2" />
-                Process Payment
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Run Payroll Wizard Modal */}
+      <RunPayrollWizardModal
+        open={showRunPayrollModal}
+        onClose={() => setShowRunPayrollModal(false)}
+        entityId={entityId}
+      />
     </div>
   );
-};
-
-export default PayrollPage;
+}

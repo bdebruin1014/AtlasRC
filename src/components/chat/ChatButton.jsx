@@ -19,10 +19,15 @@ const ChatButton = ({ currentUser }) => {
   }, []);
 
   const loadUnreadCount = async () => {
-    const { data } = await getUnreadCounts();
-    if (data) {
-      const total = Object.values(data).reduce((sum, count) => sum + count, 0);
-      setTotalUnread(total);
+    try {
+      const { data } = await getUnreadCounts();
+      if (data) {
+        const total = Object.values(data).reduce((sum, count) => sum + count, 0);
+        setTotalUnread(total);
+      }
+    } catch (err) {
+      // Silently handle errors - chat unread count is not critical
+      setTotalUnread(0);
     }
   };
 

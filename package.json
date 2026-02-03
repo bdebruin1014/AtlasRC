@@ -58,6 +58,7 @@
     "react-dropzone": "^14.3.8",
     "react-helmet": "^6.1.0",
     "react-hook-form": "^7.70.0",
+    "react-plaid-link": "^4.1.1",
     "react-resizable-panels": "^2.1.0",
     "react-router-dom": "^6.26.2",
     "recharts": "^2.12.7",

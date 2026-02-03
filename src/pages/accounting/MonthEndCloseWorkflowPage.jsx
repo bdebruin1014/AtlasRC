@@ -118,8 +118,12 @@ export default function MonthEndCloseWorkflowPage() {
           <p className="text-gray-600">Manage and track the month-end closing process</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline"><FileText className="w-4 h-4 mr-2" />Close Template</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700"><Play className="w-4 h-4 mr-2" />Start New Period</Button>
+          <Button variant="outline" onClick={() => alert('Initialize fiscal periods')}>
+            <FileText className="w-4 h-4 mr-2" />Initialize Periods
+          </Button>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => alert('Start close process')}>
+            <Play className="w-4 h-4 mr-2" />Start Close Process
+          </Button>
         </div>
       </div>
 

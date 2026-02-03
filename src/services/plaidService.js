@@ -223,6 +223,9 @@ export const syncBankTransactions = async (connectionId, startDate, endDate) => 
   return { synced: true, connection };
 };
 
+// Alias for backward compatibility
+export const syncTransactions = syncBankTransactions;
+
 export const getBankTransactions = async (bankAccountId, filters = {}) => {
   let query = supabase
     .from('bank_transactions')
@@ -501,6 +504,7 @@ export default {
   
   // Transactions
   syncBankTransactions,
+  syncTransactions: syncBankTransactions, // Alias for backward compatibility
   getBankTransactions,
   getUnmatchedTransactions,
   

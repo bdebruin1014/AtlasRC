@@ -1,593 +1,567 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Eye, Edit2, X, CreditCard, Download, DollarSign, Clock, CheckCircle, AlertTriangle, FileText, Calendar, Building2 } from 'lucide-react';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Plus, Search, Eye, Edit2, CreditCard, Download, DollarSign, Clock,
+  CheckCircle, AlertTriangle, FileText, Calendar, Building2, MoreHorizontal, X
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import PayBillsModal from '@/components/accounting/PayBillsModal';
 
-const BillsPage = ({ onEntityChange, selectedEntity }) => {
-  const [showModal, setShowModal] = useState(false);
+// Demo bills for fallback
+const demoBills = [
+  {
+    id: 'bill-1',
+    bill_number: 'SF-2024-156',
+    vendor_name: 'Smith Framing LLC',
+    project_name: 'Watson Creek',
+    bill_date: '2024-12-15',
+    due_date: '2024-12-30',
+    status: 'pending',
+    paid_date: null,
+    items: [
+      { description: 'Framing labor - Building A', quantity: 1, rate: 45000, amount: 45000, cost_code: '06-100' },
+      { description: 'Material handling', quantity: 1, rate: 2500, amount: 2500, cost_code: '06-100' },
+    ],
+    total_amount: 47500,
+    amount_paid: 0,
+    balance_due: 47500,
+    payment_terms: 'Net 15',
+    is_intercompany: false,
+  },
+  {
+    id: 'bill-2',
+    bill_number: 'INV-8834',
+    vendor_name: 'ABC Plumbing',
+    project_name: 'Watson Creek',
+    bill_date: '2024-12-10',
+    due_date: '2024-12-25',
+    status: 'approved',
+    paid_date: null,
+    items: [
+      { description: 'Rough plumbing - Units 1-6', quantity: 6, rate: 4500, amount: 27000, cost_code: '22-100' },
+      { description: 'Water heater installation', quantity: 6, rate: 850, amount: 5100, cost_code: '22-200' },
+    ],
+    total_amount: 32100,
+    amount_paid: 0,
+    balance_due: 32100,
+    payment_terms: 'Net 15',
+    is_intercompany: false,
+  },
+  {
+    id: 'bill-3',
+    bill_number: 'SE-12445',
+    vendor_name: 'Sparks Electric',
+    project_name: 'Oslo Ridge',
+    bill_date: '2024-12-01',
+    due_date: '2024-12-15',
+    status: 'paid',
+    paid_date: '2024-12-14',
+    items: [
+      { description: 'Rough electrical - Phase 1', quantity: 1, rate: 28000, amount: 28000, cost_code: '26-100' },
+    ],
+    total_amount: 28000,
+    amount_paid: 28000,
+    balance_due: 0,
+    payment_terms: 'Net 15',
+    is_intercompany: false,
+  },
+  {
+    id: 'bill-4',
+    bill_number: 'MC-Q4-2024',
+    vendor_name: 'ManageCo',
+    project_name: null,
+    bill_date: '2024-12-01',
+    due_date: '2024-12-31',
+    status: 'paid',
+    paid_date: '2024-12-20',
+    items: [
+      { description: 'Q4 2024 Management Fee', quantity: 1, rate: 45000, amount: 45000, cost_code: '01-200' },
+      { description: 'Asset Management - Watson Creek', quantity: 1, rate: 12500, amount: 12500, cost_code: '01-200' },
+    ],
+    total_amount: 67500,
+    amount_paid: 67500,
+    balance_due: 0,
+    payment_terms: 'Net 30',
+    is_intercompany: true,
+  },
+  {
+    id: 'bill-5',
+    bill_number: 'RMC-78432',
+    vendor_name: 'Ready Mix Concrete',
+    project_name: 'Watson Creek',
+    bill_date: '2024-11-20',
+    due_date: '2024-12-05',
+    status: 'overdue',
+    paid_date: null,
+    items: [
+      { description: 'Concrete - 4000 PSI (125 cy)', quantity: 125, rate: 165, amount: 20625, cost_code: '03-300' },
+      { description: 'Pump truck - 4 hours', quantity: 4, rate: 275, amount: 1100, cost_code: '03-300' },
+    ],
+    total_amount: 22225,
+    amount_paid: 0,
+    balance_due: 22225,
+    payment_terms: 'Net 15',
+    is_intercompany: false,
+  },
+  {
+    id: 'bill-6',
+    bill_number: 'CA-2024-892',
+    vendor_name: 'Cool Air HVAC',
+    project_name: 'Oslo Ridge',
+    bill_date: '2024-12-18',
+    due_date: '2025-01-02',
+    status: 'pending',
+    paid_date: null,
+    items: [
+      { description: 'HVAC rough-in - Units 1-4', quantity: 4, rate: 6500, amount: 26000, cost_code: '23-100' },
+      { description: 'Ductwork materials', quantity: 1, rate: 8500, amount: 8500, cost_code: '23-100' },
+    ],
+    total_amount: 34500,
+    amount_paid: 0,
+    balance_due: 34500,
+    payment_terms: 'Net 15',
+    is_intercompany: false,
+  },
+];
+
+const STATUS_CONFIG = {
+  pending: { label: 'Pending', color: 'bg-gray-100 text-gray-600', icon: Clock },
+  approved: { label: 'Approved', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+  paid: { label: 'Paid', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  partial: { label: 'Partial', color: 'bg-amber-100 text-amber-700', icon: DollarSign },
+  overdue: { label: 'Overdue', color: 'bg-red-100 text-red-700', icon: AlertTriangle },
+};
+
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val || 0);
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const fetchBills = async (entityId) => {
+  try {
+    const { data, error } = await supabase
+      .from('bills')
+      .select('*')
+      .eq('entity_id', entityId)
+      .order('bill_date', { ascending: false })
+      .limit(100);
+
+    if (data && !error) return data;
+  } catch (err) {
+    console.error('Error fetching bills:', err);
+  }
+  return demoBills;
+};
+
+export default function BillsPage() {
+  const { entityId } = useParams();
+  const navigate = useNavigate();
+  const context = useOutletContext();
+  const entity = context?.entity;
+
+  const [showPayBillsModal, setShowPayBillsModal] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [showNewBillModal, setShowNewBillModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const [bills, setBills] = useState([
-    {
-      id: 'BILL-001',
-      vendor: 'Smith Framing LLC',
-      vendorId: 'V-001',
-      entity: 'Watson Creek LLC',
-      project: 'Watson Creek',
-      billNumber: 'SF-2024-156',
-      date: '2024-12-15',
-      dueDate: '2024-12-30',
-      status: 'pending',
-      paidDate: null,
-      items: [
-        { description: 'Framing labor - Building A', quantity: 1, rate: 45000, amount: 45000, costCode: '06-100' },
-        { description: 'Material handling', quantity: 1, rate: 2500, amount: 2500, costCode: '06-100' },
-      ],
-      subtotal: 47500,
-      tax: 0,
-      total: 47500,
-      amountPaid: 0,
-      balance: 47500,
-      notes: 'Draw #3 - Per AIA G702',
-      paymentTerms: 'Net 15',
-      isIntercompany: false,
-    },
-    {
-      id: 'BILL-002',
-      vendor: 'ABC Plumbing',
-      vendorId: 'V-002',
-      entity: 'Watson Creek LLC',
-      project: 'Watson Creek',
-      billNumber: 'INV-8834',
-      date: '2024-12-10',
-      dueDate: '2024-12-25',
-      status: 'approved',
-      paidDate: null,
-      items: [
-        { description: 'Rough plumbing - Units 1-6', quantity: 6, rate: 4500, amount: 27000, costCode: '22-100' },
-        { description: 'Water heater installation', quantity: 6, rate: 850, amount: 5100, costCode: '22-200' },
-      ],
-      subtotal: 32100,
-      tax: 0,
-      total: 32100,
-      amountPaid: 0,
-      balance: 32100,
-      notes: '',
-      paymentTerms: 'Net 15',
-      isIntercompany: false,
-    },
-    {
-      id: 'BILL-003',
-      vendor: 'Sparks Electric',
-      vendorId: 'V-003',
-      entity: 'Oslo Ridge LLC',
-      project: 'Oslo Ridge',
-      billNumber: 'SE-12445',
-      date: '2024-12-01',
-      dueDate: '2024-12-15',
-      status: 'paid',
-      paidDate: '2024-12-14',
-      items: [
-        { description: 'Rough electrical - Phase 1', quantity: 1, rate: 28000, amount: 28000, costCode: '26-100' },
-      ],
-      subtotal: 28000,
-      tax: 0,
-      total: 28000,
-      amountPaid: 28000,
-      balance: 0,
-      notes: 'Check #4521',
-      paymentTerms: 'Net 15',
-      isIntercompany: false,
-    },
-    {
-      id: 'BILL-004',
-      vendor: 'ManageCo',
-      vendorId: 'V-IC-001',
-      entity: 'VanRock Holdings',
-      project: null,
-      billNumber: 'MC-Q4-2024',
-      date: '2024-12-01',
-      dueDate: '2024-12-31',
-      status: 'paid',
-      paidDate: '2024-12-20',
-      items: [
-        { description: 'Q4 2024 Management Fee', quantity: 1, rate: 45000, amount: 45000, costCode: '01-200' },
-        { description: 'Asset Management - Watson Creek', quantity: 1, rate: 12500, amount: 12500, costCode: '01-200' },
-        { description: 'Asset Management - Oslo Ridge', quantity: 1, rate: 10000, amount: 10000, costCode: '01-200' },
-      ],
-      subtotal: 67500,
-      tax: 0,
-      total: 67500,
-      amountPaid: 67500,
-      balance: 0,
-      notes: 'Intercompany - management services',
-      paymentTerms: 'Net 30',
-      isIntercompany: true,
-    },
-    {
-      id: 'BILL-005',
-      vendor: 'Ready Mix Concrete',
-      vendorId: 'V-004',
-      entity: 'Watson Creek LLC',
-      project: 'Watson Creek',
-      billNumber: 'RMC-78432',
-      date: '2024-11-20',
-      dueDate: '2024-12-05',
-      status: 'overdue',
-      paidDate: null,
-      items: [
-        { description: 'Concrete - 4000 PSI (125 cy)', quantity: 125, rate: 165, amount: 20625, costCode: '03-300' },
-        { description: 'Pump truck - 4 hours', quantity: 4, rate: 275, amount: 1100, costCode: '03-300' },
-        { description: 'Saturday delivery surcharge', quantity: 1, rate: 500, amount: 500, costCode: '03-300' },
-      ],
-      subtotal: 22225,
-      tax: 0,
-      total: 22225,
-      amountPaid: 0,
-      balance: 22225,
-      notes: 'OVERDUE - Vendor requesting payment',
-      paymentTerms: 'Net 15',
-      isIntercompany: false,
-    },
-    {
-      id: 'BILL-006',
-      vendor: 'Cool Air HVAC',
-      vendorId: 'V-005',
-      entity: 'Oslo Ridge LLC',
-      project: 'Oslo Ridge',
-      billNumber: 'CA-2024-892',
-      date: '2024-12-18',
-      dueDate: '2025-01-02',
-      status: 'pending',
-      paidDate: null,
-      items: [
-        { description: 'HVAC rough-in - Units 1-4', quantity: 4, rate: 6500, amount: 26000, costCode: '23-100' },
-        { description: 'Ductwork materials', quantity: 1, rate: 8500, amount: 8500, costCode: '23-100' },
-      ],
-      subtotal: 34500,
-      tax: 0,
-      total: 34500,
-      amountPaid: 0,
-      balance: 34500,
-      notes: '',
-      paymentTerms: 'Net 15',
-      isIntercompany: false,
-    },
-  ]);
+  const basePath = `/accounting/entities/${entityId}`;
 
-  const [formData, setFormData] = useState({
-    vendor: '',
-    entity: 'Watson Creek LLC',
-    project: '',
-    billNumber: '',
-    dueDate: '',
-    items: [{ description: '', quantity: 1, rate: '', amount: '', costCode: '' }],
-    notes: '',
-    paymentTerms: 'Net 15',
-    isIntercompany: false,
+  const { data: bills = [], isLoading } = useQuery({
+    queryKey: ['bills', entityId],
+    queryFn: () => fetchBills(entityId),
+    enabled: !!entityId,
   });
 
   const filteredBills = bills.filter(bill => {
-    if (filterStatus === 'all') return true;
-    return bill.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || bill.status === filterStatus;
+    const matchesSearch = !searchTerm ||
+      bill.bill_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.vendor_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'bg-gray-100 text-gray-600';
-      case 'approved': return 'bg-blue-100 text-blue-700';
-      case 'paid': return 'bg-green-100 text-green-700';
-      case 'overdue': return 'bg-red-100 text-red-700';
-      case 'partial': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-gray-100 text-gray-600';
-    }
+  const stats = {
+    totalPayable: bills.filter(b => b.status !== 'paid').reduce((sum, b) => sum + (b.balance_due || 0), 0),
+    overdue: bills.filter(b => b.status === 'overdue').reduce((sum, b) => sum + (b.balance_due || 0), 0),
+    paidThisMonth: bills.filter(b => b.status === 'paid' && b.paid_date?.startsWith('2024-12')).reduce((sum, b) => sum + (b.total_amount || 0), 0),
+    pendingApproval: bills.filter(b => b.status === 'pending').length,
   };
 
-  const totalPayable = bills.filter(b => b.status !== 'paid').reduce((sum, b) => sum + b.balance, 0);
-  const totalOverdue = bills.filter(b => b.status === 'overdue').reduce((sum, b) => sum + b.balance, 0);
-  const paidThisMonth = bills.filter(b => b.status === 'paid' && b.paidDate?.startsWith('2024-12')).reduce((sum, b) => sum + b.total, 0);
-  const pendingApproval = bills.filter(b => b.status === 'pending').length;
-
-  // Aging buckets
+  // AP Aging buckets
   const aging = {
-    current: bills.filter(b => b.status !== 'paid' && new Date(b.dueDate) >= new Date()).reduce((s, b) => s + b.balance, 0),
-    days30: bills.filter(b => b.status === 'overdue').reduce((s, b) => s + b.balance, 0),
+    current: bills.filter(b => b.status !== 'paid' && new Date(b.due_date) >= new Date()).reduce((s, b) => s + (b.balance_due || 0), 0),
+    days_1_30: bills.filter(b => b.status === 'overdue').reduce((s, b) => s + (b.balance_due || 0), 0),
+    days_31_60: 0,
+    days_61_90: 0,
+    days_over_90: 0,
   };
 
-  const updateLineItem = (idx, field, value) => {
-    const newItems = [...formData.items];
-    newItems[idx][field] = value;
-    if (field === 'quantity' || field === 'rate') {
-      const qty = parseFloat(newItems[idx].quantity) || 0;
-      const rate = parseFloat(newItems[idx].rate) || 0;
-      newItems[idx].amount = qty * rate;
-    }
-    setFormData(prev => ({ ...prev, items: newItems }));
-  };
-
-  const addLineItem = () => {
-    setFormData(prev => ({ ...prev, items: [...prev.items, { description: '', quantity: 1, rate: '', amount: '', costCode: '' }] }));
-  };
-
-  const handleSave = () => {
-    const subtotal = formData.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-    const newBill = {
-      id: `BILL-${String(bills.length + 1).padStart(3, '0')}`,
-      ...formData,
-      vendorId: 'V-NEW',
-      date: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      paidDate: null,
-      subtotal,
-      tax: 0,
-      total: subtotal,
-      amountPaid: 0,
-      balance: subtotal,
-    };
-    setBills(prev => [newBill, ...prev]);
-    setShowModal(false);
-    setFormData({ vendor: '', entity: 'Watson Creek LLC', project: '', billNumber: '', dueDate: '', items: [{ description: '', quantity: 1, rate: '', amount: '', costCode: '' }], notes: '', paymentTerms: 'Net 15', isIntercompany: false });
-  };
-
-  const approveBill = (id) => {
-    setBills(prev => prev.map(b => b.id === id ? { ...b, status: 'approved' } : b));
-  };
-
-  const payBill = (id) => {
-    setBills(prev => prev.map(b => b.id === id ? { ...b, status: 'paid', paidDate: new Date().toISOString().split('T')[0], amountPaid: b.total, balance: 0 } : b));
-    setShowPayModal(false);
-    setSelectedBill(null);
+  const handleExport = () => {
+    const headers = ['Bill #', 'Vendor', 'Project', 'Date', 'Due Date', 'Total', 'Balance', 'Status'];
+    const rows = filteredBills.map(b => [
+      b.bill_number,
+      b.vendor_name,
+      b.project_name || '',
+      b.bill_date,
+      b.due_date,
+      b.total_amount,
+      b.balance_due,
+      b.status,
+    ]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bills-${entityId}.csv`;
+    a.click();
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full">
-      {/* Header */}
+    <div className="p-6">
+      {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold">Bills</h1>
-          <p className="text-sm text-gray-500">Accounts payable and vendor invoices</p>
+          <h1 className="text-2xl font-bold">Bills</h1>
+          <p className="text-muted-foreground">
+            Vendor bills and accounts payable for {entity?.name || entity?.short_name || 'this entity'}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1" />Export</Button>
-          <Button className="bg-[#047857] hover:bg-[#065f46]" size="sm" onClick={() => setShowModal(true)}>
-            <Plus className="w-4 h-4 mr-1" />New Bill
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" onClick={() => setShowPayBillsModal(true)}>
+            <CreditCard className="h-4 w-4 mr-2" />
+            Pay Bills
+          </Button>
+          <Button onClick={() => navigate(`${basePath}/bills/new`)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Bill
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Total Payable</p>
-          <p className="text-2xl font-semibold">${totalPayable.toLocaleString()}</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4 border-l-4 border-l-red-500">
-          <p className="text-sm text-gray-500">Overdue</p>
-          <p className="text-2xl font-semibold text-red-600">${totalOverdue.toLocaleString()}</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4 border-l-4 border-l-green-500">
-          <p className="text-sm text-gray-500">Paid This Month</p>
-          <p className="text-2xl font-semibold text-green-600">${paidThisMonth.toLocaleString()}</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4 border-l-4 border-l-amber-500">
-          <p className="text-sm text-gray-500">Pending Approval</p>
-          <p className="text-2xl font-semibold text-amber-600">{pendingApproval}</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Due This Week</p>
-          <p className="text-2xl font-semibold">${(aging.current / 1000).toFixed(0)}K</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Payable</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.totalPayable)}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Overdue</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(stats.overdue)}</p>
+              </div>
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Paid This Month</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.paidThisMonth)}</p>
+              </div>
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Pending Approval</p>
+                <p className="text-2xl font-bold text-amber-600">{stats.pendingApproval}</p>
+              </div>
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Clock className="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* A/P Aging Summary */}
-      <div className="bg-white border rounded-lg p-4 mb-6">
-        <h3 className="font-medium mb-3">A/P Aging Summary</h3>
-        <div className="flex gap-4">
-          <div className="flex-1 bg-green-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-500">Current</p>
-            <p className="text-lg font-semibold text-green-700">${aging.current.toLocaleString()}</p>
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">A/P Aging Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-5 gap-4">
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">Current</p>
+              <p className="text-lg font-bold text-green-700">{formatCurrency(aging.current)}</p>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">1-30 Days</p>
+              <p className="text-lg font-bold text-amber-700">{formatCurrency(aging.days_1_30)}</p>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">31-60 Days</p>
+              <p className="text-lg font-bold text-orange-700">{formatCurrency(aging.days_31_60)}</p>
+            </div>
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">61-90 Days</p>
+              <p className="text-lg font-bold text-red-700">{formatCurrency(aging.days_61_90)}</p>
+            </div>
+            <div className="bg-red-100 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground">90+ Days</p>
+              <p className="text-lg font-bold text-red-800">{formatCurrency(aging.days_over_90)}</p>
+            </div>
           </div>
-          <div className="flex-1 bg-amber-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-500">1-30 Days</p>
-            <p className="text-lg font-semibold text-amber-700">${aging.days30.toLocaleString()}</p>
-          </div>
-          <div className="flex-1 bg-orange-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-500">31-60 Days</p>
-            <p className="text-lg font-semibold text-orange-700">$0</p>
-          </div>
-          <div className="flex-1 bg-red-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-500">61-90 Days</p>
-            <p className="text-lg font-semibold text-red-700">$0</p>
-          </div>
-          <div className="flex-1 bg-red-100 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-500">90+ Days</p>
-            <p className="text-lg font-semibold text-red-800">$0</p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
-      <div className="bg-white border rounded-lg p-4 mb-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search bills..." className="pl-9" />
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search bills..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <select
+              className="border rounded-md px-3 py-2 text-sm"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="paid">Paid</option>
+              <option value="partial">Partial</option>
+              <option value="overdue">Overdue</option>
+            </select>
           </div>
-          <select className="border rounded-md px-3 py-2 text-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-          </select>
-          <select className="border rounded-md px-3 py-2 text-sm">
-            <option value="">All Entities</option>
-            <option>VanRock Holdings</option>
-            <option>Watson Creek LLC</option>
-            <option>Oslo Ridge LLC</option>
-          </select>
-          <select className="border rounded-md px-3 py-2 text-sm">
-            <option value="">All Vendors</option>
-            <option>Smith Framing LLC</option>
-            <option>ABC Plumbing</option>
-            <option>Sparks Electric</option>
-          </select>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Bills Table */}
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium">Bill #</th>
-              <th className="text-left px-4 py-3 font-medium">Vendor</th>
-              <th className="text-left px-4 py-3 font-medium">Entity / Project</th>
-              <th className="text-left px-4 py-3 font-medium">Date</th>
-              <th className="text-left px-4 py-3 font-medium">Due Date</th>
-              <th className="text-right px-4 py-3 font-medium">Total</th>
-              <th className="text-right px-4 py-3 font-medium">Balance</th>
-              <th className="text-left px-4 py-3 font-medium">Status</th>
-              <th className="text-left px-4 py-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filteredBills.map((bill) => (
-              <tr key={bill.id} className={cn("hover:bg-gray-50", bill.status === 'overdue' && "bg-red-50")}>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-[#047857]">{bill.billNumber}</span>
-                    {bill.isIntercompany && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">IC</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 font-medium">{bill.vendor}</td>
-                <td className="px-4 py-3">
-                  <p className="text-xs">{bill.entity}</p>
-                  {bill.project && <p className="text-xs text-gray-500">{bill.project}</p>}
-                </td>
-                <td className="px-4 py-3">{bill.date}</td>
-                <td className="px-4 py-3">
-                  <span className={cn(bill.status === 'overdue' && "text-red-600 font-medium")}>
-                    {bill.dueDate}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right font-medium">${bill.total.toLocaleString()}</td>
-                <td className="px-4 py-3 text-right">
-                  <span className={cn("font-medium", bill.balance > 0 ? "text-amber-600" : "text-green-600")}>
-                    ${bill.balance.toLocaleString()}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={cn("px-2 py-1 rounded text-xs capitalize", getStatusColor(bill.status))}>
-                    {bill.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1">
-                    <button className="p-1 hover:bg-gray-100 rounded" title="View" onClick={() => setSelectedBill(bill)}>
-                      <Eye className="w-4 h-4 text-gray-500" />
-                    </button>
-                    {bill.status === 'pending' && (
-                      <button className="p-1 hover:bg-green-100 rounded" title="Approve" onClick={() => approveBill(bill.id)}>
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      </button>
-                    )}
-                    {bill.status === 'approved' && (
-                      <button className="p-1 hover:bg-blue-100 rounded" title="Pay" onClick={() => { setSelectedBill(bill); setShowPayModal(true); }}>
-                        <CreditCard className="w-4 h-4 text-blue-500" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* New Bill Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
-              <h3 className="font-semibold">New Bill</h3>
-              <button onClick={() => setShowModal(false)}><X className="w-5 h-5" /></button>
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1">Vendor *</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.vendor} onChange={(e) => setFormData(prev => ({ ...prev, vendor: e.target.value }))}>
-                    <option value="">Select vendor...</option>
-                    <option>Smith Framing LLC</option>
-                    <option>ABC Plumbing</option>
-                    <option>Sparks Electric</option>
-                    <option>Cool Air HVAC</option>
-                    <option>Ready Mix Concrete</option>
-                    <option>ManageCo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Vendor Bill # *</label>
-                  <Input value={formData.billNumber} onChange={(e) => setFormData(prev => ({ ...prev, billNumber: e.target.value }))} placeholder="Vendor's invoice number" />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1">Entity *</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.entity} onChange={(e) => setFormData(prev => ({ ...prev, entity: e.target.value }))}>
-                    <option>VanRock Holdings</option>
-                    <option>Watson Creek LLC</option>
-                    <option>Oslo Ridge LLC</option>
-                    <option>Sunset Farms LLC</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Project</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.project} onChange={(e) => setFormData(prev => ({ ...prev, project: e.target.value }))}>
-                    <option value="">None</option>
-                    <option>Watson Creek</option>
-                    <option>Oslo Ridge</option>
-                    <option>Sunset Farms</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Due Date *</label>
-                  <Input type="date" value={formData.dueDate} onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))} />
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="isIntercompany" checked={formData.isIntercompany} onChange={(e) => setFormData(prev => ({ ...prev, isIntercompany: e.target.checked }))} />
-                  <label htmlFor="isIntercompany" className="text-sm">Intercompany Bill</label>
-                </div>
-                <div>
-                  <label className="text-sm mr-2">Payment Terms:</label>
-                  <select className="border rounded-md px-2 py-1 text-sm" value={formData.paymentTerms} onChange={(e) => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}>
-                    <option>Net 15</option>
-                    <option>Net 30</option>
-                    <option>Net 45</option>
-                    <option>Due on Receipt</option>
-                  </select>
-                </div>
-              </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Bill #</th>
+                  <th className="text-left px-4 py-3 font-medium">Vendor</th>
+                  <th className="text-left px-4 py-3 font-medium">Project</th>
+                  <th className="text-left px-4 py-3 font-medium">Date</th>
+                  <th className="text-left px-4 py-3 font-medium">Due Date</th>
+                  <th className="text-right px-4 py-3 font-medium">Total</th>
+                  <th className="text-right px-4 py-3 font-medium">Balance</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="w-12"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredBills.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">No bills found</p>
+                      <p className="text-sm">Create a new bill to get started</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBills.map((bill) => {
+                    const statusConfig = STATUS_CONFIG[bill.status] || STATUS_CONFIG.pending;
+                    const StatusIcon = statusConfig.icon;
 
-              {/* Line Items */}
-              <div>
-                <label className="text-sm font-medium block mb-2">Line Items</label>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left px-3 py-2 font-medium">Description</th>
-                        <th className="text-left px-3 py-2 font-medium w-24">Cost Code</th>
-                        <th className="text-right px-3 py-2 font-medium w-16">Qty</th>
-                        <th className="text-right px-3 py-2 font-medium w-28">Rate</th>
-                        <th className="text-right px-3 py-2 font-medium w-28">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.items.map((item, idx) => (
-                        <tr key={idx} className="border-t">
-                          <td className="px-2 py-1">
-                            <Input className="border-0 shadow-none" placeholder="Description" value={item.description} onChange={(e) => updateLineItem(idx, 'description', e.target.value)} />
-                          </td>
-                          <td className="px-2 py-1">
-                            <Input className="border-0 shadow-none" placeholder="00-000" value={item.costCode} onChange={(e) => updateLineItem(idx, 'costCode', e.target.value)} />
-                          </td>
-                          <td className="px-2 py-1">
-                            <Input type="number" className="border-0 shadow-none text-right" value={item.quantity} onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)} />
-                          </td>
-                          <td className="px-2 py-1">
-                            <Input type="number" className="border-0 shadow-none text-right" placeholder="0.00" value={item.rate} onChange={(e) => updateLineItem(idx, 'rate', e.target.value)} />
-                          </td>
-                          <td className="px-3 py-2 text-right font-medium">${(parseFloat(item.amount) || 0).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 border-t">
-                      <tr>
-                        <td colSpan={4} className="px-3 py-2 text-right font-semibold">Total:</td>
-                        <td className="px-3 py-2 text-right font-semibold">
-                          ${formData.items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
+                    return (
+                      <tr
+                        key={bill.id}
+                        className={cn(
+                          "hover:bg-muted/50",
+                          bill.status === 'overdue' && "bg-red-50"
+                        )}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-primary">{bill.bill_number}</span>
+                            {bill.is_intercompany && (
+                              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">IC</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-medium">{bill.vendor_name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {bill.project_name || '-'}
+                        </td>
+                        <td className="px-4 py-3">{formatDate(bill.bill_date)}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(bill.status === 'overdue' && "text-red-600 font-medium")}>
+                            {formatDate(bill.due_date)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">
+                          {formatCurrency(bill.total_amount)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={cn(
+                            "font-medium",
+                            bill.balance_due > 0 ? "text-amber-600" : "text-green-600"
+                          )}>
+                            {formatCurrency(bill.balance_due)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge className={statusConfig.color}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {statusConfig.label}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setSelectedBill(bill)}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              {bill.status === 'pending' && (
+                                <DropdownMenuItem onClick={() => navigate(`${basePath}/bills/${bill.id}/edit`)}>
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                              )}
+                              {bill.status === 'pending' && (
+                                <DropdownMenuItem>
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Approve
+                                </DropdownMenuItem>
+                              )}
+                              {(bill.status === 'approved' || bill.status === 'overdue') && (
+                                <DropdownMenuItem onClick={() => setShowPayBillsModal(true)}>
+                                  <CreditCard className="w-4 h-4 mr-2" />
+                                  Pay Bill
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
-                    </tfoot>
-                  </table>
-                </div>
-                <Button variant="outline" size="sm" className="mt-2" onClick={addLineItem}>
-                  <Plus className="w-4 h-4 mr-1" />Add Line
-                </Button>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium block mb-1">Notes</label>
-                <textarea className="w-full border rounded-md px-3 py-2" rows={2} value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} placeholder="Internal notes..." />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t bg-gray-50 sticky bottom-0">
-              <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleSave}>Save Bill</Button>
-            </div>
-          </div>
-        </div>
-      )}
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Bill Detail Modal */}
-      {selectedBill && !showPayModal && (
+      {selectedBill && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
               <div>
-                <h3 className="font-semibold">{selectedBill.billNumber}</h3>
-                <p className="text-sm text-gray-500">{selectedBill.vendor}</p>
+                <h3 className="font-semibold">{selectedBill.bill_number}</h3>
+                <p className="text-sm text-muted-foreground">{selectedBill.vendor_name}</p>
               </div>
-              <button onClick={() => setSelectedBill(null)}><X className="w-5 h-5" /></button>
+              <button onClick={() => setSelectedBill(null)}>
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
-                <span className={cn("px-3 py-1 rounded text-sm capitalize", getStatusColor(selectedBill.status))}>
+                <Badge className={STATUS_CONFIG[selectedBill.status]?.color || 'bg-gray-100'}>
                   {selectedBill.status}
-                </span>
-                {selectedBill.paidDate && <span className="text-sm text-green-600">Paid on {selectedBill.paidDate}</span>}
-                {selectedBill.isIntercompany && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Intercompany</span>}
+                </Badge>
+                {selectedBill.paid_date && (
+                  <span className="text-sm text-green-600">Paid on {formatDate(selectedBill.paid_date)}</span>
+                )}
+                {selectedBill.is_intercompany && (
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Intercompany</span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-sm text-gray-500">Vendor</p>
-                  <p className="font-semibold">{selectedBill.vendor}</p>
+                  <p className="text-sm text-muted-foreground">Vendor</p>
+                  <p className="font-semibold">{selectedBill.vendor_name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">Entity</p>
-                  <p className="font-semibold">{selectedBill.entity}</p>
-                  {selectedBill.project && <p className="text-sm text-gray-600">{selectedBill.project}</p>}
+                  <p className="text-sm text-muted-foreground">Project</p>
+                  <p className="font-semibold">{selectedBill.project_name || '-'}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-500">Bill Date</p>
-                  <p className="font-medium">{selectedBill.date}</p>
+                  <p className="text-muted-foreground">Bill Date</p>
+                  <p className="font-medium">{formatDate(selectedBill.bill_date)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Due Date</p>
-                  <p className={cn("font-medium", selectedBill.status === 'overdue' && "text-red-600")}>{selectedBill.dueDate}</p>
+                  <p className="text-muted-foreground">Due Date</p>
+                  <p className={cn("font-medium", selectedBill.status === 'overdue' && "text-red-600")}>
+                    {formatDate(selectedBill.due_date)}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Terms</p>
-                  <p className="font-medium">{selectedBill.paymentTerms}</p>
+                  <p className="text-muted-foreground">Terms</p>
+                  <p className="font-medium">{selectedBill.payment_terms}</p>
                 </div>
               </div>
 
               {/* Line Items */}
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-muted">
                     <tr>
                       <th className="text-left px-3 py-2">Description</th>
                       <th className="text-left px-3 py-2">Cost Code</th>
@@ -597,55 +571,53 @@ const BillsPage = ({ onEntityChange, selectedEntity }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedBill.items.map((item, idx) => (
+                    {selectedBill.items?.map((item, idx) => (
                       <tr key={idx} className="border-t">
                         <td className="px-3 py-2">{item.description}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{item.costCode}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{item.cost_code}</td>
                         <td className="px-3 py-2 text-right">{item.quantity}</td>
-                        <td className="px-3 py-2 text-right">${item.rate.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right font-medium">${item.amount.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(item.rate)}</td>
+                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50">
+                  <tfoot className="bg-muted">
                     <tr className="border-t">
                       <td colSpan={4} className="px-3 py-2 text-right font-semibold">Total</td>
-                      <td className="px-3 py-2 text-right font-semibold">${selectedBill.total.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{formatCurrency(selectedBill.total_amount)}</td>
                     </tr>
-                    {selectedBill.amountPaid > 0 && (
+                    {selectedBill.amount_paid > 0 && (
                       <tr>
                         <td colSpan={4} className="px-3 py-2 text-right text-green-600">Paid</td>
-                        <td className="px-3 py-2 text-right text-green-600">-${selectedBill.amountPaid.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right text-green-600">-{formatCurrency(selectedBill.amount_paid)}</td>
                       </tr>
                     )}
                     <tr className="border-t">
                       <td colSpan={4} className="px-3 py-2 text-right font-semibold">Balance Due</td>
-                      <td className={cn("px-3 py-2 text-right font-semibold", selectedBill.balance > 0 ? "text-amber-600" : "text-green-600")}>
-                        ${selectedBill.balance.toLocaleString()}
+                      <td className={cn(
+                        "px-3 py-2 text-right font-semibold",
+                        selectedBill.balance_due > 0 ? "text-amber-600" : "text-green-600"
+                      )}>
+                        {formatCurrency(selectedBill.balance_due)}
                       </td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
-
-              {selectedBill.notes && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-sm text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm">{selectedBill.notes}</p>
-                </div>
-              )}
             </div>
-            <div className="flex justify-between items-center p-4 border-t bg-gray-50">
-              <Button variant="outline" size="sm"><FileText className="w-4 h-4 mr-1" />View Attachment</Button>
+            <div className="flex justify-between items-center p-4 border-t bg-muted/50">
+              <Button variant="outline" size="sm">
+                <FileText className="w-4 h-4 mr-1" />View Attachment
+              </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setSelectedBill(null)}>Close</Button>
                 {selectedBill.status === 'pending' && (
-                  <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => approveBill(selectedBill.id)}>
+                  <Button>
                     <CheckCircle className="w-4 h-4 mr-1" />Approve
                   </Button>
                 )}
-                {selectedBill.status === 'approved' && (
-                  <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowPayModal(true)}>
+                {(selectedBill.status === 'approved' || selectedBill.status === 'overdue') && (
+                  <Button onClick={() => { setSelectedBill(null); setShowPayBillsModal(true); }}>
                     <CreditCard className="w-4 h-4 mr-1" />Pay Bill
                   </Button>
                 )}
@@ -655,56 +627,12 @@ const BillsPage = ({ onEntityChange, selectedEntity }) => {
         </div>
       )}
 
-      {/* Pay Bill Modal */}
-      {showPayModal && selectedBill && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold">Pay Bill</h3>
-              <button onClick={() => { setShowPayModal(false); setSelectedBill(null); }}><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500">Amount Due</p>
-                <p className="text-3xl font-semibold text-[#047857]">${selectedBill.balance.toLocaleString()}</p>
-                <p className="text-sm text-gray-500 mt-1">{selectedBill.vendor}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Payment Date</label>
-                <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Payment Method</label>
-                <select className="w-full border rounded-md px-3 py-2">
-                  <option>Check</option>
-                  <option>ACH Transfer</option>
-                  <option>Wire Transfer</option>
-                  <option>Credit Card</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Bank Account</label>
-                <select className="w-full border rounded-md px-3 py-2">
-                  <option>Operating Account - ****4521</option>
-                  <option>Project Account - ****7832</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Reference / Check #</label>
-                <Input placeholder="e.g., Check #4522" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
-              <Button variant="outline" onClick={() => { setShowPayModal(false); setSelectedBill(null); }}>Cancel</Button>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => payBill(selectedBill.id)}>
-                <CheckCircle className="w-4 h-4 mr-1" />Record Payment
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Pay Bills Modal */}
+      <PayBillsModal
+        open={showPayBillsModal}
+        onClose={() => setShowPayBillsModal(false)}
+        entityId={entityId}
+      />
     </div>
   );
-};
-
-export default BillsPage;
+}

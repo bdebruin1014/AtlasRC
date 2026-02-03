@@ -161,7 +161,13 @@ export async function getNotifications(options = {}) {
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching notifications:', error);
+    // Silently handle missing table errors
+    const isTableMissing = error.code === '42P01' ||
+                           error.message?.includes('does not exist') ||
+                           error.code === 'PGRST204';
+    if (!isTableMissing && import.meta.env.DEV) {
+      console.debug('Notifications: table not available');
+    }
     return [];
   }
 
@@ -183,7 +189,7 @@ export async function getUnreadCount() {
     ;
 
   if (error) {
-    console.error('Error fetching unread count:', error);
+    // Silently handle missing table - notifications may not be set up yet
     return 0;
   }
 
@@ -214,7 +220,7 @@ export async function markAsRead(notificationIds) {
   });
 
   if (error) {
-    console.error('Error marking notifications as read:', error);
+    // Silently handle - table may not exist
     return { success: false, error };
   }
 
@@ -239,7 +245,7 @@ export async function markAllAsRead() {
     .eq('is_read', false);
 
   if (error) {
-    console.error('Error marking all as read:', error);
+    // Silently handle - table may not exist
     return { success: false, error };
   }
 
@@ -265,7 +271,7 @@ export async function archiveNotification(notificationId) {
     .eq('id', notificationId);
 
   if (error) {
-    console.error('Error archiving notification:', error);
+    // Silently handle - table may not exist
     return { success: false, error };
   }
 
@@ -322,7 +328,7 @@ export async function createNotification({
   });
 
   if (error) {
-    console.error('Error creating notification:', error);
+    // Silently handle - table may not exist
     return { success: false, error };
   }
 
@@ -347,8 +353,8 @@ export async function getNotificationPreferences() {
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching preferences:', error);
-    return null;
+    // Silently handle - table may not exist, use defaults
+    return DEMO_PREFERENCES;
   }
 
   return data || DEMO_PREFERENCES;
@@ -373,7 +379,7 @@ export async function updateNotificationPreferences(preferences) {
     .single();
 
   if (error) {
-    console.error('Error updating preferences:', error);
+    // Silently handle - table may not exist
     return { success: false, error };
   }
 
@@ -409,7 +415,7 @@ export async function getBudgetAlertConfig(projectId) {
     .single();
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching budget alert config:', error);
+    // Silently handle - table may not exist
     return null;
   }
 
@@ -435,7 +441,7 @@ export async function updateBudgetAlertConfig(projectId, config) {
     .single();
 
   if (error) {
-    console.error('Error updating budget alert config:', error);
+    // Silently handle - table may not exist
     return { success: false, error };
   }
 

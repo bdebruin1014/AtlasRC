@@ -18,7 +18,7 @@ import {
   createBankAccount,
   deleteBankAccount,
   setDefaultBankAccount
-} from '@/services/bankAccountService';
+} from '@/services/bankAccountsService';
 
 const BankAccountsSetupPage = () => {
   const { entityId } = useParams();

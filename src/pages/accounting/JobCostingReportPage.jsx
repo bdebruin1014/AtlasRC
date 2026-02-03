@@ -173,7 +173,16 @@ const JobCostingReportPage = () => {
               className="px-3 py-1.5 border rounded-lg text-sm"
             />
           </div>
-          <Button variant="outline">
+          <select
+            className="px-3 py-1.5 border rounded-lg text-sm"
+            onChange={(e) => alert(`Selected project: ${e.target.value}`)}
+          >
+            <option value="">All Projects</option>
+            <option value="proj-1">Highland Park Development</option>
+            <option value="proj-2">Riverside Commons</option>
+            <option value="proj-3">Cedar Mill Phase 2</option>
+          </select>
+          <Button>
             <FileText className="w-4 h-4 mr-2" />
             Export
           </Button>

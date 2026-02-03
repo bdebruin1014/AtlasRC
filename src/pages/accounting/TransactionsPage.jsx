@@ -1,252 +1,384 @@
 import React, { useState } from 'react';
-import { Plus, Search, Download, Upload, Filter, Eye, Edit2, Trash2, X, CheckCircle } from 'lucide-react';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Plus, Search, Download, Filter, Eye, Edit2, ChevronDown,
+  Receipt, FileText, BookOpen, DollarSign, ArrowUpRight, ArrowDownRight,
+  ArrowRightLeft, MoreHorizontal
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import ExpenseFormModal from '@/components/accounting/ExpenseFormModal';
 
-const TransactionsPage = ({ selectedEntity, entities, flatEntities }) => {
-  const [showModal, setShowModal] = useState(false);
+// Demo transactions for fallback
+const demoTransactions = [
+  { id: 'TXN-001', transaction_date: '2024-12-28', transaction_type: 'deposit', description: 'Rental Income - December', account_name: 'Operating Account', amount: 145000, category: 'Revenue', status: 'posted' },
+  { id: 'TXN-002', transaction_date: '2024-12-27', transaction_type: 'payment', description: 'Smith Construction - Draw #5', account_name: 'Construction Account', amount: -850000, category: 'Construction', status: 'posted' },
+  { id: 'TXN-003', transaction_date: '2024-12-26', transaction_type: 'payment', description: 'Property Tax Payment - Q4', account_name: 'Operating Account', amount: -45000, category: 'Operating Expenses', status: 'posted' },
+  { id: 'TXN-004', transaction_date: '2024-12-25', transaction_type: 'deposit', description: 'Management Fee Income - Dec', account_name: 'Operating Account', amount: 35000, category: 'Revenue', status: 'posted' },
+  { id: 'TXN-005', transaction_date: '2024-12-24', transaction_type: 'deposit', description: 'Lot Sale - Lot 15', account_name: 'Construction Account', amount: 285000, category: 'Revenue', status: 'posted' },
+  { id: 'TXN-006', transaction_date: '2024-12-23', transaction_type: 'expense', description: 'Ferguson Supply - Plumbing Materials', account_name: 'Construction Account', amount: -48500, category: 'Construction', status: 'pending' },
+  { id: 'TXN-007', transaction_date: '2024-12-22', transaction_type: 'transfer', description: 'Transfer to Payroll Account', account_name: 'Operating Account', amount: -75000, category: 'Transfer', status: 'posted' },
+  { id: 'TXN-008', transaction_date: '2024-12-22', transaction_type: 'deposit', description: 'Construction Loan Draw', account_name: 'Construction Account', amount: 500000, category: 'Financing', status: 'posted' },
+  { id: 'TXN-009', transaction_date: '2024-12-20', transaction_type: 'expense', description: 'Insurance Premium - Annual', account_name: 'Operating Account', amount: -28500, category: 'Operating Expenses', status: 'posted' },
+  { id: 'TXN-010', transaction_date: '2024-12-19', transaction_type: 'expense', description: 'Legal Fees - Contract Review', account_name: 'Operating Account', amount: -15000, category: 'Professional Services', status: 'posted' },
+];
+
+const TYPE_CONFIG = {
+  deposit: { color: 'bg-green-100 text-green-700', icon: ArrowDownRight },
+  payment: { color: 'bg-red-100 text-red-700', icon: ArrowUpRight },
+  expense: { color: 'bg-orange-100 text-orange-700', icon: ArrowUpRight },
+  transfer: { color: 'bg-blue-100 text-blue-700', icon: ArrowRightLeft },
+  journal: { color: 'bg-purple-100 text-purple-700', icon: BookOpen },
+  invoice: { color: 'bg-cyan-100 text-cyan-700', icon: FileText },
+  bill: { color: 'bg-amber-100 text-amber-700', icon: Receipt },
+};
+
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Math.abs(val) || 0);
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const fetchTransactions = async (entityId) => {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('entity_id', entityId)
+      .order('transaction_date', { ascending: false })
+      .limit(100);
+
+    if (data && !error) return data;
+  } catch (err) {
+    console.error('Error fetching transactions:', err);
+  }
+  return demoTransactions;
+};
+
+export default function TransactionsPage() {
+  const { entityId } = useParams();
+  const navigate = useNavigate();
+  const context = useOutletContext();
+  const entity = context?.entity;
+
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [transactions, setTransactions] = useState([
-    { id: 'TXN-2024-0892', date: '2024-12-28', type: 'deposit', description: 'Rental Income - December', account: 'Operating Account', amount: 145000, entity: 'sunset', category: 'Revenue', status: 'posted', project: null },
-    { id: 'TXN-2024-0891', date: '2024-12-27', type: 'payment', description: 'Smith Construction - Draw #5', account: 'Construction Account', amount: -850000, entity: 'watson', category: 'Construction', status: 'posted', project: 'Watson House' },
-    { id: 'TXN-2024-0890', date: '2024-12-26', type: 'payment', description: 'Property Tax Payment - Q4', account: 'Operating Account', amount: -45000, entity: 'sunset', category: 'Operating Expenses', status: 'posted', project: null },
-    { id: 'TXN-2024-0889', date: '2024-12-25', type: 'deposit', description: 'Management Fee Income - Dec', account: 'Operating Account', amount: 35000, entity: 'manageco', category: 'Revenue', status: 'posted', project: null },
-    { id: 'TXN-2024-0888', date: '2024-12-24', type: 'deposit', description: 'Lot Sale - Lot 15', account: 'Construction Account', amount: 285000, entity: 'watson', category: 'Revenue', status: 'posted', project: 'Watson House' },
-    { id: 'TXN-2024-0887', date: '2024-12-23', type: 'payment', description: 'Ferguson Supply - Plumbing Materials', account: 'Construction Account', amount: -48500, entity: 'watson', category: 'Construction', status: 'pending', project: 'Watson House' },
-    { id: 'TXN-2024-0886', date: '2024-12-22', type: 'transfer', description: 'Transfer to Payroll Account', account: 'Operating Account', amount: -75000, entity: 'vanrock', category: 'Transfer', status: 'posted', project: null },
-    { id: 'TXN-2024-0885', date: '2024-12-22', type: 'deposit', description: 'Construction Loan Draw', account: 'Construction Account', amount: 500000, entity: 'oslo', category: 'Financing', status: 'posted', project: 'Oslo Townhomes' },
-    { id: 'TXN-2024-0884', date: '2024-12-20', type: 'payment', description: 'Insurance Premium - Annual', account: 'Operating Account', amount: -28500, entity: 'sunset', category: 'Operating Expenses', status: 'posted', project: null },
-    { id: 'TXN-2024-0883', date: '2024-12-19', type: 'payment', description: 'Legal Fees - Contract Review', account: 'Operating Account', amount: -15000, entity: 'vanrock', category: 'Professional Services', status: 'posted', project: null },
-  ]);
+  const basePath = `/accounting/entities/${entityId}`;
 
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    type: 'payment',
-    description: '',
-    account: 'Operating Account',
-    amount: '',
-    entity: selectedEntity || '',
-    category: 'Operating Expenses',
-    project: '',
+  const { data: transactions = [], isLoading } = useQuery({
+    queryKey: ['entity-transactions', entityId],
+    queryFn: () => fetchTransactions(entityId),
+    enabled: !!entityId,
   });
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'deposit': return 'bg-green-100 text-green-700';
-      case 'payment': return 'bg-red-100 text-red-700';
-      case 'transfer': return 'bg-blue-100 text-blue-700';
-      case 'journal': return 'bg-purple-100 text-purple-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
   const filteredTransactions = transactions.filter(tx => {
-    if (filterType !== 'all' && tx.type !== filterType) return false;
-    if (searchTerm && !tx.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (filterType !== 'all' && tx.transaction_type !== filterType) return false;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      return (
+        tx.description?.toLowerCase().includes(term) ||
+        tx.vendor_name?.toLowerCase().includes(term) ||
+        tx.category?.toLowerCase().includes(term)
+      );
+    }
     return true;
   });
 
   const totalDeposits = transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const totalPayments = transactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const netChange = totalDeposits - totalPayments;
 
-  const handleSave = () => {
-    const newTx = {
-      id: `TXN-2024-${String(893 + transactions.length).padStart(4, '0')}`,
-      ...formData,
-      amount: formData.type === 'payment' ? -Math.abs(parseFloat(formData.amount) || 0) : Math.abs(parseFloat(formData.amount) || 0),
-      status: 'pending',
-    };
-    setTransactions(prev => [newTx, ...prev]);
-    setShowModal(false);
-    setFormData({ date: new Date().toISOString().split('T')[0], type: 'payment', description: '', account: 'Operating Account', amount: '', entity: selectedEntity || '', category: 'Operating Expenses', project: '' });
+  const handleExport = () => {
+    // Export functionality
+    const csvContent = [
+      ['Date', 'Type', 'Description', 'Account', 'Amount', 'Status'].join(','),
+      ...filteredTransactions.map(tx => [
+        tx.transaction_date,
+        tx.transaction_type,
+        `"${tx.description}"`,
+        tx.account_name || '',
+        tx.amount,
+        tx.status
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${entityId}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
   };
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Transactions</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm"><Upload className="w-4 h-4 mr-1" />Import</Button>
-          <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1" />Export</Button>
-          <Button className="bg-[#047857] hover:bg-[#065f46]" size="sm" onClick={() => setShowModal(true)}>
-            <Plus className="w-4 h-4 mr-1" />Add Transaction
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">All Transactions</h1>
+          <p className="text-muted-foreground">
+            View all financial transactions for {entity?.name || entity?.short_name || 'this entity'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Transaction
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`${basePath}/bills/new`)}>
+                <Receipt className="h-4 w-4 mr-2" />
+                New Bill
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`${basePath}/invoices/new`)}>
+                <FileText className="h-4 w-4 mr-2" />
+                New Invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`${basePath}/journal-entries/new`)}>
+                <BookOpen className="h-4 w-4 mr-2" />
+                Journal Entry
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowExpenseModal(true)}>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Record Expense
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Total Transactions</p>
-          <p className="text-xl font-semibold">{transactions.length}</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4 border-l-4 border-l-green-500">
-          <p className="text-sm text-gray-500">Total Deposits</p>
-          <p className="text-xl font-semibold text-green-600">${(totalDeposits / 1000).toFixed(0)}K</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4 border-l-4 border-l-red-500">
-          <p className="text-sm text-gray-500">Total Payments</p>
-          <p className="text-xl font-semibold text-red-600">${(totalPayments / 1000).toFixed(0)}K</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4 border-l-4 border-l-blue-500">
-          <p className="text-sm text-gray-500">Net Change</p>
-          <p className={cn("text-xl font-semibold", totalDeposits - totalPayments >= 0 ? "text-green-600" : "text-red-600")}>
-            ${((totalDeposits - totalPayments) / 1000).toFixed(0)}K
-          </p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Transactions</p>
+                <p className="text-2xl font-bold">{transactions.length}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Deposits</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(totalDeposits)}</p>
+              </div>
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <ArrowDownRight className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Payments</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalPayments)}</p>
+              </div>
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <ArrowUpRight className="w-5 h-5 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Net Change</p>
+                <p className={cn("text-2xl font-bold", netChange >= 0 ? "text-green-600" : "text-red-600")}>
+                  {netChange >= 0 ? '+' : '-'}{formatCurrency(netChange)}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
-      <div className="bg-white border rounded-lg p-4 mb-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search transactions..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search transactions..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <select
+              className="border rounded-md px-3 py-2 text-sm bg-background"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="all">All Types</option>
+              <option value="deposit">Deposits</option>
+              <option value="payment">Payments</option>
+              <option value="expense">Expenses</option>
+              <option value="transfer">Transfers</option>
+              <option value="journal">Journal Entries</option>
+              <option value="invoice">Invoices</option>
+              <option value="bill">Bills</option>
+            </select>
+            <select className="border rounded-md px-3 py-2 text-sm bg-background">
+              <option value="">All Accounts</option>
+              <option>Operating Account</option>
+              <option>Construction Account</option>
+              <option>Payroll Account</option>
+            </select>
+            <Button variant="outline" size="sm">
+              <Filter className="w-4 h-4 mr-1" />
+              More Filters
+            </Button>
           </div>
-          <select className="border rounded-md px-3 py-2 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="all">All Types</option>
-            <option value="deposit">Deposits</option>
-            <option value="payment">Payments</option>
-            <option value="transfer">Transfers</option>
-            <option value="journal">Journal</option>
-          </select>
-          <select className="border rounded-md px-3 py-2 text-sm">
-            <option value="">All Accounts</option>
-            <option>Operating Account</option>
-            <option>Construction Account</option>
-            <option>Payroll Account</option>
-          </select>
-          <Button variant="outline" size="sm"><Filter className="w-4 h-4 mr-1" />More Filters</Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Transactions Table */}
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium">ID</th>
-              <th className="text-left px-4 py-3 font-medium">Date</th>
-              <th className="text-left px-4 py-3 font-medium">Type</th>
-              <th className="text-left px-4 py-3 font-medium">Description</th>
-              <th className="text-left px-4 py-3 font-medium">Account</th>
-              <th className="text-left px-4 py-3 font-medium">Entity</th>
-              <th className="text-right px-4 py-3 font-medium">Amount</th>
-              <th className="text-left px-4 py-3 font-medium">Status</th>
-              <th className="text-left px-4 py-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filteredTransactions.map((tx) => (
-              <tr key={tx.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs text-[#047857]">{tx.id}</td>
-                <td className="px-4 py-3">{tx.date}</td>
-                <td className="px-4 py-3">
-                  <span className={cn("px-2 py-1 rounded text-xs capitalize", getTypeColor(tx.type))}>{tx.type}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <div>
-                    <p>{tx.description}</p>
-                    {tx.project && <p className="text-xs text-gray-500">{tx.project}</p>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-xs">{tx.account}</td>
-                <td className="px-4 py-3 text-xs">{flatEntities?.find(e => e.id === tx.entity)?.name || tx.entity}</td>
-                <td className={cn("px-4 py-3 text-right font-medium", tx.amount > 0 ? "text-green-600" : "text-red-600")}>
-                  {tx.amount > 0 ? '+' : ''}{tx.amount < 0 ? '-' : ''}${Math.abs(tx.amount).toLocaleString()}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={cn("px-2 py-1 rounded text-xs capitalize", tx.status === 'posted' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
-                    {tx.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1">
-                    <button className="p-1 hover:bg-gray-100 rounded" title="View"><Eye className="w-4 h-4 text-gray-500" /></button>
-                    <button className="p-1 hover:bg-gray-100 rounded" title="Edit"><Edit2 className="w-4 h-4 text-gray-500" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">Date</th>
+                  <th className="text-left px-4 py-3 font-medium">Type</th>
+                  <th className="text-left px-4 py-3 font-medium">Description</th>
+                  <th className="text-left px-4 py-3 font-medium">Account</th>
+                  <th className="text-right px-4 py-3 font-medium">Amount</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="w-12"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">No transactions found</p>
+                      <p className="text-sm">Create your first transaction to get started</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((tx) => {
+                    const typeConfig = TYPE_CONFIG[tx.transaction_type] || TYPE_CONFIG.payment;
+                    const TypeIcon = typeConfig.icon;
 
-      {/* Add Transaction Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-lg">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold">Add Transaction</h3>
-              <button onClick={() => setShowModal(false)}><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1">Date *</label>
-                  <Input type="date" value={formData.date} onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Type *</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.type} onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}>
-                    <option value="deposit">Deposit</option>
-                    <option value="payment">Payment</option>
-                    <option value="transfer">Transfer</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">Description *</label>
-                <Input value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="Transaction description" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1">Account *</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.account} onChange={(e) => setFormData(prev => ({ ...prev, account: e.target.value }))}>
-                    <option>Operating Account</option>
-                    <option>Construction Account</option>
-                    <option>Payroll Account</option>
-                    <option>Reserve Account</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Amount *</label>
-                  <Input type="number" placeholder="0.00" value={formData.amount} onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium block mb-1">Entity *</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.entity} onChange={(e) => setFormData(prev => ({ ...prev, entity: e.target.value }))}>
-                    {flatEntities?.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Category</label>
-                  <select className="w-full border rounded-md px-3 py-2" value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}>
-                    <option>Revenue</option>
-                    <option>Operating Expenses</option>
-                    <option>Construction</option>
-                    <option>Professional Services</option>
-                    <option>Financing</option>
-                    <option>Transfer</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
-              <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleSave}>Save Transaction</Button>
-            </div>
-          </div>
-        </div>
-      )}
+                    return (
+                      <tr key={tx.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-3">{formatDate(tx.transaction_date)}</td>
+                        <td className="px-4 py-3">
+                          <Badge className={cn("capitalize", typeConfig.color)}>
+                            <TypeIcon className="w-3 h-3 mr-1" />
+                            {tx.transaction_type}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{tx.description}</p>
+                            {tx.vendor_name && (
+                              <p className="text-xs text-muted-foreground">{tx.vendor_name}</p>
+                            )}
+                            {tx.category && (
+                              <p className="text-xs text-muted-foreground">{tx.category}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{tx.account_name || '-'}</td>
+                        <td className={cn(
+                          "px-4 py-3 text-right font-medium",
+                          tx.amount > 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {tx.amount > 0 ? '+' : '-'}{formatCurrency(tx.amount)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge className={cn(
+                            tx.status === 'posted' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                          )}>
+                            {tx.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Expense Modal */}
+      <ExpenseFormModal
+        open={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        entityId={entityId}
+      />
     </div>
   );
-};
-
-export default TransactionsPage;
+}

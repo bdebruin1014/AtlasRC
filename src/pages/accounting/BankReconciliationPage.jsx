@@ -1,297 +1,325 @@
-import React, { useState } from 'react';
-import { CheckCircle, AlertTriangle, Search, Download, Upload, RefreshCw, Landmark, Calendar, DollarSign, Check, ArrowLeftRight, FileText, Clock, Filter, MoreHorizontal } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  CheckCircle, AlertCircle, ArrowRight, Calendar, DollarSign
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import * as reconciliationService from '@/services/reconciliationService';
+import * as bankService from '@/services/bankAccountsService';
 
-const BankReconciliationPage = () => {
-  const [selectedAccount, setSelectedAccount] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('2024-12');
-  const [matchingMode, setMatchingMode] = useState(false);
-  const [selectedBank, setSelectedBank] = useState([]);
-  const [selectedBook, setSelectedBook] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+export default function BankReconciliationPage() {
+  const { entityId, bankAccountId, reconciliationId } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const bankAccounts = [
-    { id: 'acct-1', name: 'Operating Account', bank: 'Chase Bank', number: '****4521', balance: 2450000, bookBalance: 2448500, status: 'variance', lastReconciled: '2024-11-30' },
-    { id: 'acct-2', name: 'Payroll Account', bank: 'Chase Bank', number: '****7832', balance: 125000, bookBalance: 125000, status: 'matched', lastReconciled: '2024-12-15' },
-    { id: 'acct-3', name: 'Construction Account', bank: 'First National', number: '****7891', balance: 1850000, bookBalance: 1847200, status: 'variance', lastReconciled: '2024-12-20' },
-    { id: 'acct-4', name: 'Reserve Account', bank: 'Wells Fargo', number: '****3344', balance: 425000, bookBalance: 425000, status: 'matched', lastReconciled: '2024-12-22' },
-  ];
+  // Form state for new reconciliation
+  const [formData, setFormData] = useState({
+    statementDate: new Date().toISOString().split('T')[0],
+    statementEndingBalance: '',
+    periodStartDate: '',
+    periodEndDate: ''
+  });
 
-  const bankTransactions = [
-    { id: 'bt-1', date: '2024-12-28', description: 'Wire Transfer - Rental Income', amount: 145000, type: 'credit', matched: false, ref: 'WT-78451' },
-    { id: 'bt-2', date: '2024-12-27', description: 'Check #5567 - Smith Construction', amount: -85000, type: 'debit', matched: true, ref: 'CHK-5567', matchedTo: 'bk-2' },
-    { id: 'bt-3', date: '2024-12-26', description: 'ACH - Property Tax', amount: -45000, type: 'debit', matched: true, ref: 'ACH-2847', matchedTo: 'bk-3' },
-    { id: 'bt-4', date: '2024-12-24', description: 'Wire - Lot Sale Proceeds', amount: 285000, type: 'credit', matched: false, ref: 'WT-78452' },
-    { id: 'bt-5', date: '2024-12-23', description: 'Check #5568 - Ferguson Supply', amount: -48500, type: 'debit', matched: false, ref: 'CHK-5568' },
-    { id: 'bt-6', date: '2024-12-22', description: 'Bank Fee', amount: -125, type: 'debit', matched: false, ref: 'FEE-1222' },
-    { id: 'bt-7', date: '2024-12-20', description: 'Interest Earned', amount: 847.50, type: 'credit', matched: false, ref: 'INT-1220' },
-  ];
+  const { data: bankAccount } = useQuery({
+    queryKey: ['bank-account', bankAccountId],
+    queryFn: () => bankService.getBankAccount(bankAccountId)
+  });
 
-  const bookTransactions = [
-    { id: 'bk-1', date: '2024-12-28', description: 'December Rent Collection', amount: 145000, type: 'credit', matched: false, ref: 'JE-4521' },
-    { id: 'bk-2', date: '2024-12-27', description: 'Smith Construction - Draw #5', amount: -85000, type: 'debit', matched: true, ref: 'AP-2847', matchedTo: 'bt-2' },
-    { id: 'bk-3', date: '2024-12-26', description: 'Property Tax Q4', amount: -45000, type: 'debit', matched: true, ref: 'AP-2848', matchedTo: 'bt-3' },
-    { id: 'bk-4', date: '2024-12-24', description: 'Lot 15 Sale - Sunset Ridge', amount: 285000, type: 'credit', matched: false, ref: 'AR-1542' },
-    { id: 'bk-5', date: '2024-12-23', description: 'Ferguson Supply - Materials', amount: -48500, type: 'debit', matched: false, ref: 'AP-2849' },
-    { id: 'bk-6', date: '2024-12-21', description: 'Insurance Premium', amount: -28500, type: 'debit', matched: false, ref: 'AP-2850' },
-  ];
+  const { data: lastReconciliation } = useQuery({
+    queryKey: ['last-reconciliation', bankAccountId],
+    queryFn: () => reconciliationService.getLastReconciliation(bankAccountId)
+  });
 
-  const toggleBankSelection = (id) => {
-    setSelectedBank(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
+  const { data: reconciliation, isLoading: loadingRecon } = useQuery({
+    queryKey: ['reconciliation', reconciliationId],
+    queryFn: () => reconciliationService.getReconciliation(reconciliationId),
+    enabled: !!reconciliationId
+  });
 
-  const toggleBookSelection = (id) => {
-    setSelectedBook(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const handleMatch = () => {
-    if (selectedBank.length > 0 && selectedBook.length > 0) {
-      alert(`Matched ${selectedBank.length} bank transaction(s) with ${selectedBook.length} book transaction(s)`);
-      setSelectedBank([]);
-      setSelectedBook([]);
+  const startMutation = useMutation({
+    mutationFn: (data) => reconciliationService.startReconciliation(data),
+    onSuccess: (data) => {
+      navigate(`/accounting/entities/${entityId}/bank-accounts/${bankAccountId}/reconcile/${data.id}`);
     }
+  });
+
+  const toggleClearedMutation = useMutation({
+    mutationFn: ({ transactionId, isCleared }) =>
+      reconciliationService.toggleTransactionCleared(reconciliationId, transactionId, isCleared),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['reconciliation', reconciliationId]);
+    }
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: () => reconciliationService.completeReconciliation(reconciliationId, 'current-user-id'),
+    onSuccess: () => {
+      navigate(`/accounting/entities/${entityId}/bank-accounts/${bankAccountId}`);
+    }
+  });
+
+  const handleStartReconciliation = () => {
+    startMutation.mutate({
+      bankAccountId,
+      entityId,
+      statementDate: formData.statementDate,
+      statementEndingBalance: parseFloat(formData.statementEndingBalance),
+      periodStartDate: formData.periodStartDate,
+      periodEndDate: formData.periodEndDate
+    });
   };
 
-  const unmatchedBankTotal = bankTransactions.filter(t => !t.matched).reduce((sum, t) => sum + t.amount, 0);
-  const unmatchedBookTotal = bookTransactions.filter(t => !t.matched).reduce((sum, t) => sum + t.amount, 0);
-  const variance = selectedAccount ? selectedAccount.balance - selectedAccount.bookBalance : 0;
+  // Calculate summary
+  const summary = useMemo(() => {
+    if (!reconciliation) return null;
 
-  return (
-    <div className="flex h-full">
-      {/* Left Panel - Account List */}
-      <div className="w-72 bg-white border-r flex flex-col">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold mb-3">Bank Accounts</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search accounts..." className="pl-9" />
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {bankAccounts.map((account) => (
-            <div
-              key={account.id}
-              onClick={() => setSelectedAccount(account)}
-              className={cn(
-                "p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors",
-                selectedAccount?.id === account.id && "bg-green-50 border-l-4 border-l-[#047857]"
-              )}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div>
-                  <p className="font-medium text-sm">{account.name}</p>
-                  <p className="text-xs text-gray-500">{account.bank} {account.number}</p>
-                </div>
-                {account.status === 'variance' ? (
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                )}
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Bank Balance:</span>
-                  <span className="font-medium">${account.balance.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500">Book Balance:</span>
-                  <span className="font-medium">${account.bookBalance.toLocaleString()}</span>
-                </div>
-                {account.balance !== account.bookBalance && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-amber-600">Variance:</span>
-                    <span className="font-medium text-amber-600">${(account.balance - account.bookBalance).toLocaleString()}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+    const items = reconciliation.items || [];
+    const clearedDeposits = items
+      .filter(i => i.is_cleared && i.transaction?.amount > 0)
+      .reduce((sum, i) => sum + i.transaction.amount, 0);
+    const clearedWithdrawals = items
+      .filter(i => i.is_cleared && i.transaction?.amount < 0)
+      .reduce((sum, i) => sum + Math.abs(i.transaction.amount), 0);
 
-      {/* Right Panel - Reconciliation Workspace */}
-      <div className="flex-1 flex flex-col bg-gray-50">
-        {selectedAccount ? (
-          <>
-            {/* Header */}
-            <div className="bg-white border-b p-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{selectedAccount.name}</h2>
-                  <p className="text-sm text-gray-500">{selectedAccount.bank} • {selectedAccount.number}</p>
-                </div>
-                <div className="flex gap-2">
-                  <select className="border rounded-md px-3 py-1.5 text-sm" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
-                    <option value="2024-12">December 2024</option>
-                    <option value="2024-11">November 2024</option>
-                    <option value="2024-10">October 2024</option>
-                  </select>
-                  <Button variant="outline" size="sm"><Upload className="w-4 h-4 mr-1" />Import Statement</Button>
-                  <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1" />Export</Button>
-                </div>
-              </div>
+    const clearedBalance = reconciliation.beginning_balance + clearedDeposits - clearedWithdrawals;
+    const difference = reconciliation.statement_ending_balance - clearedBalance;
 
-              {/* Summary Cards */}
-              <div className="grid grid-cols-5 gap-4">
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Bank Balance</p>
-                  <p className="text-lg font-semibold text-blue-700">${(selectedAccount.balance / 1000).toFixed(1)}K</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Book Balance</p>
-                  <p className="text-lg font-semibold text-purple-700">${(selectedAccount.bookBalance / 1000).toFixed(1)}K</p>
-                </div>
-                <div className={cn("rounded-lg p-3 text-center", variance === 0 ? "bg-green-50" : "bg-amber-50")}>
-                  <p className="text-xs text-gray-500">Variance</p>
-                  <p className={cn("text-lg font-semibold", variance === 0 ? "text-green-700" : "text-amber-700")}>
-                    ${Math.abs(variance).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Unmatched Bank</p>
-                  <p className="text-lg font-semibold">{bankTransactions.filter(t => !t.matched).length}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">Unmatched Book</p>
-                  <p className="text-lg font-semibold">{bookTransactions.filter(t => !t.matched).length}</p>
-                </div>
-              </div>
-            </div>
+    return {
+      beginningBalance: reconciliation.beginning_balance,
+      clearedDeposits,
+      clearedWithdrawals,
+      clearedBalance,
+      statementBalance: reconciliation.statement_ending_balance,
+      difference,
+      isBalanced: Math.abs(difference) < 0.01
+    };
+  }, [reconciliation]);
 
-            {/* Toolbar */}
-            <div className="bg-white border-b px-4 py-2 flex items-center gap-3">
-              <Button
-                variant={matchingMode ? "default" : "outline"}
-                size="sm"
-                className={matchingMode ? "bg-[#047857] hover:bg-[#065f46]" : ""}
-                onClick={() => setMatchingMode(!matchingMode)}
-              >
-                <ArrowLeftRight className="w-4 h-4 mr-1" />Match Mode
-              </Button>
-              {matchingMode && selectedBank.length > 0 && selectedBook.length > 0 && (
-                <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleMatch}>
-                  <Check className="w-4 h-4 mr-1" />Match Selected ({selectedBank.length} + {selectedBook.length})
-                </Button>
-              )}
-              <div className="flex-1" />
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="Search transactions..." className="pl-9 w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <Button variant="outline" size="sm"><Filter className="w-4 h-4 mr-1" />Filter</Button>
-              <Button variant="outline" size="sm"><RefreshCw className="w-4 h-4" /></Button>
-            </div>
+  // If no reconciliation ID, show start form
+  if (!reconciliationId) {
+    return (
+      <div className="p-6 max-w-2xl">
+        <h1 className="text-2xl font-bold mb-6">Start Bank Reconciliation</h1>
+        <p className="text-muted-foreground mb-6">
+          {bankAccount?.account_name}
+        </p>
 
-            {/* Split Transaction View */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* Bank Transactions */}
-              <div className="flex-1 border-r flex flex-col">
-                <div className="bg-blue-50 px-4 py-2 border-b flex items-center justify-between">
-                  <span className="font-medium text-sm text-blue-800">Bank Statement</span>
-                  <span className="text-xs text-blue-600">{bankTransactions.length} transactions</span>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {bankTransactions.map((txn) => (
-                    <div
-                      key={txn.id}
-                      onClick={() => matchingMode && !txn.matched && toggleBankSelection(txn.id)}
-                      className={cn(
-                        "p-3 border-b hover:bg-gray-50 transition-colors",
-                        txn.matched && "bg-green-50 opacity-60",
-                        selectedBank.includes(txn.id) && "bg-blue-100 border-l-4 border-l-blue-500",
-                        matchingMode && !txn.matched && "cursor-pointer"
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">{txn.date}</span>
-                            <span className="text-xs font-mono text-gray-400">{txn.ref}</span>
-                            {txn.matched && <CheckCircle className="w-3 h-3 text-green-500" />}
-                          </div>
-                          <p className="text-sm font-medium mt-1">{txn.description}</p>
-                        </div>
-                        <span className={cn("font-semibold", txn.amount > 0 ? "text-green-600" : "text-gray-900")}>
-                          {txn.amount > 0 ? '+' : ''}{txn.amount < 0 ? '-' : ''}${Math.abs(txn.amount).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-blue-50 px-4 py-2 border-t flex justify-between text-sm">
-                  <span className="text-blue-600">Unmatched Total:</span>
-                  <span className="font-semibold text-blue-800">${unmatchedBankTotal.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {/* Book Transactions */}
-              <div className="flex-1 flex flex-col">
-                <div className="bg-purple-50 px-4 py-2 border-b flex items-center justify-between">
-                  <span className="font-medium text-sm text-purple-800">Book Entries</span>
-                  <span className="text-xs text-purple-600">{bookTransactions.length} transactions</span>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {bookTransactions.map((txn) => (
-                    <div
-                      key={txn.id}
-                      onClick={() => matchingMode && !txn.matched && toggleBookSelection(txn.id)}
-                      className={cn(
-                        "p-3 border-b hover:bg-gray-50 transition-colors",
-                        txn.matched && "bg-green-50 opacity-60",
-                        selectedBook.includes(txn.id) && "bg-purple-100 border-l-4 border-l-purple-500",
-                        matchingMode && !txn.matched && "cursor-pointer"
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">{txn.date}</span>
-                            <span className="text-xs font-mono text-gray-400">{txn.ref}</span>
-                            {txn.matched && <CheckCircle className="w-3 h-3 text-green-500" />}
-                          </div>
-                          <p className="text-sm font-medium mt-1">{txn.description}</p>
-                        </div>
-                        <span className={cn("font-semibold", txn.amount > 0 ? "text-green-600" : "text-gray-900")}>
-                          {txn.amount > 0 ? '+' : ''}{txn.amount < 0 ? '-' : ''}${Math.abs(txn.amount).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-purple-50 px-4 py-2 border-t flex justify-between text-sm">
-                  <span className="text-purple-600">Unmatched Total:</span>
-                  <span className="font-semibold text-purple-800">${unmatchedBookTotal.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="bg-white border-t p-4 flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Last reconciled: {selectedAccount.lastReconciled}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline">Auto-Match</Button>
-                <Button className="bg-[#047857] hover:bg-[#065f46]" disabled={variance !== 0}>
-                  <CheckCircle className="w-4 h-4 mr-1" />Complete Reconciliation
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <Landmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Select a bank account to begin reconciliation</p>
-            </div>
-          </div>
+        {lastReconciliation && (
+          <Card className="mb-6 bg-blue-50">
+            <CardContent className="p-4">
+              <p className="text-sm">
+                Last reconciled: <strong>{formatDate(lastReconciliation.statement_date)}</strong>
+                <br />
+                Ending balance: <strong>{formatCurrency(lastReconciliation.statement_ending_balance)}</strong>
+              </p>
+            </CardContent>
+          </Card>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Statement Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Statement Date</Label>
+              <Input
+                type="date"
+                value={formData.statementDate}
+                onChange={(e) => setFormData({ ...formData, statementDate: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <Label>Statement Ending Balance</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.statementEndingBalance}
+                onChange={(e) => setFormData({ ...formData, statementEndingBalance: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Period Start Date</Label>
+                <Input
+                  type="date"
+                  value={formData.periodStartDate}
+                  onChange={(e) => setFormData({ ...formData, periodStartDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Period End Date</Label>
+                <Input
+                  type="date"
+                  value={formData.periodEndDate}
+                  onChange={(e) => setFormData({ ...formData, periodEndDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleStartReconciliation}
+              disabled={!formData.statementEndingBalance || startMutation.isPending}
+              className="w-full"
+            >
+              Start Reconciliation
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+    );
+  }
+
+  if (loadingRecon) {
+    return <div className="p-6">Loading reconciliation...</div>;
+  }
+
+  // Active reconciliation view
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Bank Reconciliation</h1>
+          <p className="text-muted-foreground">
+            {bankAccount?.account_name} • Statement Date: {formatDate(reconciliation.statement_date)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => completeMutation.mutate()}
+            disabled={!summary?.isBalanced || completeMutation.isPending}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Finish Reconciliation
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Panel */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Reconciliation Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Beginning Balance</span>
+              <span>{formatCurrency(summary?.beginningBalance || 0)}</span>
+            </div>
+            <div className="flex justify-between text-green-600">
+              <span>+ Cleared Deposits</span>
+              <span>{formatCurrency(summary?.clearedDeposits || 0)}</span>
+            </div>
+            <div className="flex justify-between text-red-600">
+              <span>- Cleared Withdrawals</span>
+              <span>{formatCurrency(summary?.clearedWithdrawals || 0)}</span>
+            </div>
+            <div className="flex justify-between font-medium border-t pt-2">
+              <span>Cleared Balance</span>
+              <span>{formatCurrency(summary?.clearedBalance || 0)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={cn(summary?.isBalanced ? 'bg-green-50' : 'bg-red-50')}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Difference</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Statement Balance</p>
+                <p className="text-xl font-bold">{formatCurrency(summary?.statementBalance || 0)}</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Cleared Balance</p>
+                <p className="text-xl font-bold">{formatCurrency(summary?.clearedBalance || 0)}</p>
+              </div>
+            </div>
+
+            <div className={cn(
+              "text-center p-3 rounded-lg",
+              summary?.isBalanced ? 'bg-green-100' : 'bg-red-100'
+            )}>
+              {summary?.isBalanced ? (
+                <div className="flex items-center justify-center gap-2 text-green-700">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">Balanced!</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2 text-red-700">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">
+                    Difference: {formatCurrency(summary?.difference || 0)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Transactions to Clear</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Clear</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Deposit</TableHead>
+                <TableHead className="text-right">Withdrawal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reconciliation.items?.map((item) => (
+                <TableRow key={item.id} className={cn(item.is_cleared && 'bg-green-50')}>
+                  <TableCell>
+                    <Checkbox
+                      checked={item.is_cleared}
+                      onCheckedChange={(checked) =>
+                        toggleClearedMutation.mutate({
+                          transactionId: item.bank_transaction_id,
+                          isCleared: checked
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>{formatDate(item.transaction?.transaction_date)}</TableCell>
+                  <TableCell>{item.transaction?.description}</TableCell>
+                  <TableCell className="text-right text-green-600">
+                    {item.transaction?.amount > 0 ? formatCurrency(item.transaction.amount) : ''}
+                  </TableCell>
+                  <TableCell className="text-right text-red-600">
+                    {item.transaction?.amount < 0 ? formatCurrency(Math.abs(item.transaction.amount)) : ''}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default BankReconciliationPage;
+}

@@ -48,8 +48,8 @@ const TopNavigation = () => {
       label: 'Accounting',
       icon: DollarSign,
       dropdown: [
+        { label: 'Entities', path: '/accounting/entities', icon: Building2, description: 'Manage entities & accounting' },
         { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview' },
-        { label: 'Entities', path: '/entities/list', icon: Building2, description: 'Manage entities' },
         { label: 'Chart of Accounts', path: '/accounting/chart-of-accounts', icon: BookOpen, description: 'Account structure' },
         { label: 'Transactions', path: '', isHeader: true },
         { label: 'All Transactions', path: '/accounting/transactions', icon: Receipt, description: 'View all transactions' },

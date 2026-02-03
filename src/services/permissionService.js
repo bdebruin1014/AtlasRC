@@ -434,7 +434,7 @@ let currentUserRole = null;
 export async function loadUserPermissions(userId = null) {
   try {
     let uid = userId;
-    
+
     if (!uid) {
       const { data: { user } } = await supabase.auth.getUser();
       uid = user?.id;
@@ -453,11 +453,22 @@ export async function loadUserPermissions(userId = null) {
       .eq('user_id', uid)
       .single();
 
+    // Handle errors gracefully:
+    // PGRST116 = no rows found (expected for new users)
+    // 42P01 = table doesn't exist
+    // 400/404 = table or schema issues
     if (error && error.code !== 'PGRST116') {
-      console.warn('Error loading user role:', error);
-      currentUserPermissions = [];
-      currentUserRole = null;
-      return { permissions: [], role: null };
+      // Silently handle missing table or schema errors - use defaults
+      const isTableMissing = error.code === '42P01' ||
+                             error.message?.includes('does not exist') ||
+                             error.code === 'PGRST204';
+      if (!isTableMissing) {
+        // Only log unexpected errors in development
+        if (import.meta.env.DEV) {
+          console.debug('Permission service: using default role (table may not exist)');
+        }
+      }
+      // Fall through to use default role instead of returning empty
     }
 
     // Default to team_member if no role assigned

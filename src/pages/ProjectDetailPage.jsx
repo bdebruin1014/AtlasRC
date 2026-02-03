@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ProjectContactsSection from '@/pages/projects/ContactsPage';
+import BasicInfoPage from '@/pages/projects/BasicInfoPage';
+import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, HardHat, Truck, FileCheck, AlertTriangle, Receipt, Shield, Mail, MessageSquare, Video, Settings, TrendingUp, Package, PlusCircle, CreditCard, PieChart, ArrowUpRight, Calculator, Loader2, Save, Check, FileSignature } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, Truck, FileCheck, Receipt, Shield, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useProject, useProjectActions, useProjectFinancials, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
@@ -29,6 +31,22 @@ const ProjectDetailPage = () => {
   const [activeSection, setActiveSection] = useState('basic-info');
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'finance', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
+
+  // Properties linked to purchase contract
+  const [linkedPropertyIds, setLinkedPropertyIds] = useState([]);
+  const [availableProperties] = useState([
+    { id: 'prop-1', name: 'Lot 1 - Main Property', address: '1250 Oakridge Drive', type: 'single-family', status: 'Under Construction' },
+    { id: 'prop-2', name: 'Lot 2 - Corner Lot', address: '1252 Oakridge Drive', type: 'single-family', status: 'Planning' },
+    { id: 'prop-3', name: 'Lot 3 - Rear Lot', address: '1254 Oakridge Drive', type: 'single-family', status: 'Planning' },
+  ]);
+
+  const togglePropertyLink = (propertyId) => {
+    setLinkedPropertyIds(prev =>
+      prev.includes(propertyId)
+        ? prev.filter(id => id !== propertyId)
+        : [...prev, propertyId]
+    );
+  };
 
   // Fetch project data from database
   const { project: rawProject, isLoading, error, refetch } = useProject(projectId);
@@ -76,7 +94,6 @@ const ProjectDetailPage = () => {
         { id: 'basic-info', label: 'Basic Info', icon: FileText },
         { id: 'property', label: 'Property Details', icon: MapPin },
         { id: 'contacts', label: 'Contacts', icon: Users },
-        { id: 'project-settings', label: 'Project Settings', icon: Settings },
       ]
     },
     {
@@ -158,311 +175,10 @@ const ProjectDetailPage = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'basic-info':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="font-medium text-gray-900 mb-4">Project Details</h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Project Name *</Label>
-                    <Input
-                      value={formData?.name || ''}
-                      onChange={(e) => setField('name', e.target.value)}
-                      className="mt-1"
-                      placeholder="Enter project name"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-gray-500">Project Type</Label>
-                      <Select value={formData?.project_type || ''} onValueChange={(v) => setField('project_type', v)}>
-                        <SelectTrigger className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
-                        <SelectContent>
-                          {(PROJECT_TYPES || []).map(t => (
-                            <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">Status</Label>
-                      <Select value={formData?.status || 'active'} onValueChange={(v) => setField('status', v)}>
-                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(PROJECT_STATUSES || []).map(s => (
-                            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Address</Label>
-                    <Input
-                      value={formData?.address || ''}
-                      onChange={(e) => setField('address', e.target.value)}
-                      className="mt-1"
-                      placeholder="123 Main St, City, State ZIP"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Description / Notes</Label>
-                    <Textarea
-                      value={formData?.notes || ''}
-                      onChange={(e) => setField('notes', e.target.value)}
-                      className="mt-1"
-                      rows={3}
-                      placeholder="Project description, notes, etc."
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-6">
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <h3 className="font-medium text-gray-900 mb-4">Timeline</h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs text-gray-500">Start Date</Label>
-                        <Input
-                          type="date"
-                          value={formData?.start_date ? formData.start_date.split('T')[0] : ''}
-                          onChange={(e) => setField('start_date', e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-500">Target Completion</Label>
-                        <Input
-                          type="date"
-                          value={formData?.target_completion_date ? formData.target_completion_date.split('T')[0] : ''}
-                          onChange={(e) => setField('target_completion_date', e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <h3 className="font-medium text-gray-900 mb-4">Budget</h3>
-                  <div>
-                    <Label className="text-xs text-gray-500">Total Budget ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.budget || ''}
-                      onChange={(e) => setField('budget', e.target.value)}
-                      className="mt-1"
-                      placeholder="250000"
-                    />
-                  </div>
-                  {budgetTypeInfo && (
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mt-4">
-                      <div className={`w-10 h-10 ${budgetTypeInfo.color} rounded-lg flex items-center justify-center text-xl`}>
-                        {budgetTypeInfo.icon}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{budgetTypeInfo.name}</p>
-                        <p className="text-xs text-gray-500">{budgetTypeInfo.description}</p>
-                      </div>
-                    </div>
-                  )}
-                  <Button variant="outline" className="w-full mt-4" onClick={() => setActiveSection('budget')}>
-                    <Calculator className="w-4 h-4 mr-2" />Open Detailed Budget
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return <BasicInfoPage />;
 
       case 'property':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Property Details</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
-            </div>
-            <div className="bg-white border rounded-lg p-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Location</h3>
-                  <div>
-                    <Label className="text-xs text-gray-500">Street Address</Label>
-                    <Input
-                      value={formData?.address || ''}
-                      onChange={(e) => setField('address', e.target.value)}
-                      className="mt-1"
-                      placeholder="123 Main Street"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-xs text-gray-500">City</Label>
-                      <Input
-                        value={formData?.city || ''}
-                        onChange={(e) => setField('city', e.target.value)}
-                        className="mt-1"
-                        placeholder="Greenville"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">State</Label>
-                      <Input
-                        value={formData?.state || ''}
-                        onChange={(e) => setField('state', e.target.value)}
-                        className="mt-1"
-                        placeholder="SC"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">ZIP</Label>
-                      <Input
-                        value={formData?.zip_code || ''}
-                        onChange={(e) => setField('zip_code', e.target.value)}
-                        className="mt-1"
-                        placeholder="29601"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">County</Label>
-                    <Input
-                      value={formData?.county || ''}
-                      onChange={(e) => setField('county', e.target.value)}
-                      className="mt-1"
-                      placeholder="Greenville"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Parcel ID</Label>
-                    <Input
-                      value={formData?.parcel_id || ''}
-                      onChange={(e) => setField('parcel_id', e.target.value)}
-                      className="mt-1"
-                      placeholder="0234-56-78-9012"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Property Info</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-gray-500">Acres</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={formData?.acres || ''}
-                        onChange={(e) => setField('acres', e.target.value)}
-                        className="mt-1"
-                        placeholder="0.25"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">Square Feet</Label>
-                      <Input
-                        type="number"
-                        value={formData?.sqft || ''}
-                        onChange={(e) => setField('sqft', e.target.value)}
-                        className="mt-1"
-                        placeholder="2200"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Zoning</Label>
-                    <Input
-                      value={formData?.zoning || ''}
-                      onChange={(e) => setField('zoning', e.target.value)}
-                      className="mt-1"
-                      placeholder="R-1 Residential"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Units / Lots</Label>
-                    <Input
-                      type="number"
-                      value={formData?.units || ''}
-                      onChange={(e) => setField('units', e.target.value)}
-                      className="mt-1"
-                      placeholder="1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Legal Description</Label>
-                    <Textarea
-                      value={formData?.legal_description || ''}
-                      onChange={(e) => setField('legal_description', e.target.value)}
-                      className="mt-1"
-                      rows={3}
-                      placeholder="Legal description of property..."
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'project-settings':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Project Settings</h2>
-              <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
-            </div>
-            <div className="bg-white border rounded-lg p-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Entity & Ownership</h3>
-                  <div>
-                    <Label className="text-xs text-gray-500">Entity Name</Label>
-                    <Input
-                      value={formData?.entity_name || rawProject?.entity?.name || ''}
-                      onChange={(e) => setField('entity_name', e.target.value)}
-                      className="mt-1"
-                      placeholder="Watson House LLC"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Tax ID / EIN</Label>
-                    <Input
-                      value={formData?.tax_id || ''}
-                      onChange={(e) => setField('tax_id', e.target.value)}
-                      className="mt-1"
-                      placeholder="XX-XXXXXXX"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Project Team</h3>
-                  <div>
-                    <Label className="text-xs text-gray-500">Project Manager</Label>
-                    <Input
-                      value={formData?.project_manager || ''}
-                      onChange={(e) => setField('project_manager', e.target.value)}
-                      className="mt-1"
-                      placeholder="Name"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">General Contractor</Label>
-                    <Input
-                      value={formData?.general_contractor || ''}
-                      onChange={(e) => setField('general_contractor', e.target.value)}
-                      className="mt-1"
-                      placeholder="Company Name"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return <PropertyDetailsPage projectId={projectId} />;
 
       case 'purchase-contract':
         return (
@@ -509,6 +225,20 @@ const ProjectDetailPage = () => {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h3 className="font-medium text-gray-900">Contract Terms</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Purchase Status</Label>
+                    <Select value={formData?.purchase_status || 'under-contract'} onValueChange={(v) => setField('purchase_status', v)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="under-contract">Under Contract</SelectItem>
+                        <SelectItem value="closing-pending">Closing Pending</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="terminated">Terminated</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div>
                     <Label className="text-xs text-gray-500">Purchase Price ($)</Label>
                     <Input
@@ -570,6 +300,64 @@ const ProjectDetailPage = () => {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Linked Properties Section */}
+            <div className="bg-white border rounded-lg p-6 mt-6">
+              <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Linked Properties
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Select which properties are included in this purchase contract.
+              </p>
+              <div className="space-y-2">
+                {availableProperties.map((property) => {
+                  const isLinked = linkedPropertyIds.includes(property.id);
+                  return (
+                    <label
+                      key={property.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors",
+                        isLinked ? "border-emerald-500 bg-emerald-50" : "hover:bg-gray-50"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isLinked}
+                        onChange={() => togglePropertyLink(property.id)}
+                        className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{property.name}</p>
+                        <p className="text-xs text-gray-500">{property.address}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className={cn(
+                          "text-xs px-2 py-0.5 rounded",
+                          property.status === 'Under Construction' ? 'bg-blue-100 text-blue-700' :
+                          property.status === 'Planning' ? 'bg-yellow-100 text-yellow-700' :
+                          property.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        )}>
+                          {property.status}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              {linkedPropertyIds.length > 0 && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">{linkedPropertyIds.length}</span> {linkedPropertyIds.length === 1 ? 'property' : 'properties'} linked to this contract
+                  </p>
+                </div>
+              )}
+              {availableProperties.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  <p className="text-sm">No properties available. Add properties in the Property Details section first.</p>
+                </div>
+              )}
             </div>
 
             {/* Contract Generation Modal */}

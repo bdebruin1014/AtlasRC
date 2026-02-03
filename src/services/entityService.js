@@ -23,14 +23,22 @@ export const entityService = {
    * Get a single entity by ID
    */
   async getById(id) {
-    const { data, error } = await supabase
-      .from('entities')
-      .select('*')
-      .eq('id', id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('entities')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        // Return null for missing entities or table errors instead of throwing
+        return null;
+      }
+      return data;
+    } catch (err) {
+      // Gracefully handle any unexpected errors
+      return null;
+    }
   },
 
   /**

@@ -1,17 +1,18 @@
 import React from 'react';
 import { NavLink, useParams, useLocation } from 'react-router-dom';
-import { 
+import {
   LayoutDashboard, Building2, BookOpen, CreditCard, Receipt, FileText,
   ArrowLeftRight, DollarSign, BarChart3, Settings, Wallet, PiggyBank,
   GitBranch, CheckSquare, AlertCircle, Clock, Plus, Users, Layers, Percent,
-  Link2, Briefcase, Car
+  Link2, Briefcase, Car, X, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TransactionEntryProvider, TransactionEntryContext } from '@/contexts/TransactionEntryContext';
 
 // Quick Actions for dark theme sidebar
 const QuickActionsDark = ({ entityId }) => {
-  const { openModal } = React.useContext(TransactionEntryContext);
+  const context = React.useContext(TransactionEntryContext);
+  const openModal = context?.openModal;
 
   const actions = [
     { type: 'bill', label: '+ Bill', color: 'bg-red-600 hover:bg-red-500' },
@@ -28,7 +29,7 @@ const QuickActionsDark = ({ entityId }) => {
           <button
             key={action.type}
             className={`${action.color} py-1.5 px-2 rounded text-[10px] font-medium text-white transition-colors`}
-            onClick={() => openModal(action.type, entityId)}
+            onClick={() => openModal && openModal(action.type, entityId)}
           >
             {action.label}
           </button>
@@ -40,7 +41,10 @@ const QuickActionsDark = ({ entityId }) => {
 
 // Transaction Modal Container for dark theme
 const TransactionModalsDark = () => {
-  const { activeModal, closeModal, selectedEntity } = React.useContext(TransactionEntryContext);
+  const context = React.useContext(TransactionEntryContext);
+  const activeModal = context?.activeModal;
+  const closeModal = context?.closeModal || (() => {});
+  const selectedEntity = context?.selectedEntity;
   const [formData, setFormData] = React.useState({});
   const [lineItems, setLineItems] = React.useState([{ id: 1, description: '', quantity: 1, rate: '', amount: 0, account: '' }]);
   const [jeLines, setJeLines] = React.useState([
@@ -601,75 +605,96 @@ const AccountingSidebar = ({ entity }) => {
     { id: 3, title: 'Process vendor invoices', dueDate: '2025-01-02', priority: 'medium' },
   ];
 
+  // Canonical URL pattern: /accounting/entities/:entityId/...
+  const basePath = `/accounting/entities/${entityId}`;
+
+  // Track collapsed sections
+  const [collapsedSections, setCollapsedSections] = React.useState([]);
+
   const menuSections = [
     {
-      title: 'Overview',
+      title: 'Manage',
       items: [
-        { label: 'Dashboard', path: `/accounting/${entityId}`, icon: LayoutDashboard, exact: true },
-        { label: 'Entity Details', path: `/accounting/${entityId}/details`, icon: Building2 },
-        { label: 'Ownership Structure', path: `/accounting/${entityId}/ownership`, icon: GitBranch },
+        { label: 'Dashboard', path: `${basePath}/dashboard`, icon: LayoutDashboard },
+        { label: 'Entity Details', path: `${basePath}/details`, icon: Building2 },
+        { label: 'Tasks', path: `${basePath}/tasks`, icon: CheckSquare, badge: pendingTasks.length },
       ]
     },
     {
       title: 'Banking',
       items: [
-        { label: 'Bank Feeds', path: `/accounting/${entityId}/bank-feeds`, icon: Link2 },
-        { label: 'Bank Reconciliation', path: `/accounting/${entityId}/banking`, icon: CheckSquare },
-        { label: 'Credit Cards', path: `/accounting/${entityId}/credit-cards`, icon: Wallet },
+        { label: 'Bank Accounts', path: `${basePath}/bank-accounts`, icon: CreditCard },
+        { label: 'Bank Feeds', path: `${basePath}/bank-feeds`, icon: Link2 },
+        { label: 'Credit Cards', path: `${basePath}/credit-cards`, icon: Wallet },
       ]
     },
     {
       title: 'Transactions',
       items: [
-        { label: 'All Transactions', path: `/accounting/${entityId}/transactions`, icon: Receipt },
-        { label: 'Journal Entries', path: `/accounting/${entityId}/journal-entries`, icon: FileText },
-        { label: 'Reconciliation', path: `/accounting/${entityId}/reconciliation`, icon: CheckSquare },
+        { label: 'All Transactions', path: `${basePath}/transactions`, icon: Receipt },
+        { label: 'Journal Entries', path: `${basePath}/journal-entries`, icon: FileText },
+        { label: 'Reconciliation', path: `${basePath}/reconciliation`, icon: CheckSquare },
       ]
     },
     {
       title: 'Receivables (AR)',
       items: [
-        { label: 'Invoices', path: `/accounting/${entityId}/invoices`, icon: FileText },
-        { label: 'AR Aging Report', path: `/accounting/${entityId}/ar-aging`, icon: Clock },
+        { label: 'Invoices', path: `${basePath}/invoices`, icon: FileText },
+        { label: 'Customers', path: `${basePath}/customers`, icon: Users },
+        { label: 'AR Aging Report', path: `${basePath}/ar-aging`, icon: Clock },
       ]
     },
     {
       title: 'Payables (AP)',
       items: [
-        { label: 'Bills', path: `/accounting/${entityId}/bills`, icon: Receipt },
-        { label: 'Batch Payments', path: `/accounting/${entityId}/batch-payments`, icon: Layers },
-        { label: '1099 Vendors', path: `/accounting/${entityId}/vendors-1099`, icon: Users },
-        { label: 'Expenses', path: `/accounting/${entityId}/expenses`, icon: Car },
+        { label: 'Bills', path: `${basePath}/bills`, icon: Receipt },
+        { label: 'Vendors', path: `${basePath}/vendors`, icon: Users },
+        { label: 'Batch Payments', path: `${basePath}/batch-payments`, icon: Layers },
+        { label: '1099 Vendors', path: `${basePath}/1099`, icon: Percent },
+        { label: 'Expenses', path: `${basePath}/expenses`, icon: Car },
+      ]
+    },
+    {
+      title: 'Loans',
+      items: [
+        { label: 'Loans Payable', path: `${basePath}/loans`, icon: PiggyBank },
       ]
     },
     {
       title: 'Payroll',
       items: [
-        { label: 'Payroll', path: `/accounting/${entityId}/payroll`, icon: Briefcase },
+        { label: 'Payroll', path: `${basePath}/payroll`, icon: Briefcase },
       ]
     },
     {
       title: 'Intercompany',
       items: [
-        { label: 'Intercompany Txns', path: `/accounting/${entityId}/intercompany`, icon: ArrowLeftRight },
-        { label: 'Due To/From', path: `/accounting/${entityId}/due-to-from`, icon: PiggyBank },
+        { label: 'Intercompany Txns', path: `${basePath}/intercompany`, icon: ArrowLeftRight },
+        { label: 'Due To/From', path: `${basePath}/due-to-from`, icon: DollarSign },
       ]
     },
     {
       title: 'Reports',
       items: [
-        { label: 'Financial Statements', path: `/accounting/${entityId}/reports`, icon: BarChart3 },
-        { label: 'Trial Balance', path: `/accounting/${entityId}/trial-balance`, icon: FileText },
-        { label: 'Cash Flow', path: `/accounting/${entityId}/cash-flow`, icon: DollarSign },
-        { label: 'Job Costing', path: `/accounting/${entityId}/job-costing`, icon: BarChart3 },
+        { label: 'Financial Statements', path: `${basePath}/reports`, icon: BarChart3 },
+        { label: 'Trial Balance', path: `${basePath}/trial-balance`, icon: FileText },
+        { label: 'Cash Flow', path: `${basePath}/cash-flow`, icon: DollarSign },
+        { label: 'Job Costing', path: `${basePath}/job-costing`, icon: BarChart3 },
+      ]
+    },
+    {
+      title: 'Month-End',
+      items: [
+        { label: 'Month-End Close', path: `${basePath}/month-end`, icon: CheckSquare },
+        { label: 'Fiscal Periods', path: `${basePath}/fiscal-periods`, icon: Clock },
       ]
     },
     {
       title: 'Settings',
       items: [
-        { label: 'Entity Settings', path: `/accounting/${entityId}/settings`, icon: Settings },
-        { label: 'Chart of Accounts', path: `/accounting/${entityId}/settings/chart-of-accounts`, icon: BookOpen },
-        { label: 'Bank Accounts Setup', path: `/accounting/${entityId}/settings/bank-accounts`, icon: CreditCard },
+        { label: 'Files', path: `${basePath}/files`, icon: FileText },
+        { label: 'Communications', path: `${basePath}/communications`, icon: Receipt },
+        { label: 'Settings', path: `${basePath}/settings`, icon: Settings },
       ]
     },
   ];
@@ -752,8 +777,8 @@ const AccountingSidebar = ({ entity }) => {
             </div>
           ))}
         </div>
-        <NavLink 
-          to={`/accounting/${entityId}/tasks`}
+        <NavLink
+          to={`/accounting/entities/${entityId}/tasks`}
           className="block mt-2 text-xs text-emerald-500 hover:text-emerald-400 text-center"
         >
           View All Tasks →
@@ -762,35 +787,71 @@ const AccountingSidebar = ({ entity }) => {
       
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2">
-        {menuSections.map((section) => (
-          <div key={section.title} className="mb-4">
-            <p className="px-3 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-              {section.title}
-            </p>
-            {section.items.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = item.exact 
-                ? location.pathname === item.path
-                : location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-              
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                    isActive 
-                      ? "bg-emerald-600 text-white" 
-                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                  )}
-                >
-                  <IconComponent className="w-4 h-4" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </div>
-        ))}
+        {menuSections.map((section) => {
+          // Check if any item in this section is active
+          const hasActiveItem = section.items.some(
+            item => location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+          );
+
+          // Section is collapsed if in collapsedSections array AND no active item
+          const isCollapsed = collapsedSections.includes(section.title) && !hasActiveItem;
+
+          const toggleSection = () => {
+            setCollapsedSections(prev =>
+              prev.includes(section.title)
+                ? prev.filter(s => s !== section.title)
+                : [...prev, section.title]
+            );
+          };
+
+          return (
+            <div key={section.title} className="mb-2">
+              <button
+                onClick={toggleSection}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider hover:bg-gray-800 rounded transition-colors"
+              >
+                <span>{section.title}</span>
+                {isCollapsed ? (
+                  <ChevronRight className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+              </button>
+              {!isCollapsed && (
+                <div className="mt-1">
+                  {section.items.map((item) => {
+                    const IconComponent = item.icon;
+                    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          isActive
+                            ? "bg-emerald-600 text-white"
+                            : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                        )}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                        <span className="flex-1">{item.label}</span>
+                        {item.badge > 0 && (
+                          <span className={cn(
+                            "px-1.5 py-0.5 text-[10px] font-medium rounded-full",
+                            isActive ? "bg-white/20 text-white" : "bg-amber-500 text-white"
+                          )}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
       
       {/* Transaction Modals */}

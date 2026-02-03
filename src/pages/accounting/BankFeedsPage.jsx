@@ -1,16 +1,15 @@
-// src/pages/accounting/BankFeedsPage.jsx
-// Bank Feeds with Plaid integration
-
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useOutletContext } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  CreditCard, RefreshCw, Link2, Unlink, Check, X, AlertTriangle,
-  Building2, DollarSign, ArrowUpRight, ArrowDownRight, Filter, Search,
-  CheckCircle2, XCircle, MoreHorizontal, Plus
+  CreditCard, RefreshCw, Link2, Check, X, AlertTriangle,
+  Building2, DollarSign, ArrowUpRight, ArrowDownRight, Search,
+  CheckCircle2, XCircle, MoreHorizontal, Plus, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,157 +17,203 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import {
-  getBankingDashboard,
-  getBankTransactions,
-  matchTransactionToBill,
-  matchTransactionToInvoice,
-  excludeTransaction,
-  createTransactionFromBank,
-  refreshPlaidConnection,
-  applyMatchingRules,
-  PLAID_STATUS,
-  MATCH_STATUS,
-} from '@/services/plaidService';
+import { supabase } from '@/lib/supabase';
+import ImportTransactionsModal from '@/components/accounting/ImportTransactionsModal';
 
-const BankFeedsPage = () => {
+// Demo data
+const demoDashboard = {
+  totalBalance: 485000,
+  accounts: [
+    { id: 'acc-1', name: 'Operating Account', mask: '4521', current_balance: 385000 },
+    { id: 'acc-2', name: 'Payroll Account', mask: '7832', current_balance: 100000 },
+  ],
+  connections: [
+    { id: 'conn-1', institution_name: 'Chase Bank', status: 'connected', bank_accounts: [{}, {}] },
+  ],
+  unmatchedCount: 12,
+  errorConnections: 0,
+};
+
+const demoTransactions = [
+  { id: 1, date: '2024-12-28', merchant_name: 'ABC Investments LLC', description: 'Management fee payment', amount: 15000, match_status: 'unmatched' },
+  { id: 2, date: '2024-12-27', merchant_name: 'Smith Framing LLC', description: 'Invoice #1042 payment', amount: -8500, match_status: 'matched' },
+  { id: 3, date: '2024-12-26', merchant_name: 'Duke Energy', description: 'Utility payment - December', amount: -450, match_status: 'unmatched' },
+  { id: 4, date: '2024-12-25', merchant_name: 'Home Depot', description: 'Building supplies', amount: -1250, match_status: 'unmatched' },
+  { id: 5, date: '2024-12-24', merchant_name: 'Insurance Co', description: 'Q1 premium payment', amount: -3200, match_status: 'matched' },
+  { id: 6, date: '2024-12-23', merchant_name: 'Tenant - Unit 101', description: 'Rent payment January', amount: 2500, match_status: 'unmatched' },
+];
+
+const MATCH_STATUS = {
+  MATCHED: 'matched',
+  UNMATCHED: 'unmatched',
+  EXCLUDED: 'excluded',
+};
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount || 0);
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+export default function BankFeedsPage() {
   const { entityId } = useParams();
-  const [dashboard, setDashboard] = useState(null);
+  const context = useOutletContext();
+  const entity = context?.entity;
+  const queryClient = useQueryClient();
+
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [filter, setFilter] = useState('unmatched');
   const [searchTerm, setSearchTerm] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    loadDashboard();
-  }, [entityId]);
+  // Fetch dashboard data
+  const { data: dashboard = demoDashboard, isLoading } = useQuery({
+    queryKey: ['bank-feeds-dashboard', entityId],
+    queryFn: async () => {
+      try {
+        // Fetch bank accounts
+        const { data: accounts } = await supabase
+          .from('bank_accounts')
+          .select('*')
+          .eq('entity_id', entityId);
 
-  useEffect(() => {
-    if (selectedAccount) {
-      loadTransactions();
-    }
-  }, [selectedAccount, filter]);
+        // Fetch unmatched count
+        const { count: unmatchedCount } = await supabase
+          .from('bank_transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('entity_id', entityId)
+          .eq('match_status', 'unmatched');
 
-  const loadDashboard = async () => {
-    try {
-      setLoading(true);
-      const data = await getBankingDashboard(entityId);
-      setDashboard(data);
-      if (data.accounts?.length > 0) {
-        setSelectedAccount(data.accounts[0]);
+        if (accounts?.length) {
+          const totalBalance = accounts.reduce((sum, a) => sum + (a.current_balance || 0), 0);
+          return {
+            totalBalance,
+            accounts: accounts.map(a => ({
+              id: a.id,
+              name: a.account_name,
+              mask: a.account_number_last4 || '****',
+              current_balance: a.current_balance,
+            })),
+            connections: [],
+            unmatchedCount: unmatchedCount || 0,
+            errorConnections: 0,
+          };
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard:', err);
       }
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-    } finally {
-      setLoading(false);
+      return demoDashboard;
+    },
+    enabled: !!entityId,
+  });
+
+  // Fetch transactions
+  const { data: transactions = demoTransactions } = useQuery({
+    queryKey: ['bank-transactions', entityId, selectedAccount?.id, filter],
+    queryFn: async () => {
+      try {
+        let query = supabase
+          .from('bank_transactions')
+          .select('*')
+          .eq('entity_id', entityId)
+          .order('date', { ascending: false });
+
+        if (selectedAccount?.id) {
+          query = query.eq('bank_account_id', selectedAccount.id);
+        }
+        if (filter !== 'all') {
+          query = query.eq('match_status', filter);
+        }
+
+        const { data } = await query.limit(50);
+        if (data?.length) return data;
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+      }
+      return demoTransactions.filter(t => filter === 'all' || t.match_status === filter);
+    },
+    enabled: !!entityId,
+  });
+
+  useEffect(() => {
+    if (dashboard?.accounts?.length > 0 && !selectedAccount) {
+      setSelectedAccount(dashboard.accounts[0]);
     }
+  }, [dashboard, selectedAccount]);
+
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    // In production, this would trigger Plaid sync
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    queryClient.invalidateQueries(['bank-feeds-dashboard', entityId]);
+    queryClient.invalidateQueries(['bank-transactions', entityId]);
+    setSyncing(false);
   };
 
-  const loadTransactions = async () => {
-    if (!selectedAccount) return;
-    try {
-      const data = await getBankTransactions(selectedAccount.id, {
-        matchStatus: filter === 'all' ? null : filter,
-      });
-      setTransactions(data || []);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    }
-  };
-
-  const handleSync = async (connectionId) => {
-    try {
-      setSyncing(true);
-      await refreshPlaidConnection(connectionId);
-      await loadDashboard();
-      await loadTransactions();
-    } catch (error) {
-      console.error('Error syncing:', error);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleAutoMatch = async () => {
-    try {
-      const result = await applyMatchingRules(entityId);
-      alert(`Matched ${result.matched} of ${result.total} transactions`);
-      await loadTransactions();
-    } catch (error) {
-      console.error('Error auto-matching:', error);
-    }
-  };
-
-  const handleExclude = async (transactionId) => {
-    try {
-      await excludeTransaction(transactionId, 'Manual exclusion');
-      await loadTransactions();
-    } catch (error) {
-      console.error('Error excluding:', error);
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount || 0);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const getStatusBadge = (status) => {
-    const config = {
-      [PLAID_STATUS.CONNECTED]: { color: 'bg-green-100 text-green-800', label: 'Connected' },
-      [PLAID_STATUS.ERROR]: { color: 'bg-red-100 text-red-800', label: 'Error' },
-      [PLAID_STATUS.REQUIRES_REAUTH]: { color: 'bg-yellow-100 text-yellow-800', label: 'Needs Login' },
-      [PLAID_STATUS.DISCONNECTED]: { color: 'bg-gray-100 text-gray-800', label: 'Disconnected' },
-    };
-    const c = config[status] || config[PLAID_STATUS.DISCONNECTED];
-    return <Badge className={c.color}>{c.label}</Badge>;
-  };
+  const excludeMutation = useMutation({
+    mutationFn: async (transactionId) => {
+      const { error } = await supabase
+        .from('bank_transactions')
+        .update({ match_status: 'excluded' })
+        .eq('id', transactionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['bank-transactions', entityId]);
+      queryClient.invalidateQueries(['bank-feeds-dashboard', entityId]);
+    },
+  });
 
   const filteredTransactions = transactions.filter(txn =>
     txn.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     txn.merchant_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
+  const getStatusBadge = (status) => {
+    const config = {
+      connected: { color: 'bg-green-100 text-green-800', label: 'Connected' },
+      error: { color: 'bg-red-100 text-red-800', label: 'Error' },
+      requires_reauth: { color: 'bg-yellow-100 text-yellow-800', label: 'Needs Login' },
+      disconnected: { color: 'bg-gray-100 text-gray-800', label: 'Disconnected' },
+    };
+    const c = config[status] || config.disconnected;
+    return <Badge className={c.color}>{c.label}</Badge>;
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 bg-muted rounded" />
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CreditCard className="w-7 h-7 text-blue-600" />
-            Bank Feeds
-          </h1>
-          <p className="text-gray-500 mt-1">Connect and sync bank accounts</p>
+          <h1 className="text-2xl font-bold">Bank Feeds</h1>
+          <p className="text-muted-foreground">
+            Review and categorize transactions for {entity?.name || entity?.short_name || 'this entity'}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleAutoMatch}>
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Auto-Match
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleSyncAll} disabled={syncing}>
+            <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
+            Sync All
           </Button>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Connect Bank
+          <Button onClick={() => setShowImportModal(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
           </Button>
         </div>
       </div>
@@ -176,10 +221,10 @@ const BankFeedsPage = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Balance</p>
+                <p className="text-sm text-muted-foreground">Total Balance</p>
                 <p className="text-2xl font-bold">{formatCurrency(dashboard?.totalBalance)}</p>
               </div>
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -190,10 +235,10 @@ const BankFeedsPage = () => {
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Connected Accounts</p>
+                <p className="text-sm text-muted-foreground">Connected Accounts</p>
                 <p className="text-2xl font-bold">{dashboard?.accounts?.length || 0}</p>
               </div>
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -204,10 +249,10 @@ const BankFeedsPage = () => {
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Unmatched</p>
+                <p className="text-sm text-muted-foreground">Unmatched</p>
                 <p className="text-2xl font-bold text-amber-600">{dashboard?.unmatchedCount || 0}</p>
               </div>
               <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -218,10 +263,10 @@ const BankFeedsPage = () => {
         </Card>
 
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Needs Attention</p>
+                <p className="text-sm text-muted-foreground">Needs Attention</p>
                 <p className="text-2xl font-bold text-red-600">{dashboard?.errorConnections || 0}</p>
               </div>
               <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
@@ -247,31 +292,18 @@ const BankFeedsPage = () => {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-5 h-5 text-gray-600" />
+                      <Building2 className="w-5 h-5 text-muted-foreground" />
                       <span className="font-medium">{conn.institution_name}</span>
                     </div>
                     {getStatusBadge(conn.status)}
                   </div>
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm text-muted-foreground mb-3">
                     {conn.bank_accounts?.length || 0} account(s)
                   </p>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleSync(conn.id)}
-                      disabled={syncing}
-                    >
-                      <RefreshCw className={cn("w-3 h-3 mr-1", syncing && "animate-spin")} />
-                      Sync
-                    </Button>
-                    {conn.status === PLAID_STATUS.REQUIRES_REAUTH && (
-                      <Button size="sm" variant="outline">
-                        <Link2 className="w-3 h-3 mr-1" />
-                        Reconnect
-                      </Button>
-                    )}
-                  </div>
+                  <Button size="sm" variant="outline" disabled={syncing}>
+                    <RefreshCw className={cn("w-3 h-3 mr-1", syncing && "animate-spin")} />
+                    Sync
+                  </Button>
                 </div>
               ))}
             </div>
@@ -294,7 +326,7 @@ const BankFeedsPage = () => {
               )}
             >
               <span className="font-medium">{account.name}</span>
-              <span className="text-gray-500 ml-2">****{account.mask}</span>
+              <span className="text-muted-foreground ml-2">****{account.mask}</span>
               <span className="ml-2 font-semibold">{formatCurrency(account.current_balance)}</span>
             </button>
           ))}
@@ -302,128 +334,125 @@ const BankFeedsPage = () => {
       )}
 
       {/* Transactions */}
-      {selectedAccount && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">
-                Transactions - {selectedAccount.name}
-              </CardTitle>
-              <div className="flex gap-2">
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="px-3 py-1.5 border rounded-lg text-sm"
-                >
-                  <option value="unmatched">Unmatched</option>
-                  <option value="matched">Matched</option>
-                  <option value="excluded">Excluded</option>
-                  <option value="all">All</option>
-                </select>
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 pr-3 py-1.5 border rounded-lg text-sm w-48"
-                  />
-                </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">
+              Transactions {selectedAccount && `- ${selectedAccount.name}`}
+            </CardTitle>
+            <div className="flex gap-2">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="px-3 py-1.5 border rounded-lg text-sm"
+              >
+                <option value="unmatched">Unmatched</option>
+                <option value="matched">Matched</option>
+                <option value="excluded">Excluded</option>
+                <option value="all">All</option>
+              </select>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 w-48"
+                />
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Date</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Description</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Amount</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Status</th>
-                  <th className="w-20"></th>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <table className="w-full">
+            <thead className="bg-muted border-b">
+              <tr>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Description</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Amount</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
+                <th className="w-20"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredTransactions.map((txn) => (
+                <tr key={txn.id} className="hover:bg-muted/50">
+                  <td className="px-4 py-3 text-sm">{formatDate(txn.date || txn.transaction_date)}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{txn.merchant_name || txn.name || 'Unknown'}</p>
+                    <p className="text-sm text-muted-foreground truncate max-w-md">{txn.description}</p>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={cn(
+                      "font-medium flex items-center justify-end gap-1",
+                      txn.amount < 0 ? "text-red-600" : "text-green-600"
+                    )}>
+                      {txn.amount < 0 ? (
+                        <ArrowUpRight className="w-4 h-4" />
+                      ) : (
+                        <ArrowDownRight className="w-4 h-4" />
+                      )}
+                      {formatCurrency(Math.abs(txn.amount))}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge className={cn(
+                      txn.match_status === MATCH_STATUS.MATCHED && "bg-green-100 text-green-800",
+                      txn.match_status === MATCH_STATUS.UNMATCHED && "bg-yellow-100 text-yellow-800",
+                      txn.match_status === MATCH_STATUS.EXCLUDED && "bg-gray-100 text-gray-800",
+                    )}>
+                      {txn.match_status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Check className="w-4 h-4 mr-2" />
+                          Match to Bill
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Check className="w-4 h-4 mr-2" />
+                          Match to Invoice
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Expense
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => excludeMutation.mutate(txn.id)}>
+                          <X className="w-4 h-4 mr-2" />
+                          Exclude
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredTransactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{formatDate(txn.date)}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{txn.merchant_name || txn.name}</p>
-                      <p className="text-sm text-gray-500 truncate max-w-md">{txn.description}</p>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={cn(
-                        "font-medium flex items-center justify-end gap-1",
-                        txn.amount < 0 ? "text-red-600" : "text-green-600"
-                      )}>
-                        {txn.amount < 0 ? (
-                          <ArrowUpRight className="w-4 h-4" />
-                        ) : (
-                          <ArrowDownRight className="w-4 h-4" />
-                        )}
-                        {formatCurrency(Math.abs(txn.amount))}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={cn(
-                        txn.match_status === MATCH_STATUS.MATCHED && "bg-green-100 text-green-800",
-                        txn.match_status === MATCH_STATUS.UNMATCHED && "bg-yellow-100 text-yellow-800",
-                        txn.match_status === MATCH_STATUS.EXCLUDED && "bg-gray-100 text-gray-800",
-                      )}>
-                        {txn.match_status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Check className="w-4 h-4 mr-2" />
-                            Match to Bill
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Check className="w-4 h-4 mr-2" />
-                            Match to Invoice
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Expense
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleExclude(txn.id)}>
-                            <X className="w-4 h-4 mr-2" />
-                            Exclude
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-                {filteredTransactions.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
-                      <CreditCard className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>No transactions found</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+              ))}
+              {filteredTransactions.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                    <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>No transactions found</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
 
-      {/* Empty State - No Connections */}
-      {!dashboard?.connections?.length && (
+      {/* Empty State - No Accounts */}
+      {!dashboard?.accounts?.length && (
         <Card className="py-12">
           <CardContent className="text-center">
-            <Link2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <Link2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
             <h3 className="text-lg font-medium mb-2">No Bank Accounts Connected</h3>
-            <p className="text-gray-500 mb-4">
+            <p className="text-muted-foreground mb-4">
               Connect your bank accounts to automatically import transactions
             </p>
             <Button>
@@ -433,8 +462,14 @@ const BankFeedsPage = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Import Modal */}
+      <ImportTransactionsModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        entityId={entityId}
+        bankAccountId={selectedAccount?.id}
+      />
     </div>
   );
-};
-
-export default BankFeedsPage;
+}

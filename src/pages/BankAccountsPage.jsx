@@ -18,15 +18,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/components/ui/use-toast';
-import { 
-  getBankAccounts, 
-  getBankTransactions, 
-  createBankAccount, 
-  updateBankAccount, 
-  deleteBankAccount, 
+import {
+  getBankAccounts,
+  getBankTransactions,
+  createBankAccount,
+  updateBankAccount,
+  deleteBankAccount,
   setDefaultBankAccount,
-  getAccountBalances 
-} from '@/services/bankAccountService';
+  getAccountBalances
+} from '@/services/bankAccountsService';
 
 const formatCurrency = (val) => 
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
