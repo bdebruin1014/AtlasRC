@@ -346,6 +346,12 @@ const ConstructionLayout = ({ children }) => (
   </div>
 );
 
+const ConstructionAdminLayout = ({ children }) => (
+  <div className="h-[calc(100vh-40px)] overflow-auto">
+    {children}
+  </div>
+);
+
 // Wrapper to bridge houseId → projectId for reused project pages
 const ConstructionPageWrapper = ({ Component, ...props }) => {
   const { houseId } = useParams();
@@ -580,16 +586,12 @@ const AppContent = () => (
     {/* CONSTRUCTION MANAGEMENT MODULE */}
     {/* ============================================ */}
     <Route path="/construction" element={<ProtectedRoute><AppLayout><ConstructionListPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionAdminPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/floor-plans" element={<ProtectedRoute><AppLayout><ConstructionLayout><FloorPlansPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/plans" element={<ProtectedRoute><AppLayout><ConstructionLayout><PlanPricingMatrixPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/sticks-bricks" element={<ProtectedRoute><AppLayout><ConstructionLayout><BudgetTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/upgrades" element={<ProtectedRoute><AppLayout><ConstructionLayout><UpgradePricingPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/schedule-templates" element={<ProtectedRoute><AppLayout><ConstructionLayout><ScheduleTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/workflow-templates" element={<ProtectedRoute><AppLayout><ConstructionLayout><TaskWorkflowTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/municipalities" element={<ProtectedRoute><AppLayout><ConstructionLayout><MunicipalityFeesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/soft-costs" element={<ProtectedRoute><AppLayout><ConstructionLayout><SoftCostTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/admin/lot-prep" element={<ProtectedRoute><AppLayout><ConstructionLayout><LotPrepTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><ConstructionAdminPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/floor-plans" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><FloorPlansPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/plans" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><PlanPricingMatrixPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/upgrades" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><UpgradePricingPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/schedule-templates" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><ScheduleTemplatesPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/municipalities" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><MunicipalityFeesPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PermitsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={BidsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
