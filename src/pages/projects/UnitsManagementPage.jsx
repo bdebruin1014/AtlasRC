@@ -438,17 +438,74 @@ const UnitsManagementPage = () => {
             </table>
           </div>
         ) : (
-          /* Map View Placeholder */
-          <div className="bg-white rounded-lg border p-8 text-center">
-            <MapPin className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <h3 className="font-semibold text-gray-900 mb-2">Site Map View</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Interactive site map with lot locations - Mock visualization coming
-              Upload your site plan to enable map view.
-            </p>
-            <Button variant="outline">
-              <Upload className="w-4 h-4 mr-2" />Upload Site Plan
-            </Button>
+          /* Map View - Lot Grid Visualization */
+          <div className="bg-white rounded-lg border p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="font-semibold text-gray-900">Site Map View</h3>
+                <p className="text-sm text-gray-500">Visual lot layout by block and status</p>
+              </div>
+              <Button variant="outline" size="sm">
+                <Upload className="w-4 h-4 mr-2" />Upload Site Plan
+              </Button>
+            </div>
+
+            {/* Lot Grid */}
+            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 mb-6">
+              {filteredUnits.map(unit => {
+                const colorMap = {
+                  available: 'bg-green-500 hover:bg-green-600 border-green-600',
+                  sold: 'bg-blue-500 hover:bg-blue-600 border-blue-600',
+                  reserved: 'bg-amber-500 hover:bg-amber-600 border-amber-600',
+                  'under-contract': 'bg-indigo-500 hover:bg-indigo-600 border-indigo-600',
+                  planned: 'bg-gray-300 hover:bg-gray-400 border-gray-400',
+                  leased: 'bg-teal-500 hover:bg-teal-600 border-teal-600',
+                };
+                const boxColor = colorMap[unit.status] || 'bg-gray-300 border-gray-400';
+                const statusLabel = statusConfig[unit.status]?.label || unit.status;
+
+                return (
+                  <div
+                    key={unit.id}
+                    className={cn(
+                      "flex flex-col items-center justify-center rounded-lg border-2 p-3 cursor-pointer transition-colors text-white min-h-[80px]",
+                      boxColor,
+                      selectedUnits.includes(unit.id) && "ring-2 ring-offset-2 ring-emerald-500"
+                    )}
+                    onClick={() => toggleUnitSelection(unit.id)}
+                    title={`${unit.number} — ${statusLabel}${unit.address ? ` — ${unit.address}` : ''}`}
+                  >
+                    <span className="text-xs font-bold leading-tight">{unit.number}</span>
+                    <span className="text-[10px] opacity-90 mt-1 leading-tight text-center">{statusLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-4 pt-4 border-t">
+              <span className="text-xs font-medium text-gray-500 mr-1">Legend:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-green-500 inline-block" />
+                <span className="text-xs text-gray-700">Available</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-blue-500 inline-block" />
+                <span className="text-xs text-gray-700">Sold</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-amber-500 inline-block" />
+                <span className="text-xs text-gray-700">Reserved</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-indigo-500 inline-block" />
+                <span className="text-xs text-gray-700">Under Construction</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-gray-300 inline-block" />
+                <span className="text-xs text-gray-700">Planned</span>
+              </div>
+            </div>
           </div>
         )}
       </div>
