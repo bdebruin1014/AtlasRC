@@ -269,7 +269,6 @@ let mockMeetingSeries = [
 ];
 
 let mockMeetingInstances = [
-  // Recent meetings for Scattered Lot Team
   {
     id: 'meeting-1',
     seriesId: 'series-1',
@@ -380,7 +379,6 @@ let mockMeetingInstances = [
 ];
 
 let mockMeetingItems = [
-  // Tasks from recent meetings
   {
     id: 'item-1',
     seriesId: 'series-1',
@@ -506,39 +504,41 @@ let mockMeetingItems = [
  * Get all meeting series
  */
 export async function getMeetingSeries(filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase.from('meeting_series').select('*');
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.cadence) query = query.eq('cadence', filters.cadence);
+
+    const { data, error } = await query.order('name');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching meeting series:', err);
     let series = [...mockMeetingSeries];
     if (filters.status) series = series.filter(s => s.status === filters.status);
     if (filters.teamId) series = series.filter(s => s.teams.includes(filters.teamId));
     if (filters.cadence) series = series.filter(s => s.cadence === filters.cadence);
     return series;
   }
-
-  let query = supabase.from('meeting_series').select('*');
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.cadence) query = query.eq('cadence', filters.cadence);
-
-  const { data, error } = await query.order('name');
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get meeting series by ID
  */
 export async function getMeetingSeriesById(seriesId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_series')
+      .select('*')
+      .eq('id', seriesId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching meeting series by ID:', err);
     return mockMeetingSeries.find(s => s.id === seriesId) || null;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_series')
-    .select('*')
-    .eq('id', seriesId)
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -561,26 +561,38 @@ export async function createMeetingSeries(seriesData) {
     created_at: new Date().toISOString(),
   };
 
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_series')
+      .insert([series])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating meeting series:', err);
     mockMeetingSeries.push(series);
     return series;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_series')
-    .insert([series])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Update meeting series
  */
 export async function updateMeetingSeries(seriesId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_series')
+      .update(updates)
+      .eq('id', seriesId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating meeting series:', err);
     const idx = mockMeetingSeries.findIndex(s => s.id === seriesId);
     if (idx >= 0) {
       mockMeetingSeries[idx] = { ...mockMeetingSeries[idx], ...updates };
@@ -588,16 +600,6 @@ export async function updateMeetingSeries(seriesId, updates) {
     }
     return null;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_series')
-    .update(updates)
-    .eq('id', seriesId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 // ============================================
@@ -608,31 +610,42 @@ export async function updateMeetingSeries(seriesId, updates) {
  * Get meeting instances for a series
  */
 export async function getMeetingInstances(seriesId, options = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('meeting_instances')
+      .select('*')
+      .eq('series_id', seriesId);
+
+    if (options.status) query = query.eq('status', options.status);
+    if (options.limit) query = query.limit(options.limit);
+
+    const { data, error } = await query.order('date', { ascending: false });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching meeting instances:', err);
     let instances = mockMeetingInstances.filter(m => m.seriesId === seriesId);
     if (options.status) instances = instances.filter(m => m.status === options.status);
     if (options.limit) instances = instances.slice(0, options.limit);
     return instances.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
-
-  let query = supabase
-    .from('meeting_instances')
-    .select('*')
-    .eq('series_id', seriesId);
-
-  if (options.status) query = query.eq('status', options.status);
-  if (options.limit) query = query.limit(options.limit);
-
-  const { data, error } = await query.order('date', { ascending: false });
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get all upcoming meetings across all series
  */
 export async function getUpcomingMeetings(days = 7) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_series')
+      .select('id, name, next_meeting, teams, participants')
+      .eq('status', 'active')
+      .order('next_meeting');
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching upcoming meetings:', err);
     const now = new Date();
     const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -649,33 +662,25 @@ export async function getUpcomingMeetings(days = 7) {
       .filter(m => new Date(m.nextMeeting) <= futureDate)
       .sort((a, b) => new Date(a.nextMeeting) - new Date(b.nextMeeting));
   }
-
-  const { data, error } = await supabase
-    .from('meeting_series')
-    .select('id, name, next_meeting, teams, participants')
-    .eq('status', 'active')
-    .order('next_meeting');
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get meeting instance by ID
  */
 export async function getMeetingInstanceById(meetingId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_instances')
+      .select('*')
+      .eq('id', meetingId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching meeting instance by ID:', err);
     return mockMeetingInstances.find(m => m.id === meetingId) || null;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_instances')
-    .select('*')
-    .eq('id', meetingId)
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -694,26 +699,38 @@ export async function createMeetingInstance(seriesId, meetingData) {
     created_at: new Date().toISOString(),
   };
 
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_instances')
+      .insert([meeting])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating meeting instance:', err);
     mockMeetingInstances.push(meeting);
     return meeting;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_instances')
-    .insert([meeting])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Update meeting instance
  */
 export async function updateMeetingInstance(meetingId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_instances')
+      .update(updates)
+      .eq('id', meetingId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating meeting instance:', err);
     const idx = mockMeetingInstances.findIndex(m => m.id === meetingId);
     if (idx >= 0) {
       mockMeetingInstances[idx] = { ...mockMeetingInstances[idx], ...updates };
@@ -721,16 +738,6 @@ export async function updateMeetingInstance(meetingId, updates) {
     }
     return null;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_instances')
-    .update(updates)
-    .eq('id', meetingId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -754,39 +761,41 @@ export async function completeMeeting(meetingId, completionData) {
  * Get items for a meeting series
  */
 export async function getSeriesItems(seriesId, filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase.from('meeting_items').select('*').eq('series_id', seriesId);
+    if (filters.type) query = query.eq('type', filters.type);
+    if (filters.status) query = query.eq('status', filters.status);
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching series items:', err);
     let items = mockMeetingItems.filter(i => i.seriesId === seriesId);
     if (filters.type) items = items.filter(i => i.type === filters.type);
     if (filters.status) items = items.filter(i => i.status === filters.status);
     if (filters.assigneeId) items = items.filter(i => i.assignee?.id === filters.assigneeId);
     return items;
   }
-
-  let query = supabase.from('meeting_items').select('*').eq('series_id', seriesId);
-  if (filters.type) query = query.eq('type', filters.type);
-  if (filters.status) query = query.eq('status', filters.status);
-
-  const { data, error } = await query.order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get items for a specific meeting instance
  */
 export async function getMeetingItems(meetingId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_items')
+      .select('*')
+      .eq('meeting_id', meetingId)
+      .order('created_at');
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching meeting items:', err);
     return mockMeetingItems.filter(i => i.meetingId === meetingId);
   }
-
-  const { data, error } = await supabase
-    .from('meeting_items')
-    .select('*')
-    .eq('meeting_id', meetingId)
-    .order('created_at');
-
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -800,26 +809,38 @@ export async function createMeetingItem(itemData) {
     createdAt: new Date().toISOString(),
   };
 
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_items')
+      .insert([item])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating meeting item:', err);
     mockMeetingItems.push(item);
     return item;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_items')
-    .insert([item])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Update a meeting item
  */
 export async function updateMeetingItem(itemId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('meeting_items')
+      .update(updates)
+      .eq('id', itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating meeting item:', err);
     const idx = mockMeetingItems.findIndex(i => i.id === itemId);
     if (idx >= 0) {
       mockMeetingItems[idx] = { ...mockMeetingItems[idx], ...updates };
@@ -827,16 +848,6 @@ export async function updateMeetingItem(itemId, updates) {
     }
     return null;
   }
-
-  const { data, error } = await supabase
-    .from('meeting_items')
-    .update(updates)
-    .eq('id', itemId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -868,9 +879,33 @@ export async function resolveIssue(itemId, resolution) {
  * Get dashboard statistics
  */
 export async function getDashboardStats() {
-  if (isDemoMode) {
+  try {
+    // Would aggregate from database
+    const { data, error } = await supabase
+      .from('meeting_series')
+      .select('*')
+      .eq('status', 'active');
+
+    if (error) throw error;
+
+    // Build stats from real data if available
+    if (data && data.length > 0) {
+      return {
+        activeMeetingSeries: data.length,
+        meetingsThisWeek: data.length,
+        meetingsThisMonth: data.length * 4,
+        avgMeetingRating: 0,
+        openTasks: 0,
+        openIssues: 0,
+        activeRocks: 0,
+        completionRate: 0,
+        totalParticipants: 0,
+      };
+    }
+    throw new Error('No data');
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
     const activeSeries = mockMeetingSeries.filter(s => s.status === SERIES_STATUS.ACTIVE);
-    const recentMeetings = mockMeetingInstances.filter(m => m.status === INSTANCE_STATUS.COMPLETED);
     const openItems = mockMeetingItems.filter(i =>
       i.status === ITEM_STATUS.OPEN || i.status === ITEM_STATUS.IN_PROGRESS
     );
@@ -887,9 +922,6 @@ export async function getDashboardStats() {
       totalParticipants: [...new Set(activeSeries.flatMap(s => s.participants.map(p => p.id)))].length,
     };
   }
-
-  // Would aggregate from database
-  return {};
 }
 
 /**

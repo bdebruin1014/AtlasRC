@@ -399,7 +399,7 @@ const HomePage = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-6 gap-1 text-center">
+                    <div className="grid grid-cols-5 gap-1 text-center">
                       {pipelineStages.map((stage) => (
                         <div key={stage.id} className="space-y-1 cursor-pointer hover:bg-gray-50 rounded p-1" onClick={() => navigate(`/opportunities?stage=${stage.id}`)}>
                           <p className="text-xs font-medium text-gray-500 truncate">{stage.label}</p>
