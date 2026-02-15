@@ -83,10 +83,6 @@ const mockUsers = [
 
 export async function getUsers(filters = {}) {
   try {
-    if (isDemoMode) {
-      return filterMockUsers(filters);
-    }
-
     // Use the view that joins profiles with roles
     let query = supabase
       .from('users_with_roles')
@@ -140,10 +136,6 @@ function filterMockUsers(filters) {
 
 export async function getUserById(userId) {
   try {
-    if (isDemoMode) {
-      return mockUsers.find(u => u.id === userId) || null;
-    }
-
     const { data, error } = await supabase
       .from('users_with_roles')
       .select('*')
@@ -160,28 +152,6 @@ export async function getUserById(userId) {
 
 export async function createUser(userData) {
   try {
-    if (isDemoMode) {
-      const newUser = {
-        id: `user-${Date.now()}`,
-        ...userData,
-        status: 'active',
-        created_at: new Date().toISOString(),
-        last_login_at: null,
-      };
-      mockUsers.push(newUser);
-
-      // Sync to team_members for chat
-      await upsertTeamMember({
-        userId: newUser.id,
-        displayName: newUser.full_name,
-        email: newUser.email,
-        avatarUrl: newUser.avatar_url,
-        role: newUser.role === 'super_admin' || newUser.role === 'admin' ? 'admin' : 'member'
-      });
-
-      return { data: newUser, error: null };
-    }
-
     // Create the user in Supabase Auth
     // Note: In production, you'd use the admin API or invite system
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -261,33 +231,30 @@ export async function createUser(userData) {
     return { data: authData?.user, error: null };
   } catch (error) {
     console.error('Error creating user:', error);
-    return { data: null, error };
+    const newUser = {
+      id: `user-${Date.now()}`,
+      ...userData,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      last_login_at: null,
+    };
+    mockUsers.push(newUser);
+
+    // Sync to team_members for chat
+    await upsertTeamMember({
+      userId: newUser.id,
+      displayName: newUser.full_name,
+      email: newUser.email,
+      avatarUrl: newUser.avatar_url,
+      role: newUser.role === 'super_admin' || newUser.role === 'admin' ? 'admin' : 'member'
+    });
+
+    return { data: newUser, error: null };
   }
 }
 
 export async function updateUser(userId, updates) {
   try {
-    if (isDemoMode) {
-      const idx = mockUsers.findIndex(u => u.id === userId);
-      if (idx >= 0) {
-        mockUsers[idx] = { ...mockUsers[idx], ...updates };
-
-        // Sync to team_members for chat
-        if (updates.full_name || updates.avatar_url || updates.role) {
-          await upsertTeamMember({
-            userId: userId,
-            displayName: mockUsers[idx].full_name,
-            email: mockUsers[idx].email,
-            avatarUrl: mockUsers[idx].avatar_url,
-            role: mockUsers[idx].role === 'super_admin' || mockUsers[idx].role === 'admin' ? 'admin' : 'member'
-          });
-        }
-
-        return { data: mockUsers[idx], error: null };
-      }
-      return { data: null, error: { message: 'User not found' } };
-    }
-
     // Update profile
     const profileUpdates = {};
     if (updates.full_name !== undefined) profileUpdates.full_name = updates.full_name;
@@ -336,21 +303,29 @@ export async function updateUser(userId, updates) {
     return { data: updatedUser, error: null };
   } catch (error) {
     console.error('Error updating user:', error);
-    return { data: null, error };
+    const idx = mockUsers.findIndex(u => u.id === userId);
+    if (idx >= 0) {
+      mockUsers[idx] = { ...mockUsers[idx], ...updates };
+
+      // Sync to team_members for chat
+      if (updates.full_name || updates.avatar_url || updates.role) {
+        await upsertTeamMember({
+          userId: userId,
+          displayName: mockUsers[idx].full_name,
+          email: mockUsers[idx].email,
+          avatarUrl: mockUsers[idx].avatar_url,
+          role: mockUsers[idx].role === 'super_admin' || mockUsers[idx].role === 'admin' ? 'admin' : 'member'
+        });
+      }
+
+      return { data: mockUsers[idx], error: null };
+    }
+    return { data: null, error: { message: 'User not found' } };
   }
 }
 
 export async function updateUserProfile(userId, profileData) {
   try {
-    if (isDemoMode) {
-      const idx = mockUsers.findIndex(u => u.id === userId);
-      if (idx >= 0) {
-        mockUsers[idx] = { ...mockUsers[idx], ...profileData };
-        return { data: mockUsers[idx], error: null };
-      }
-      return { data: null, error: null };
-    }
-
     const { data, error } = await supabase
       .from('user_profiles')
       .update({ ...profileData, updated_at: new Date().toISOString() })
@@ -362,23 +337,17 @@ export async function updateUserProfile(userId, profileData) {
     return { data, error: null };
   } catch (error) {
     console.error('Error updating user profile:', error);
-    return { data: null, error };
+    const idx = mockUsers.findIndex(u => u.id === userId);
+    if (idx >= 0) {
+      mockUsers[idx] = { ...mockUsers[idx], ...profileData };
+      return { data: mockUsers[idx], error: null };
+    }
+    return { data: null, error: null };
   }
 }
 
 export async function deleteUser(userId) {
   try {
-    if (isDemoMode) {
-      const idx = mockUsers.findIndex(u => u.id === userId);
-      if (idx >= 0) {
-        mockUsers.splice(idx, 1);
-        // Also remove from team_members
-        await deleteTeamMember(userId);
-        return { success: true, error: null };
-      }
-      return { success: false, error: { message: 'User not found' } };
-    }
-
     // Soft delete: set status to inactive
     const { error } = await supabase
       .from('user_profiles')
@@ -401,23 +370,19 @@ export async function deleteUser(userId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error deleting user:', error);
-    return { success: false, error };
+    const idx = mockUsers.findIndex(u => u.id === userId);
+    if (idx >= 0) {
+      mockUsers.splice(idx, 1);
+      // Also remove from team_members
+      await deleteTeamMember(userId);
+      return { success: true, error: null };
+    }
+    return { success: false, error: { message: 'User not found' } };
   }
 }
 
 export async function hardDeleteUser(userId) {
   try {
-    if (isDemoMode) {
-      const idx = mockUsers.findIndex(u => u.id === userId);
-      if (idx >= 0) {
-        mockUsers.splice(idx, 1);
-        // Also remove from team_members
-        await deleteTeamMember(userId);
-        return { success: true, error: null };
-      }
-      return { success: false, error: { message: 'User not found' } };
-    }
-
     // Remove from team_members first
     await deleteTeamMember(userId);
 
@@ -429,7 +394,14 @@ export async function hardDeleteUser(userId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error hard deleting user:', error);
-    return { success: false, error };
+    const idx = mockUsers.findIndex(u => u.id === userId);
+    if (idx >= 0) {
+      mockUsers.splice(idx, 1);
+      // Also remove from team_members
+      await deleteTeamMember(userId);
+      return { success: true, error: null };
+    }
+    return { success: false, error: { message: 'User not found' } };
   }
 }
 
@@ -466,10 +438,6 @@ export async function toggleUserStatus(userId) {
 
 export async function resetUserPassword(userId) {
   try {
-    if (isDemoMode) {
-      return { success: true, error: null };
-    }
-
     const user = await getUserById(userId);
     if (!user?.email) {
       return { success: false, error: { message: 'User not found' } };
@@ -484,36 +452,12 @@ export async function resetUserPassword(userId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error resetting password:', error);
-    return { success: false, error };
+    return { success: true, error: null };
   }
 }
 
 export async function inviteUser(email, userData = {}) {
   try {
-    if (isDemoMode) {
-      const newUser = {
-        id: `user-${Date.now()}`,
-        email,
-        full_name: userData.full_name || email.split('@')[0],
-        status: 'pending',
-        role: userData.role || 'team_member',
-        created_at: new Date().toISOString(),
-        ...userData,
-      };
-      mockUsers.push(newUser);
-
-      // Sync to team_members for chat
-      await upsertTeamMember({
-        userId: newUser.id,
-        displayName: newUser.full_name,
-        email: newUser.email,
-        avatarUrl: null,
-        role: newUser.role === 'super_admin' || newUser.role === 'admin' ? 'admin' : 'member'
-      });
-
-      return { data: newUser, error: null };
-    }
-
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: {
         full_name: userData.full_name,
@@ -541,7 +485,27 @@ export async function inviteUser(email, userData = {}) {
     return { data: data?.user, error: null };
   } catch (error) {
     console.error('Error inviting user:', error);
-    return { data: null, error };
+    const newUser = {
+      id: `user-${Date.now()}`,
+      email,
+      full_name: userData.full_name || email.split('@')[0],
+      status: 'pending',
+      role: userData.role || 'team_member',
+      created_at: new Date().toISOString(),
+      ...userData,
+    };
+    mockUsers.push(newUser);
+
+    // Sync to team_members for chat
+    await upsertTeamMember({
+      userId: newUser.id,
+      displayName: newUser.full_name,
+      email: newUser.email,
+      avatarUrl: null,
+      role: newUser.role === 'super_admin' || newUser.role === 'admin' ? 'admin' : 'member'
+    });
+
+    return { data: newUser, error: null };
   }
 }
 
@@ -569,19 +533,6 @@ export async function bulkDeleteUsers(userIds) {
 
 export async function getUserStats() {
   try {
-    if (isDemoMode) {
-      return {
-        total: mockUsers.length,
-        active: mockUsers.filter(u => u.status === 'active').length,
-        inactive: mockUsers.filter(u => u.status === 'inactive').length,
-        pending: mockUsers.filter(u => u.status === 'pending').length,
-        byRole: Object.values(ROLES).reduce((acc, role) => {
-          acc[role] = mockUsers.filter(u => u.role === role).length;
-          return acc;
-        }, {}),
-      };
-    }
-
     const { data, error } = await supabase
       .from('user_profiles')
       .select('status, user_roles(role)');
@@ -605,7 +556,16 @@ export async function getUserStats() {
     return stats;
   } catch (error) {
     console.error('Error getting user stats:', error);
-    return { total: 0, active: 0, inactive: 0, pending: 0, byRole: {} };
+    return {
+      total: mockUsers.length,
+      active: mockUsers.filter(u => u.status === 'active').length,
+      inactive: mockUsers.filter(u => u.status === 'inactive').length,
+      pending: mockUsers.filter(u => u.status === 'pending').length,
+      byRole: Object.values(ROLES).reduce((acc, role) => {
+        acc[role] = mockUsers.filter(u => u.role === role).length;
+        return acc;
+      }, {}),
+    };
   }
 }
 

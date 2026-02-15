@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Eye, Edit2, X, AlertTriangle, CheckCircle, Clock, Calendar, Home, User, Wrench, Phone, Mail, Download, FileText, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { getWarrantyItems, createWarrantyItem } from '@/services/constructionService';
 
 const WarrantyPage = ({ projectId }) => {
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -149,6 +150,38 @@ const WarrantyPage = ({ projectId }) => {
     priority: 'medium',
   });
 
+  useEffect(() => {
+    if (!projectId) return;
+    async function fetchWarranty() {
+      const { data } = await getWarrantyItems(projectId);
+      if (data && data.length > 0) {
+        setClaims(data.map(w => ({
+          id: w.id,
+          unit: w.unit || 'N/A',
+          owner: w.owner_name || 'TBD',
+          ownerPhone: w.owner_phone || '',
+          ownerEmail: w.owner_email || '',
+          closingDate: w.closing_date || '',
+          category: w.category || 'Other',
+          issue: w.issue || w.title || '',
+          description: w.description || '',
+          priority: w.priority || 'medium',
+          status: w.status || 'open',
+          reportedDate: w.reported_date || '',
+          scheduledDate: w.scheduled_date || null,
+          assignedTo: w.assigned_to || null,
+          resolution: w.resolution || null,
+          completedDate: w.completed_date || null,
+          cost: w.cost || 0,
+          photos: w.photos?.length || 0,
+          warrantyType: w.warranty_type || 'builder',
+          notes: w.notes || '',
+        })));
+      }
+    }
+    fetchWarranty();
+  }, [projectId]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'open': return 'bg-red-100 text-red-700';
@@ -200,6 +233,18 @@ const WarrantyPage = ({ projectId }) => {
       notes: '',
     };
     setClaims(prev => [claim, ...prev]);
+    if (projectId) {
+      createWarrantyItem({
+        house_id: projectId,
+        unit: newClaim.unit,
+        category: newClaim.category,
+        title: newClaim.issue,
+        description: newClaim.description,
+        priority: newClaim.priority,
+        status: 'reported',
+        reported_date: new Date().toISOString().split('T')[0],
+      });
+    }
     setShowClaimModal(false);
     setNewClaim({ unit: '', category: '', issue: '', description: '', priority: 'medium' });
   };

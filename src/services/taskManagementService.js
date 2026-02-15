@@ -75,7 +75,27 @@ const mockTemplates = [];
  * Get all tasks for a project
  */
 export async function getProjectTasks(projectId, filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('project_tasks')
+      .select(`
+        *,
+        milestone:milestones(id, name, due_date),
+        internal_user:users(id, name, email, role),
+        external_contact:project_contacts(id, first_name, last_name, company_name, email, phone, category)
+      `)
+      .eq('project_id', projectId);
+
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.responsiblePartyType) query = query.eq('responsible_party_type', filters.responsiblePartyType);
+    if (filters.milestoneId) query = query.eq('milestone_id', filters.milestoneId);
+
+    const { data, error } = await query.order('due_date', { ascending: true });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching project tasks:', err);
     let tasks = mockTasks.filter(t => t.project_id === projectId);
 
     if (filters.status) tasks = tasks.filter(t => t.status === filters.status);
@@ -87,32 +107,31 @@ export async function getProjectTasks(projectId, filters = {}) {
 
     return tasks;
   }
-
-  let query = supabase
-    .from('project_tasks')
-    .select(`
-      *,
-      milestone:milestones(id, name, due_date),
-      internal_user:users(id, name, email, role),
-      external_contact:project_contacts(id, first_name, last_name, company_name, email, phone, category)
-    `)
-    .eq('project_id', projectId);
-
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.category) query = query.eq('category', filters.category);
-  if (filters.responsiblePartyType) query = query.eq('responsible_party_type', filters.responsiblePartyType);
-  if (filters.milestoneId) query = query.eq('milestone_id', filters.milestoneId);
-
-  const { data, error } = await query.order('due_date', { ascending: true });
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get all tasks across all projects (global view)
  */
 export async function getAllTasks(filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('project_tasks')
+      .select(`
+        *,
+        project:projects(id, name, type),
+        milestone:milestones(id, name, due_date),
+        internal_user:users(id, name, email),
+        external_contact:project_contacts(id, first_name, last_name, company_name)
+      `);
+
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.module) query = query.eq('source_module', filters.module);
+
+    const { data, error } = await query.order('due_date', { ascending: true });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching all tasks:', err);
     let tasks = [...mockTasks];
     if (filters.status) tasks = tasks.filter(t => t.status === filters.status);
     if (filters.module) tasks = tasks.filter(t => t.source_module === filters.module);
@@ -121,23 +140,6 @@ export async function getAllTasks(filters = {}) {
     }
     return tasks;
   }
-
-  let query = supabase
-    .from('project_tasks')
-    .select(`
-      *,
-      project:projects(id, name, type),
-      milestone:milestones(id, name, due_date),
-      internal_user:users(id, name, email),
-      external_contact:project_contacts(id, first_name, last_name, company_name)
-    `);
-
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.module) query = query.eq('source_module', filters.module);
-
-  const { data, error } = await query.order('due_date', { ascending: true });
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -151,26 +153,38 @@ export async function createTask(taskData) {
     updated_at: new Date().toISOString(),
   };
 
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_tasks')
+      .insert([task])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating task:', err);
     mockTasks.push(task);
     return task;
   }
-
-  const { data, error } = await supabase
-    .from('project_tasks')
-    .insert([task])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Update a task
  */
 export async function updateTask(taskId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_tasks')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating task:', err);
     const idx = mockTasks.findIndex(t => t.id === taskId);
     if (idx >= 0) {
       mockTasks[idx] = { ...mockTasks[idx], ...updates, updated_at: new Date().toISOString() };
@@ -178,35 +192,26 @@ export async function updateTask(taskId, updates) {
     }
     return null;
   }
-
-  const { data, error } = await supabase
-    .from('project_tasks')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', taskId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Delete a task
  */
 export async function deleteTask(taskId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('project_tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting task:', err);
     const idx = mockTasks.findIndex(t => t.id === taskId);
     if (idx >= 0) mockTasks.splice(idx, 1);
     return true;
   }
-
-  const { error } = await supabase
-    .from('project_tasks')
-    .delete()
-    .eq('id', taskId);
-
-  if (error) throw error;
-  return true;
 }
 
 /**
@@ -275,43 +280,45 @@ export async function generateTasksFromTemplate(templateId, projectId, triggerDa
  * Get workflow template by ID
  */
 export async function getWorkflowTemplate(templateId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('workflow_templates')
+      .select('*, tasks:workflow_template_tasks(*)')
+      .eq('id', templateId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching workflow template:', err);
     return mockTemplates.find(t => t.id === templateId) || null;
   }
-
-  const { data, error } = await supabase
-    .from('workflow_templates')
-    .select('*, tasks:workflow_template_tasks(*)')
-    .eq('id', templateId)
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get all workflow templates
  */
 export async function getWorkflowTemplates(filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('workflow_templates')
+      .select('*, tasks:workflow_template_tasks(*)');
+
+    if (filters.projectType) query = query.eq('project_type', filters.projectType);
+    if (filters.triggerEvent) query = query.eq('trigger_event', filters.triggerEvent);
+    if (filters.isActive !== undefined) query = query.eq('is_active', filters.isActive);
+
+    const { data, error } = await query.order('name');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching workflow templates:', err);
     let templates = [...mockTemplates];
     if (filters.projectType) templates = templates.filter(t => t.project_type === filters.projectType);
     if (filters.triggerEvent) templates = templates.filter(t => t.trigger_event === filters.triggerEvent);
     if (filters.isActive !== undefined) templates = templates.filter(t => t.is_active === filters.isActive);
     return templates;
   }
-
-  let query = supabase
-    .from('workflow_templates')
-    .select('*, tasks:workflow_template_tasks(*)');
-
-  if (filters.projectType) query = query.eq('project_type', filters.projectType);
-  if (filters.triggerEvent) query = query.eq('trigger_event', filters.triggerEvent);
-  if (filters.isActive !== undefined) query = query.eq('is_active', filters.isActive);
-
-  const { data, error } = await query.order('name');
-  if (error) throw error;
-  return data;
 }
 
 /**

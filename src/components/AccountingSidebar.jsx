@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Building2, BookOpen, CreditCard, Receipt, FileText,
   ArrowLeftRight, DollarSign, BarChart3, Settings, Wallet, PiggyBank,
   GitBranch, CheckSquare, AlertCircle, Clock, Plus, Users, Layers, Percent,
-  Link2, Briefcase, Car, X, ChevronDown, ChevronRight
+  Link2, Briefcase, Car, X, ChevronDown, ChevronRight,
+  TrendingUp, TrendingDown, PieChart, Repeat, Landmark
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TransactionEntryProvider, TransactionEntryContext } from '@/contexts/TransactionEntryContext';
@@ -633,6 +634,7 @@ const AccountingSidebar = ({ entity }) => {
       items: [
         { label: 'All Transactions', path: `${basePath}/transactions`, icon: Receipt },
         { label: 'Journal Entries', path: `${basePath}/journal-entries`, icon: FileText },
+        { label: 'Recurring Entries', path: `${basePath}/recurring-journal-entries`, icon: Repeat },
         { label: 'Reconciliation', path: `${basePath}/reconciliation`, icon: CheckSquare },
       ]
     },
@@ -661,6 +663,14 @@ const AccountingSidebar = ({ entity }) => {
       ]
     },
     {
+      title: 'Equity & Ownership',
+      items: [
+        { label: 'Ownership', path: `${basePath}/ownership`, icon: Users },
+        { label: 'Capital Contributions', path: `${basePath}/capital-contributions`, icon: DollarSign },
+        { label: 'Distributions', path: `${basePath}/distributions`, icon: DollarSign },
+      ]
+    },
+    {
       title: 'Payroll',
       items: [
         { label: 'Payroll', path: `${basePath}/payroll`, icon: Briefcase },
@@ -677,9 +687,21 @@ const AccountingSidebar = ({ entity }) => {
       title: 'Reports',
       items: [
         { label: 'Financial Statements', path: `${basePath}/reports`, icon: BarChart3 },
+        { label: 'Balance Sheet', path: `${basePath}/balance-sheet`, icon: FileText },
+        { label: 'Income Statement', path: `${basePath}/income-statement`, icon: TrendingUp },
         { label: 'Trial Balance', path: `${basePath}/trial-balance`, icon: FileText },
         { label: 'Cash Flow', path: `${basePath}/cash-flow`, icon: DollarSign },
         { label: 'Job Costing', path: `${basePath}/job-costing`, icon: BarChart3 },
+        { label: 'Budget vs Actual', path: `${basePath}/budget-vs-actual`, icon: BarChart3 },
+        { label: 'Financial Ratios', path: `${basePath}/financial-ratios`, icon: PieChart },
+      ]
+    },
+    {
+      title: 'Tax & Assets',
+      items: [
+        { label: 'Fixed Assets', path: `${basePath}/fixed-assets`, icon: Landmark },
+        { label: 'Depreciation', path: `${basePath}/depreciation`, icon: TrendingDown },
+        { label: 'Tax Tracking', path: `${basePath}/tax-tracking`, icon: Percent },
       ]
     },
     {

@@ -1,7 +1,8 @@
 // src/services/constructionService.js
 // Service layer for Construction Management module with demo data
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { notifyMilestoneReached } from '@/services/notificationTriggerService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -402,21 +403,12 @@ const DEMO_WARRANTY_ITEMS = [
 // ─── Houses CRUD ──────────────────────────────────────────────────────────────
 
 export async function getHouses(filters = {}) {
-  if (isDemoMode) {
-    let houses = [...DEMO_HOUSES];
-    if (filters.project_id) houses = houses.filter(h => h.project_id === filters.project_id);
-    if (filters.current_milestone) houses = houses.filter(h => h.current_milestone === filters.current_milestone);
-    if (filters.status) houses = houses.filter(h => h.status === filters.status);
-    houses.sort((a, b) => (a.house_number || '').localeCompare(b.house_number || '', undefined, { numeric: true }));
-    return { data: houses, error: null };
-  }
-
   try {
     let query = supabase
       .from('construction_houses')
       .select(`
         *,
-        project:projects(id, name)
+        project:projects(id, name, project_type)
       `);
 
     if (filters.project_id) query = query.eq('project_id', filters.project_id);
@@ -426,28 +418,25 @@ export async function getHouses(filters = {}) {
     const { data, error } = await query.order('house_number', { ascending: true });
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('getHouses error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getHouses error:', err);
+    // Fallback to demo data
+    let houses = [...DEMO_HOUSES];
+    if (filters.project_id) houses = houses.filter(h => h.project_id === filters.project_id);
+    if (filters.current_milestone) houses = houses.filter(h => h.current_milestone === filters.current_milestone);
+    if (filters.status) houses = houses.filter(h => h.status === filters.status);
+    houses.sort((a, b) => (a.house_number || '').localeCompare(b.house_number || '', undefined, { numeric: true }));
+    return { data: houses, error: null };
   }
 }
 
 export async function getHouseById(id) {
-  if (isDemoMode) {
-    const house = DEMO_HOUSES.find(h => h.id === id) || null;
-    if (!house) return { data: null, error: { message: 'House not found' } };
-    const milestoneLog = DEMO_MILESTONE_LOG
-      .filter(m => m.house_id === id)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    return { data: { ...house, milestone_log: milestoneLog }, error: null };
-  }
-
   try {
     const { data: house, error: houseError } = await supabase
       .from('construction_houses')
       .select(`
         *,
-        project:projects(id, name)
+        project:projects(id, name, project_type)
       `)
       .eq('id', id)
       .single();
@@ -461,14 +450,34 @@ export async function getHouseById(id) {
       .order('created_at', { ascending: false });
 
     return { data: { ...house, milestone_log: milestoneLog || [] }, error: null };
-  } catch (error) {
-    console.error('getHouseById error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getHouseById error:', err);
+    // Fallback to demo data
+    const house = DEMO_HOUSES.find(h => h.id === id) || null;
+    if (!house) return { data: null, error: { message: 'House not found' } };
+    const milestoneLog = DEMO_MILESTONE_LOG
+      .filter(m => m.house_id === id)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { data: { ...house, milestone_log: milestoneLog }, error: null };
   }
 }
 
 export async function createHouse(houseData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_houses')
+      .insert([houseData])
+      .select(`
+        *,
+        project:projects(id, name, project_type)
+      `)
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('createHouse error:', err);
+    // Fallback to demo data
     const newHouse = {
       id: `house-${Date.now()}`,
       ...houseData,
@@ -482,33 +491,9 @@ export async function createHouse(houseData) {
     DEMO_HOUSES.push(newHouse);
     return { data: newHouse, error: null };
   }
-
-  try {
-    const { data, error } = await supabase
-      .from('construction_houses')
-      .insert([houseData])
-      .select(`
-        *,
-        project:projects(id, name)
-      `)
-      .single();
-
-    if (error) throw error;
-    return { data, error: null };
-  } catch (error) {
-    console.error('createHouse error:', error);
-    return { data: null, error };
-  }
 }
 
 export async function updateHouse(id, updates) {
-  if (isDemoMode) {
-    const idx = DEMO_HOUSES.findIndex(h => h.id === id);
-    if (idx === -1) return { data: null, error: { message: 'House not found' } };
-    DEMO_HOUSES[idx] = { ...DEMO_HOUSES[idx], ...updates, updated_at: new Date().toISOString() };
-    return { data: DEMO_HOUSES[idx], error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_houses')
@@ -516,25 +501,23 @@ export async function updateHouse(id, updates) {
       .eq('id', id)
       .select(`
         *,
-        project:projects(id, name)
+        project:projects(id, name, project_type)
       `)
       .single();
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('updateHouse error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('updateHouse error:', err);
+    // Fallback to demo data
+    const idx = DEMO_HOUSES.findIndex(h => h.id === id);
+    if (idx === -1) return { data: null, error: { message: 'House not found' } };
+    DEMO_HOUSES[idx] = { ...DEMO_HOUSES[idx], ...updates, updated_at: new Date().toISOString() };
+    return { data: DEMO_HOUSES[idx], error: null };
   }
 }
 
 export async function deleteHouse(id) {
-  if (isDemoMode) {
-    const idx = DEMO_HOUSES.findIndex(h => h.id === id);
-    if (idx !== -1) DEMO_HOUSES.splice(idx, 1);
-    return { data: true, error: null };
-  }
-
   try {
     const { error } = await supabase
       .from('construction_houses')
@@ -543,14 +526,62 @@ export async function deleteHouse(id) {
 
     if (error) throw error;
     return { data: true, error: null };
-  } catch (error) {
-    console.error('deleteHouse error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('deleteHouse error:', err);
+    // Fallback to demo data
+    const idx = DEMO_HOUSES.findIndex(h => h.id === id);
+    if (idx !== -1) DEMO_HOUSES.splice(idx, 1);
+    return { data: true, error: null };
   }
 }
 
 export async function advanceMilestone(id, newMilestone, notes = null) {
-  if (isDemoMode) {
+  try {
+    const dateField = getMilestoneDateField(newMilestone);
+    const today = new Date().toISOString().split('T')[0];
+
+    const updates = {
+      current_milestone: newMilestone,
+      updated_at: new Date().toISOString(),
+    };
+    if (dateField) updates[dateField] = today;
+    if (newMilestone === 'complete') updates.status = 'complete';
+
+    const { data, error } = await supabase
+      .from('construction_houses')
+      .update(updates)
+      .eq('id', id)
+      .select(`
+        *,
+        project:projects(id, name, project_type)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // The DB trigger auto-logs the milestone change, but add notes separately if provided
+    if (notes) {
+      await supabase
+        .from('construction_milestone_log')
+        .update({ notes })
+        .eq('house_id', id)
+        .eq('milestone', newMilestone)
+        .order('created_at', { ascending: false })
+        .limit(1);
+    }
+
+    // Fire-and-forget notification for milestone advancement
+    notifyMilestoneReached(
+      id,
+      data.house_name || data.address || id,
+      newMilestone,
+      data.project_id || null,
+    ).catch(() => {});
+
+    return { data, error: null };
+  } catch (err) {
+    console.error('advanceMilestone error:', err);
+    // Fallback to demo data
     const idx = DEMO_HOUSES.findIndex(h => h.id === id);
     if (idx === -1) return { data: null, error: { message: 'House not found' } };
 
@@ -578,60 +609,21 @@ export async function advanceMilestone(id, newMilestone, notes = null) {
       created_at: new Date().toISOString(),
     });
 
+    // Fire-and-forget notification for milestone advancement (demo path)
+    notifyMilestoneReached(
+      id,
+      DEMO_HOUSES[idx].house_name || DEMO_HOUSES[idx].address || id,
+      newMilestone,
+      DEMO_HOUSES[idx].project_id || null,
+    ).catch(() => {});
+
     return { data: DEMO_HOUSES[idx], error: null };
-  }
-
-  try {
-    const dateField = getMilestoneDateField(newMilestone);
-    const today = new Date().toISOString().split('T')[0];
-
-    const updates = {
-      current_milestone: newMilestone,
-      updated_at: new Date().toISOString(),
-    };
-    if (dateField) updates[dateField] = today;
-    if (newMilestone === 'complete') updates.status = 'complete';
-
-    const { data, error } = await supabase
-      .from('construction_houses')
-      .update(updates)
-      .eq('id', id)
-      .select(`
-        *,
-        project:projects(id, name)
-      `)
-      .single();
-
-    if (error) throw error;
-
-    // The DB trigger auto-logs the milestone change, but add notes separately if provided
-    if (notes) {
-      await supabase
-        .from('construction_milestone_log')
-        .update({ notes })
-        .eq('house_id', id)
-        .eq('milestone', newMilestone)
-        .order('created_at', { ascending: false })
-        .limit(1);
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    console.error('advanceMilestone error:', error);
-    return { data: null, error };
   }
 }
 
 // ─── Milestone Helpers ────────────────────────────────────────────────────────
 
 export async function getMilestoneLog(houseId) {
-  if (isDemoMode) {
-    const log = DEMO_MILESTONE_LOG
-      .filter(m => m.house_id === houseId)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    return { data: log, error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_milestone_log')
@@ -641,24 +633,17 @@ export async function getMilestoneLog(houseId) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('getMilestoneLog error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getMilestoneLog error:', err);
+    // Fallback to demo data
+    const log = DEMO_MILESTONE_LOG
+      .filter(m => m.house_id === houseId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { data: log, error: null };
   }
 }
 
 export async function getMilestoneSummary() {
-  if (isDemoMode) {
-    const summary = {};
-    MILESTONES.forEach(m => { summary[m.key] = 0; });
-    DEMO_HOUSES.forEach(h => {
-      if (summary[h.current_milestone] !== undefined) {
-        summary[h.current_milestone]++;
-      }
-    });
-    return { data: summary, error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_houses')
@@ -674,22 +659,23 @@ export async function getMilestoneSummary() {
       }
     });
     return { data: summary, error: null };
-  } catch (error) {
-    console.error('getMilestoneSummary error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getMilestoneSummary error:', err);
+    // Fallback to demo data
+    const summary = {};
+    MILESTONES.forEach(m => { summary[m.key] = 0; });
+    DEMO_HOUSES.forEach(h => {
+      if (summary[h.current_milestone] !== undefined) {
+        summary[h.current_milestone]++;
+      }
+    });
+    return { data: summary, error: null };
   }
 }
 
 // ─── Purchase Orders ──────────────────────────────────────────────────────────
 
 export async function getPurchaseOrders(houseId) {
-  if (isDemoMode) {
-    const pos = DEMO_PURCHASE_ORDERS
-      .filter(po => po.house_id === houseId)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    return { data: pos, error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_purchase_orders')
@@ -702,14 +688,29 @@ export async function getPurchaseOrders(houseId) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('getPurchaseOrders error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getPurchaseOrders error:', err);
+    // Fallback to demo data
+    const pos = DEMO_PURCHASE_ORDERS
+      .filter(po => po.house_id === houseId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { data: pos, error: null };
   }
 }
 
 export async function createPurchaseOrder(poData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_purchase_orders')
+      .insert([poData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('createPurchaseOrder error:', err);
+    // Fallback to demo data
     const newPO = {
       id: `po-${Date.now()}`,
       ...poData,
@@ -720,30 +721,9 @@ export async function createPurchaseOrder(poData) {
     DEMO_PURCHASE_ORDERS.push(newPO);
     return { data: newPO, error: null };
   }
-
-  try {
-    const { data, error } = await supabase
-      .from('construction_purchase_orders')
-      .insert([poData])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { data, error: null };
-  } catch (error) {
-    console.error('createPurchaseOrder error:', error);
-    return { data: null, error };
-  }
 }
 
 export async function updatePurchaseOrder(id, updates) {
-  if (isDemoMode) {
-    const idx = DEMO_PURCHASE_ORDERS.findIndex(po => po.id === id);
-    if (idx === -1) return { data: null, error: { message: 'Purchase order not found' } };
-    DEMO_PURCHASE_ORDERS[idx] = { ...DEMO_PURCHASE_ORDERS[idx], ...updates, updated_at: new Date().toISOString() };
-    return { data: DEMO_PURCHASE_ORDERS[idx], error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_purchase_orders')
@@ -754,23 +734,19 @@ export async function updatePurchaseOrder(id, updates) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('updatePurchaseOrder error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('updatePurchaseOrder error:', err);
+    // Fallback to demo data
+    const idx = DEMO_PURCHASE_ORDERS.findIndex(po => po.id === id);
+    if (idx === -1) return { data: null, error: { message: 'Purchase order not found' } };
+    DEMO_PURCHASE_ORDERS[idx] = { ...DEMO_PURCHASE_ORDERS[idx], ...updates, updated_at: new Date().toISOString() };
+    return { data: DEMO_PURCHASE_ORDERS[idx], error: null };
   }
 }
 
 // ─── Daily Logs ───────────────────────────────────────────────────────────────
 
 export async function getDailyLogs(houseId, limit = 30) {
-  if (isDemoMode) {
-    const logs = DEMO_DAILY_LOGS
-      .filter(l => l.house_id === houseId)
-      .sort((a, b) => new Date(b.log_date) - new Date(a.log_date))
-      .slice(0, limit);
-    return { data: logs, error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_daily_logs')
@@ -781,14 +757,30 @@ export async function getDailyLogs(houseId, limit = 30) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('getDailyLogs error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getDailyLogs error:', err);
+    // Fallback to demo data
+    const logs = DEMO_DAILY_LOGS
+      .filter(l => l.house_id === houseId)
+      .sort((a, b) => new Date(b.log_date) - new Date(a.log_date))
+      .slice(0, limit);
+    return { data: logs, error: null };
   }
 }
 
 export async function createDailyLog(logData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_daily_logs')
+      .insert([logData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('createDailyLog error:', err);
+    // Fallback to demo data
     const newLog = {
       id: `dl-${Date.now()}`,
       ...logData,
@@ -800,32 +792,11 @@ export async function createDailyLog(logData) {
     DEMO_DAILY_LOGS.push(newLog);
     return { data: newLog, error: null };
   }
-
-  try {
-    const { data, error } = await supabase
-      .from('construction_daily_logs')
-      .insert([logData])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { data, error: null };
-  } catch (error) {
-    console.error('createDailyLog error:', error);
-    return { data: null, error };
-  }
 }
 
 // ─── Inspections ──────────────────────────────────────────────────────────────
 
 export async function getInspections(houseId) {
-  if (isDemoMode) {
-    const inspections = DEMO_INSPECTIONS
-      .filter(i => i.house_id === houseId)
-      .sort((a, b) => new Date(b.scheduled_date || b.created_at) - new Date(a.scheduled_date || a.created_at));
-    return { data: inspections, error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_inspections')
@@ -838,14 +809,29 @@ export async function getInspections(houseId) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('getInspections error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getInspections error:', err);
+    // Fallback to demo data
+    const inspections = DEMO_INSPECTIONS
+      .filter(i => i.house_id === houseId)
+      .sort((a, b) => new Date(b.scheduled_date || b.created_at) - new Date(a.scheduled_date || a.created_at));
+    return { data: inspections, error: null };
   }
 }
 
 export async function createInspection(data) {
-  if (isDemoMode) {
+  try {
+    const { data: result, error } = await supabase
+      .from('construction_inspections')
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: result, error: null };
+  } catch (err) {
+    console.error('createInspection error:', err);
+    // Fallback to demo data
     const newInspection = {
       id: `insp-${Date.now()}`,
       ...data,
@@ -858,30 +844,9 @@ export async function createInspection(data) {
     DEMO_INSPECTIONS.push(newInspection);
     return { data: newInspection, error: null };
   }
-
-  try {
-    const { data: result, error } = await supabase
-      .from('construction_inspections')
-      .insert([data])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { data: result, error: null };
-  } catch (error) {
-    console.error('createInspection error:', error);
-    return { data: null, error };
-  }
 }
 
 export async function updateInspection(id, updates) {
-  if (isDemoMode) {
-    const idx = DEMO_INSPECTIONS.findIndex(i => i.id === id);
-    if (idx === -1) return { data: null, error: { message: 'Inspection not found' } };
-    DEMO_INSPECTIONS[idx] = { ...DEMO_INSPECTIONS[idx], ...updates, updated_at: new Date().toISOString() };
-    return { data: DEMO_INSPECTIONS[idx], error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_inspections')
@@ -892,22 +857,19 @@ export async function updateInspection(id, updates) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('updateInspection error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('updateInspection error:', err);
+    // Fallback to demo data
+    const idx = DEMO_INSPECTIONS.findIndex(i => i.id === id);
+    if (idx === -1) return { data: null, error: { message: 'Inspection not found' } };
+    DEMO_INSPECTIONS[idx] = { ...DEMO_INSPECTIONS[idx], ...updates, updated_at: new Date().toISOString() };
+    return { data: DEMO_INSPECTIONS[idx], error: null };
   }
 }
 
 // ─── Warranty Items ───────────────────────────────────────────────────────────
 
 export async function getWarrantyItems(houseId) {
-  if (isDemoMode) {
-    const items = DEMO_WARRANTY_ITEMS
-      .filter(w => w.house_id === houseId)
-      .sort((a, b) => new Date(b.reported_date) - new Date(a.reported_date));
-    return { data: items, error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_warranty_items')
@@ -920,14 +882,29 @@ export async function getWarrantyItems(houseId) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('getWarrantyItems error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('getWarrantyItems error:', err);
+    // Fallback to demo data
+    const items = DEMO_WARRANTY_ITEMS
+      .filter(w => w.house_id === houseId)
+      .sort((a, b) => new Date(b.reported_date) - new Date(a.reported_date));
+    return { data: items, error: null };
   }
 }
 
 export async function createWarrantyItem(data) {
-  if (isDemoMode) {
+  try {
+    const { data: result, error } = await supabase
+      .from('construction_warranty_items')
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: result, error: null };
+  } catch (err) {
+    console.error('createWarrantyItem error:', err);
+    // Fallback to demo data
     const newItem = {
       id: `wi-${Date.now()}`,
       ...data,
@@ -942,30 +919,9 @@ export async function createWarrantyItem(data) {
     DEMO_WARRANTY_ITEMS.push(newItem);
     return { data: newItem, error: null };
   }
-
-  try {
-    const { data: result, error } = await supabase
-      .from('construction_warranty_items')
-      .insert([data])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { data: result, error: null };
-  } catch (error) {
-    console.error('createWarrantyItem error:', error);
-    return { data: null, error };
-  }
 }
 
 export async function updateWarrantyItem(id, updates) {
-  if (isDemoMode) {
-    const idx = DEMO_WARRANTY_ITEMS.findIndex(w => w.id === id);
-    if (idx === -1) return { data: null, error: { message: 'Warranty item not found' } };
-    DEMO_WARRANTY_ITEMS[idx] = { ...DEMO_WARRANTY_ITEMS[idx], ...updates, updated_at: new Date().toISOString() };
-    return { data: DEMO_WARRANTY_ITEMS[idx], error: null };
-  }
-
   try {
     const { data, error } = await supabase
       .from('construction_warranty_items')
@@ -976,8 +932,119 @@ export async function updateWarrantyItem(id, updates) {
 
     if (error) throw error;
     return { data, error: null };
-  } catch (error) {
-    console.error('updateWarrantyItem error:', error);
-    return { data: null, error };
+  } catch (err) {
+    console.error('updateWarrantyItem error:', err);
+    // Fallback to demo data
+    const idx = DEMO_WARRANTY_ITEMS.findIndex(w => w.id === id);
+    if (idx === -1) return { data: null, error: { message: 'Warranty item not found' } };
+    DEMO_WARRANTY_ITEMS[idx] = { ...DEMO_WARRANTY_ITEMS[idx], ...updates, updated_at: new Date().toISOString() };
+    return { data: DEMO_WARRANTY_ITEMS[idx], error: null };
+  }
+}
+
+// ─── Insurance Policies ─────────────────────────────────────────────────────────
+
+const DEMO_INSURANCE_POLICIES = [
+  {
+    id: 'pol-1',
+    house_id: 'demo-house-1',
+    type: 'Builder Risk',
+    policy_number: 'BR-2024-001',
+    carrier: 'Hartford Insurance',
+    coverage_amount: 8500000,
+    premium: 42000,
+    premium_paid: true,
+    effective_date: '2024-03-01',
+    expiration_date: '2025-03-01',
+    status: 'active',
+    named_insured: 'VanRock Holdings LLC',
+    additional_insured: ['First National Bank'],
+    deductible: 25000,
+    agent_name: 'John Smith - ABC Insurance',
+    agent_phone: '(555) 123-4567',
+    agent_email: 'jsmith@abcinsurance.com',
+    notes: 'Covers all structures during construction.',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'pol-2',
+    house_id: 'demo-house-1',
+    type: 'General Liability',
+    policy_number: 'GL-2024-001',
+    carrier: 'Travelers Insurance',
+    coverage_amount: 2000000,
+    premium: 18000,
+    premium_paid: true,
+    effective_date: '2024-01-01',
+    expiration_date: '2025-01-01',
+    status: 'active',
+    named_insured: 'VanRock Holdings LLC',
+    additional_insured: [],
+    deductible: 5000,
+    agent_name: 'Sarah Johnson - XYZ Insurance',
+    agent_phone: '(555) 234-5678',
+    agent_email: 'sjohnson@xyzinsurance.com',
+    notes: 'Aggregate limit $2M.',
+    created_at: new Date().toISOString(),
+  },
+];
+
+export async function getInsurancePolicies(houseId) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_insurance_policies')
+      .select('*')
+      .eq('house_id', houseId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('getInsurancePolicies error:', err);
+    const items = DEMO_INSURANCE_POLICIES.filter(p => p.house_id === houseId);
+    return { data: items, error: null };
+  }
+}
+
+export async function createInsurancePolicy(data) {
+  try {
+    const { data: result, error } = await supabase
+      .from('construction_insurance_policies')
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: result, error: null };
+  } catch (err) {
+    console.error('createInsurancePolicy error:', err);
+    const newItem = {
+      id: `pol-${Date.now()}`,
+      ...data,
+      status: data.status || 'pending',
+      created_at: new Date().toISOString(),
+    };
+    DEMO_INSURANCE_POLICIES.push(newItem);
+    return { data: newItem, error: null };
+  }
+}
+
+export async function updateInsurancePolicy(id, updates) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_insurance_policies')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('updateInsurancePolicy error:', err);
+    const idx = DEMO_INSURANCE_POLICIES.findIndex(p => p.id === id);
+    if (idx === -1) return { data: null, error: { message: 'Policy not found' } };
+    DEMO_INSURANCE_POLICIES[idx] = { ...DEMO_INSURANCE_POLICIES[idx], ...updates };
+    return { data: DEMO_INSURANCE_POLICIES[idx], error: null };
   }
 }

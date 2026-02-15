@@ -43,7 +43,36 @@ const mockRelationships = [
 export const entityRelationshipService = {
   // Get all relationships for an entity (as parent or child)
   async getByEntityId(entityId, options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('entity_relationships')
+        .select(`
+          *,
+          parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
+          child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
+        `);
+
+      if (options.asParent) {
+        query = query.eq('parent_entity_id', entityId);
+      } else if (options.asChild) {
+        query = query.eq('child_entity_id', entityId);
+      } else {
+        query = query.or(`parent_entity_id.eq.${entityId},child_entity_id.eq.${entityId}`);
+      }
+
+      if (options.type) {
+        query = query.eq('relationship_type', options.type);
+      }
+
+      if (options.activeOnly) {
+        query = query.or('end_date.is.null,end_date.gte.' + new Date().toISOString().split('T')[0]);
+      }
+
+      const { data, error } = await query.order('effective_date', { ascending: false });
+      if (error) throw error;
+      return { data: data || [], error: null };
+    } catch (err) {
+      console.error('Error fetching entity relationships:', err);
       let relationships = mockRelationships.filter(r =>
         r.parent_entity_id === entityId || r.child_entity_id === entityId
       );
@@ -63,32 +92,6 @@ export const entityRelationshipService = {
 
       return { data: relationships, error: null };
     }
-
-    let query = supabase
-      .from('entity_relationships')
-      .select(`
-        *,
-        parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
-        child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
-      `);
-
-    if (options.asParent) {
-      query = query.eq('parent_entity_id', entityId);
-    } else if (options.asChild) {
-      query = query.eq('child_entity_id', entityId);
-    } else {
-      query = query.or(`parent_entity_id.eq.${entityId},child_entity_id.eq.${entityId}`);
-    }
-
-    if (options.type) {
-      query = query.eq('relationship_type', options.type);
-    }
-
-    if (options.activeOnly) {
-      query = query.or('end_date.is.null,end_date.gte.' + new Date().toISOString().split('T')[0]);
-    }
-
-    return await query.order('effective_date', { ascending: false });
   },
 
   // Get ownership structure for an entity (who owns it)
@@ -132,7 +135,21 @@ export const entityRelationshipService = {
       }
     }
 
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('entity_relationships')
+        .insert(relationship)
+        .select(`
+          *,
+          parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
+          child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
+        `)
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error creating entity relationship:', err);
       const newRelationship = {
         ...relationship,
         id: `rel-${Date.now()}`,
@@ -141,16 +158,6 @@ export const entityRelationshipService = {
       mockRelationships.push(newRelationship);
       return { data: newRelationship, error: null };
     }
-
-    return await supabase
-      .from('entity_relationships')
-      .insert(relationship)
-      .select(`
-        *,
-        parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
-        child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
-      `)
-      .single();
   },
 
   // Update a relationship
@@ -171,7 +178,22 @@ export const entityRelationshipService = {
       }
     }
 
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('entity_relationships')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
+          child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
+        `)
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error updating entity relationship:', err);
       const index = mockRelationships.findIndex(r => r.id === id);
       if (index !== -1) {
         mockRelationships[index] = { ...mockRelationships[index], ...updates };
@@ -179,17 +201,6 @@ export const entityRelationshipService = {
       }
       return { data: null, error: 'Not found' };
     }
-
-    return await supabase
-      .from('entity_relationships')
-      .update(updates)
-      .eq('id', id)
-      .select(`
-        *,
-        parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
-        child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
-      `)
-      .single();
   },
 
   // End a relationship (set end_date)
@@ -199,7 +210,16 @@ export const entityRelationshipService = {
 
   // Delete a relationship
   async delete(id) {
-    if (isDemoMode) {
+    try {
+      const { error } = await supabase
+        .from('entity_relationships')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (err) {
+      console.error('Error deleting entity relationship:', err);
       const index = mockRelationships.findIndex(r => r.id === id);
       if (index !== -1) {
         mockRelationships.splice(index, 1);
@@ -207,29 +227,28 @@ export const entityRelationshipService = {
       }
       return { error: 'Not found' };
     }
-
-    return await supabase
-      .from('entity_relationships')
-      .delete()
-      .eq('id', id);
   },
 
   // Get by ID
   async getById(id) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('entity_relationships')
+        .select(`
+          *,
+          parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
+          child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching entity relationship by ID:', err);
       const relationship = mockRelationships.find(r => r.id === id);
       return { data: relationship || null, error: relationship ? null : 'Not found' };
     }
-
-    return await supabase
-      .from('entity_relationships')
-      .select(`
-        *,
-        parent_entity:entities!entity_relationships_parent_entity_id_fkey(id, name, type),
-        child_entity:entities!entity_relationships_child_entity_id_fkey(id, name, type)
-      `)
-      .eq('id', id)
-      .single();
   },
 
   // Build full ownership chain (recursive)

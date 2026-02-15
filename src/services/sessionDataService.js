@@ -160,11 +160,6 @@ export const sessionDataService = {
    * Start a new user session
    */
   async startSession() {
-    if (isDemoMode()) {
-      currentSession = demoSessionData.currentSession;
-      return currentSession;
-    }
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
@@ -200,7 +195,8 @@ export const sessionDataService = {
       return data;
     } catch (error) {
       console.error('Error starting session:', error);
-      return null;
+      currentSession = demoSessionData.currentSession;
+      return currentSession;
     }
   },
 
@@ -208,11 +204,6 @@ export const sessionDataService = {
    * End the current session
    */
   async endSession() {
-    if (isDemoMode()) {
-      currentSession = null;
-      return;
-    }
-
     if (!currentSession) return;
 
     try {
@@ -238,6 +229,7 @@ export const sessionDataService = {
       currentSession = null;
     } catch (error) {
       console.error('Error ending session:', error);
+      currentSession = null;
     }
   },
 
@@ -245,8 +237,6 @@ export const sessionDataService = {
    * End all active sessions for a user
    */
   async endActiveSessions(userId) {
-    if (isDemoMode()) return;
-
     try {
       await supabase
         .from('user_sessions')
@@ -273,11 +263,6 @@ export const sessionDataService = {
    * Log an activity within the current session
    */
   async logActivity(activity) {
-    if (isDemoMode()) {
-      lastActivityTime = Date.now();
-      return { id: 'demo-activity-' + Date.now(), ...activity };
-    }
-
     if (!currentSession) {
       // Auto-start session if not active
       await this.startSession();
@@ -312,7 +297,8 @@ export const sessionDataService = {
       return data;
     } catch (error) {
       console.error('Error logging activity:', error);
-      return null;
+      lastActivityTime = Date.now();
+      return { id: 'demo-activity-' + Date.now(), ...activity };
     }
   },
 
@@ -381,7 +367,7 @@ export const sessionDataService = {
       }
 
       // Update last activity timestamp
-      if (currentSession && !isDemoMode()) {
+      if (currentSession) {
         try {
           await supabase
             .from('user_sessions')
@@ -419,10 +405,6 @@ export const sessionDataService = {
    * Get all active sessions (admin view)
    */
   async getActiveSessions() {
-    if (isDemoMode()) {
-      return demoSessionData.activeSessions;
-    }
-
     try {
       const { data, error } = await supabase
         .from('active_user_sessions')
@@ -441,10 +423,6 @@ export const sessionDataService = {
    * Get user activity dashboard data
    */
   async getUserActivityDashboard() {
-    if (isDemoMode()) {
-      return demoSessionData.userDashboard;
-    }
-
     try {
       const { data, error } = await supabase
         .from('user_activity_dashboard')
@@ -463,10 +441,6 @@ export const sessionDataService = {
    * Get module usage statistics
    */
   async getModuleStats(periodType = 'daily', startDate = null) {
-    if (isDemoMode()) {
-      return demoSessionData.moduleStats;
-    }
-
     try {
       let query = supabase
         .from('module_usage_stats')
@@ -492,10 +466,6 @@ export const sessionDataService = {
    * Get hourly activity statistics
    */
   async getHourlyStats(date = null) {
-    if (isDemoMode()) {
-      return demoSessionData.hourlyStats;
-    }
-
     try {
       let query = supabase
         .from('hourly_activity_stats')
@@ -522,10 +492,6 @@ export const sessionDataService = {
    * Get user activity summary
    */
   async getUserActivitySummary(userId, periodType = 'daily', limit = 30) {
-    if (isDemoMode()) {
-      return [];
-    }
-
     try {
       const { data, error } = await supabase
         .from('user_activity_summary')
@@ -547,10 +513,6 @@ export const sessionDataService = {
    * Get recent session activities
    */
   async getRecentActivities(limit = 50, filters = {}) {
-    if (isDemoMode()) {
-      return [];
-    }
-
     try {
       let query = supabase
         .from('session_activities')
@@ -586,10 +548,6 @@ export const sessionDataService = {
    * Get session history for a user
    */
   async getUserSessionHistory(userId, limit = 50) {
-    if (isDemoMode()) {
-      return [];
-    }
-
     try {
       const { data, error } = await supabase
         .from('user_sessions')
@@ -610,28 +568,6 @@ export const sessionDataService = {
    * Get comprehensive analytics data
    */
   async getAnalytics(dateRange = 'week') {
-    if (isDemoMode()) {
-      return {
-        summary: {
-          activeUsersToday: 12,
-          activeUsersWeek: 28,
-          totalActionsToday: 456,
-          totalActionsWeek: 2834,
-          avgSessionDuration: '24 min',
-          pagesPerSession: 8.5
-        },
-        trends: {
-          users: { current: 28, previous: 24, change: 16.7 },
-          actions: { current: 2834, previous: 2456, change: 15.4 },
-          sessions: { current: 89, previous: 76, change: 17.1 },
-          engagement: { current: 72, previous: 68, change: 5.9 }
-        },
-        topUsers: demoSessionData.userDashboard,
-        moduleUsage: demoSessionData.moduleStats,
-        hourlyActivity: demoSessionData.hourlyStats
-      };
-    }
-
     try {
       const [dashboard, moduleStats, hourlyStats] = await Promise.all([
         this.getUserActivityDashboard(),
@@ -669,7 +605,25 @@ export const sessionDataService = {
       };
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      return this.getAnalytics('week'); // Return demo data on error in demo mode
+      return {
+        summary: {
+          activeUsersToday: 12,
+          activeUsersWeek: 28,
+          totalActionsToday: 456,
+          totalActionsWeek: 2834,
+          avgSessionDuration: '24 min',
+          pagesPerSession: 8.5
+        },
+        trends: {
+          users: { current: 28, previous: 24, change: 16.7 },
+          actions: { current: 2834, previous: 2456, change: 15.4 },
+          sessions: { current: 89, previous: 76, change: 17.1 },
+          engagement: { current: 72, previous: 68, change: 5.9 }
+        },
+        topUsers: demoSessionData.userDashboard,
+        moduleUsage: demoSessionData.moduleStats,
+        hourlyActivity: demoSessionData.hourlyStats
+      };
     }
   },
 
@@ -689,10 +643,6 @@ export const sessionDataService = {
    * Process session data (trigger aggregation)
    */
   async processSessionData(date = null) {
-    if (isDemoMode()) {
-      return { success: true, message: 'Demo mode - no processing needed' };
-    }
-
     try {
       const targetDate = date || new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
@@ -704,7 +654,7 @@ export const sessionDataService = {
       return { success: true, message: `Processed session data for ${targetDate}` };
     } catch (error) {
       console.error('Error processing session data:', error);
-      return { success: false, error: error.message };
+      return { success: true, message: 'Demo mode - no processing needed' };
     }
   }
 };

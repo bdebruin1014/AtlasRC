@@ -1,30 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, FileText, Users, Settings, Shield, ChevronRight } from 'lucide-react';
+import { Home, FileText, Users, Settings, Shield, ChevronRight, Hammer, FolderKanban, Target, Calculator } from 'lucide-react';
 
 const AdminOverviewPage = () => {
   const navigate = useNavigate();
   const sections = [
     {
-      title: 'Product Catalog',
+      title: 'Module Admin',
       icon: Home,
       items: [
-        { label: 'Home Plan Library', path: '/admin/plans' },
-        { label: 'Pricing Library', path: '/admin/pricing' },
-      ]
-    },
-    {
-      title: 'Templates',
-      icon: FileText,
-      items: [
-        { label: 'Project Templates', path: '/admin/project-templates' },
-        { label: 'Budget Templates', path: '/admin/budget-templates' },
-        { label: 'Schedule Templates', path: '/admin/schedule-templates' },
-        { label: 'Proforma Templates', path: '/admin/proforma-templates' },
-        { label: 'Deal Analyzer Templates', path: '/admin/deal-templates' },
-        { label: 'Task Templates', path: '/admin/task-templates' },
-        { label: 'Milestone Templates', path: '/admin/milestone-templates' },
-        { label: 'COA Templates', path: '/admin/coa-templates' },
+        { label: 'Construction Admin', path: '/construction/admin' },
+        { label: 'Projects Admin', path: '/projects/admin' },
+        { label: 'Opportunities Admin', path: '/opportunities/admin' },
+        { label: 'Accounting Admin', path: '/accounting/admin' },
       ]
     },
     {

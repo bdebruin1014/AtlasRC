@@ -6,18 +6,19 @@ import { isDemoMode } from '@/lib/utils';
 // =====================================================
 
 export const getSticksBricksLineItems = async () => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('sticks_bricks_line_items')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order');
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching sticks & bricks line items:', err);
     return MOCK_LINE_ITEMS;
   }
-
-  const { data, error } = await supabase
-    .from('sticks_bricks_line_items')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order');
-  
-  if (error) throw error;
-  return data;
 };
 
 // =====================================================
@@ -25,26 +26,46 @@ export const getSticksBricksLineItems = async () => {
 // =====================================================
 
 export const getPlanBasePricing = async (floorPlanId) => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('plan_base_pricing')
+      .select(`
+        *,
+        line_item:sticks_bricks_line_items(*)
+      `)
+      .eq('floor_plan_id', floorPlanId)
+      .order('effective_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching plan base pricing:', err);
     return MOCK_PLAN_PRICING.filter(p => p.floor_plan_id === floorPlanId);
   }
-
-  const { data, error } = await supabase
-    .from('plan_base_pricing')
-    .select(`
-      *,
-      line_item:sticks_bricks_line_items(*)
-    `)
-    .eq('floor_plan_id', floorPlanId)
-    .order('effective_date', { ascending: false });
-  
-  if (error) throw error;
-  return data;
 };
 
 export const updatePlanPricing = async (floorPlanId, lineItemId, newCost, userId) => {
-  if (isDemoMode()) {
-    const pricing = MOCK_PLAN_PRICING.find(p => 
+  try {
+    // Insert new pricing record with current date
+    const { data, error } = await supabase
+      .from('plan_base_pricing')
+      .upsert({
+        floor_plan_id: floorPlanId,
+        line_item_id: lineItemId,
+        base_cost: newCost,
+        effective_date: new Date().toISOString().split('T')[0],
+        updated_by: userId
+      }, {
+        onConflict: 'floor_plan_id,line_item_id,effective_date'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating plan pricing:', err);
+    const pricing = MOCK_PLAN_PRICING.find(p =>
       p.floor_plan_id === floorPlanId && p.line_item_id === lineItemId
     );
     if (pricing) {
@@ -53,34 +74,17 @@ export const updatePlanPricing = async (floorPlanId, lineItemId, newCost, userId
     }
     return pricing;
   }
-
-  // Insert new pricing record with current date
-  const { data, error } = await supabase
-    .from('plan_base_pricing')
-    .upsert({
-      floor_plan_id: floorPlanId,
-      line_item_id: lineItemId,
-      base_cost: newCost,
-      effective_date: new Date().toISOString().split('T')[0],
-      updated_by: userId
-    }, {
-      onConflict: 'floor_plan_id,line_item_id,effective_date'
-    })
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
 };
 
 export const calculatePlanTotal = async (floorPlanId) => {
-  if (isDemoMode()) {
+  try {
+    const pricing = await getPlanBasePricing(floorPlanId);
+    return pricing.reduce((sum, item) => sum + parseFloat(item.base_cost || 0), 0);
+  } catch (err) {
+    console.error('Error calculating plan total:', err);
     const pricing = MOCK_PLAN_PRICING.filter(p => p.floor_plan_id === floorPlanId);
     return pricing.reduce((sum, item) => sum + parseFloat(item.base_cost || 0), 0);
   }
-
-  const pricing = await getPlanBasePricing(floorPlanId);
-  return pricing.reduce((sum, item) => sum + parseFloat(item.base_cost || 0), 0);
 };
 
 // =====================================================
@@ -88,40 +92,59 @@ export const calculatePlanTotal = async (floorPlanId) => {
 // =====================================================
 
 export const getUpgradePackages = async () => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('upgrade_packages')
+      .select('*')
+      .eq('is_active', true)
+      .order('package_name');
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching upgrade packages:', err);
     return MOCK_UPGRADE_PACKAGES;
   }
-
-  const { data, error } = await supabase
-    .from('upgrade_packages')
-    .select('*')
-    .eq('is_active', true)
-    .order('package_name');
-  
-  if (error) throw error;
-  return data;
 };
 
 export const getPlanUpgradePricing = async (floorPlanId) => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('plan_upgrade_pricing')
+      .select(`
+        *,
+        upgrade:upgrade_packages(*)
+      `)
+      .eq('floor_plan_id', floorPlanId)
+      .order('effective_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching plan upgrade pricing:', err);
     return MOCK_UPGRADE_PRICING.filter(p => p.floor_plan_id === floorPlanId);
   }
-
-  const { data, error } = await supabase
-    .from('plan_upgrade_pricing')
-    .select(`
-      *,
-      upgrade:upgrade_packages(*)
-    `)
-    .eq('floor_plan_id', floorPlanId)
-    .order('effective_date', { ascending: false });
-  
-  if (error) throw error;
-  return data;
 };
 
 export const updateUpgradePricing = async (floorPlanId, upgradePackageId, price) => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('plan_upgrade_pricing')
+      .upsert({
+        floor_plan_id: floorPlanId,
+        upgrade_package_id: upgradePackageId,
+        price,
+        effective_date: new Date().toISOString().split('T')[0]
+      }, {
+        onConflict: 'floor_plan_id,upgrade_package_id,effective_date'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating upgrade pricing:', err);
     const pricing = MOCK_UPGRADE_PRICING.find(p =>
       p.floor_plan_id === floorPlanId && p.upgrade_package_id === upgradePackageId
     );
@@ -131,22 +154,6 @@ export const updateUpgradePricing = async (floorPlanId, upgradePackageId, price)
     }
     return pricing;
   }
-
-  const { data, error } = await supabase
-    .from('plan_upgrade_pricing')
-    .upsert({
-      floor_plan_id: floorPlanId,
-      upgrade_package_id: upgradePackageId,
-      price,
-      effective_date: new Date().toISOString().split('T')[0]
-    }, {
-      onConflict: 'floor_plan_id,upgrade_package_id,effective_date'
-    })
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
 };
 
 // =====================================================
@@ -154,37 +161,49 @@ export const updateUpgradePricing = async (floorPlanId, upgradePackageId, price)
 // =====================================================
 
 export const getMunicipalities = async () => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('municipalities')
+      .select('*')
+      .eq('is_active', true)
+      .order('municipality_name');
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching municipalities:', err);
     return MOCK_MUNICIPALITIES;
   }
-
-  const { data, error } = await supabase
-    .from('municipalities')
-    .select('*')
-    .eq('is_active', true)
-    .order('municipality_name');
-  
-  if (error) throw error;
-  return data;
 };
 
 export const getMunicipalityFees = async (municipalityId) => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('municipality_fees')
+      .select('*')
+      .eq('municipality_id', municipalityId)
+      .order('effective_date', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching municipality fees:', err);
     return MOCK_MUNICIPALITY_FEES.filter(f => f.municipality_id === municipalityId);
   }
-
-  const { data, error } = await supabase
-    .from('municipality_fees')
-    .select('*')
-    .eq('municipality_id', municipalityId)
-    .order('effective_date', { ascending: false });
-  
-  if (error) throw error;
-  return data;
 };
 
 export const createMunicipality = async (municipalityData) => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('municipalities')
+      .insert([municipalityData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating municipality:', err);
     const newMuni = {
       id: `muni-${Date.now()}`,
       ...municipalityData,
@@ -193,19 +212,27 @@ export const createMunicipality = async (municipalityData) => {
     MOCK_MUNICIPALITIES.push(newMuni);
     return newMuni;
   }
-
-  const { data, error } = await supabase
-    .from('municipalities')
-    .insert([municipalityData])
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
 };
 
 export const updateMunicipalityFee = async (municipalityId, feeType, feeData) => {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('municipality_fees')
+      .upsert({
+        municipality_id: municipalityId,
+        fee_type: feeType,
+        ...feeData,
+        effective_date: new Date().toISOString().split('T')[0]
+      }, {
+        onConflict: 'municipality_id,fee_type,effective_date'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating municipality fee:', err);
     const fee = MOCK_MUNICIPALITY_FEES.find(f =>
       f.municipality_id === municipalityId && f.fee_type === feeType
     );
@@ -214,22 +241,6 @@ export const updateMunicipalityFee = async (municipalityId, feeType, feeData) =>
     }
     return fee;
   }
-
-  const { data, error } = await supabase
-    .from('municipality_fees')
-    .upsert({
-      municipality_id: municipalityId,
-      fee_type: feeType,
-      ...feeData,
-      effective_date: new Date().toISOString().split('T')[0]
-    }, {
-      onConflict: 'municipality_id,fee_type,effective_date'
-    })
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
 };
 
 // =====================================================
@@ -249,7 +260,7 @@ export const calculateCostEstimate = async (params) => {
 
   // Category 1: Sticks & Bricks
   const sticksBricks = await calculatePlanTotal(floorPlanId);
-  
+
   // Add elevation adder
   let elevationAdder = 0;
   if (elevationId && isDemoMode()) {
@@ -257,7 +268,7 @@ export const calculateCostEstimate = async (params) => {
     const elevation = MOCK_ELEVATIONS.find(e => e.id === elevationId);
     if (elevation) elevationAdder = elevation.elevation_adder;
   }
-  
+
   const sticksBricksTotal = sticksBricks + elevationAdder;
 
   // Category 2: Upgrades
@@ -300,7 +311,7 @@ export const calculateCostEstimate = async (params) => {
   const builderFee = 25000;
 
   // Total
-  const totalCost = sticksBricksTotal + upgradesTotal + lotPrepTotal + siteAdjustmentsTotal + 
+  const totalCost = sticksBricksTotal + upgradesTotal + lotPrepTotal + siteAdjustmentsTotal +
                     softCostsTotal + contingency + builderFee;
 
   return {

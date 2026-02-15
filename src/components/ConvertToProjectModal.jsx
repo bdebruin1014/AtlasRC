@@ -16,13 +16,14 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { activityService } from '@/services/activityService';
+import { notificationTriggers } from '@/services/notificationTriggers';
 
 const PROJECT_TYPES = [
-  { id: 'scattered_lot', name: 'Scattered Lot', description: 'Single-family lot development' },
-  { id: 'build_to_rent', name: 'Build-to-Rent', description: 'BTR community development' },
-  { id: 'horizontal_development', name: 'Horizontal Development', description: 'Land subdivision & lot sales' },
-  { id: 'multifamily', name: 'Multifamily Acquisition', description: 'Existing multifamily property' },
-  { id: 'commercial', name: 'Commercial', description: 'Commercial property development' },
+  { id: 'scattered-lot', name: 'Scattered Lot', description: 'Buy a lot, build a spec home, sell it' },
+  { id: 'lot-development', name: 'Lot Development', description: 'Develop raw land into finished lots' },
+  { id: 'lot-purchase-development', name: 'Lot Purchase Development', description: 'Buy finished lots, build homes for sale' },
+  { id: 'community-development', name: 'Community Development', description: 'Full subdivision from raw land to sold homes' },
 ];
 
 const formatCurrency = (value) => {
@@ -59,25 +60,31 @@ export default function ConvertToProjectModal({
       setProjectName(opportunity.deal_number || opportunity.address || 'New Project');
       setDescription(opportunity.notes || '');
 
-      // Auto-select project type based on opportunity type
-      const oppType = opportunity.property_type || opportunity.opportunity_type;
-      switch (oppType) {
-        case 'vacant-lot':
-        case 'scattered-lot':
-          setProjectType('scattered_lot');
-          break;
-        case 'development-btr':
-          setProjectType('build_to_rent');
-          break;
-        case 'development-lot-sale':
-          setProjectType('horizontal_development');
-          break;
-        case 'flip-property':
-        case 'BRRR':
-          setProjectType('multifamily');
-          break;
-        default:
-          setProjectType('scattered_lot');
+      // Auto-select project type — opportunity types now mirror project types 1:1
+      const oppType = opportunity.opportunity_type || opportunity.property_type;
+      const canonicalTypes = ['scattered-lot', 'lot-development', 'lot-purchase-development', 'community-development'];
+      if (canonicalTypes.includes(oppType)) {
+        setProjectType(oppType);
+      } else {
+        // Legacy type mapping for older opportunities
+        switch (oppType) {
+          case 'vacant-lot':
+          case 'flip-property':
+            setProjectType('scattered-lot');
+            break;
+          case 'development-lot-sale':
+            setProjectType('lot-development');
+            break;
+          case 'development-for-sale':
+            setProjectType('lot-purchase-development');
+            break;
+          case 'development-btr':
+          case 'community':
+            setProjectType('community-development');
+            break;
+          default:
+            setProjectType('scattered-lot');
+        }
       }
     }
   }, [opportunity]);
@@ -109,7 +116,7 @@ export default function ConvertToProjectModal({
         name: projectName,
         project_type: projectType,
         description: description,
-        status: 'Planning',
+        status: 'active',
         address: opportunity?.address,
         city: opportunity?.city,
         state: opportunity?.state,
@@ -198,6 +205,21 @@ export default function ConvertToProjectModal({
           created_at: new Date().toISOString(),
         };
       }
+
+      // Log activity and fire notification (fire-and-forget)
+      activityService.log({
+        entityType: 'opportunity',
+        entityId: opportunity.id,
+        action: 'converted',
+        newValue: newProject.id,
+        metadata: { projectName, projectType },
+      }).catch(() => {});
+
+      notificationTriggers.opportunityConverted({
+        opportunityId: opportunity.id,
+        projectId: newProject.id,
+        projectName,
+      }).catch(() => {});
 
       toast({
         title: 'Project Created',

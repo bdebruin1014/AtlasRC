@@ -3,8 +3,9 @@ import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import BasicInfoPage from '@/pages/projects/BasicInfoPage';
 import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import TasksPage from '@/pages/projects/TasksPage';
+import RecordTasksPanel from '@/components/RecordTasksPanel';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer, Home, Map, ShoppingBag, FileBarChart, Layers, Shield } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useProject, useProjectActions, useProjectFinancials, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
+import { PROJECT_TYPE_CONFIG } from '@/lib/constants';
 
 // E-Sign and Document Components
 import ESignButton from '@/components/esign/ESignButton';
@@ -26,11 +28,68 @@ import BuildToRentBudget from '@/features/budgets/components/BuildToRentBudget';
 import BuildToSellBudget from '@/features/budgets/components/BuildToSellBudget';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
 
+// Entitlement Section Components
+import ZoningEntitlementsSection from '@/pages/projects/sections/ZoningEntitlementsSection';
+import PlatSubdivisionSection from '@/pages/projects/sections/PlatSubdivisionSection';
+import SitePermitsSection from '@/pages/projects/sections/SitePermitsSection';
+
+// Construction Section Components
+import HousesSection from '@/pages/projects/sections/HousesSection';
+import VerticalBudgetSection from '@/pages/projects/sections/VerticalBudgetSection';
+import VerticalScheduleSection from '@/pages/projects/sections/VerticalScheduleSection';
+import VerticalDrawsSection from '@/pages/projects/sections/VerticalDrawsSection';
+
+// Calendar Section
+import ProjectCalendarSection from '@/pages/projects/sections/ProjectCalendarSection';
+
+// Sales & Disposition Section Components
+import LotInventorySection from '@/pages/projects/sections/LotInventorySection';
+import LotSalesSection from '@/pages/projects/sections/LotSalesSection';
+import SalesPipelineSection from '@/pages/projects/sections/SalesPipelineSection';
+import ClosingsSection from '@/pages/projects/sections/ClosingsSection';
+
+// Icon map for sidebar item overrides
+const SIDEBAR_ICONS = {
+  'purchase-contract': FileCheck,
+  'due-diligence': ClipboardList,
+  'closing': Landmark,
+  'zoning': Shield,
+  'plat': Map,
+  'permits-site': FileBarChart,
+  'budget': Calculator,
+  'schedule': Calendar,
+  'draws': Receipt,
+  'change-orders': FileCheck,
+  'houses': Home,
+  'lot-inventory': Layers,
+  'lot-sales': ShoppingBag,
+  'sales-pipeline': TrendingUp,
+  'closings': Landmark,
+  'vertical-budget': Calculator,
+  'vertical-schedule': Calendar,
+  'vertical-draws': Receipt,
+  'project-calendar': Calendar,
+};
+
+// Icon map for sidebar group headers
+const GROUP_HEADER_ICONS = {
+  overview: Home,
+  acquisition: Landmark,
+  entitlements: Shield,
+  horizontal: Layers,
+  construction: Hammer,
+  lotSales: ShoppingBag,
+  'lot-sales': ShoppingBag,
+  disposition: TrendingUp,
+  finance: DollarSign,
+  documents: FolderOpen,
+};
+
 const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('basic-info');
-  const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'finance', 'documents']);
+  const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'entitlements', 'horizontal', 'lot-sales', 'disposition', 'finance', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
 
   // Properties linked to purchase contract
@@ -87,8 +146,16 @@ const ProjectDetailPage = () => {
     }
   };
 
-  const sidebarGroups = [
-    {
+  // Dynamically build sidebar groups based on project type
+  const projectType = formData?.project_type || rawProject?.project_type || 'scattered-lot';
+  const typeConfig = PROJECT_TYPE_CONFIG[projectType];
+  const typeLabel = typeConfig?.label || 'Project';
+
+  const sidebarGroups = useMemo(() => {
+    const groups = [];
+
+    // Overview -- always visible
+    groups.push({
       id: 'overview',
       label: 'Overview',
       items: [
@@ -96,28 +163,96 @@ const ProjectDetailPage = () => {
         { id: 'property', label: 'Property Details', icon: MapPin },
         { id: 'contacts', label: 'Contacts', icon: Users },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+        { id: 'project-calendar', label: 'Calendar', icon: Calendar },
       ]
-    },
-    {
-      id: 'acquisition',
-      label: 'Acquisition',
-      items: [
-        { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
-        { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
-        { id: 'closing', label: 'Closing', icon: Landmark },
-      ]
-    },
-    {
-      id: 'construction',
-      label: 'Construction',
-      items: [
-        { id: 'budget', label: 'Budget', icon: Calculator },
-        { id: 'schedule', label: 'Schedule', icon: Calendar },
-        { id: 'draws', label: 'Build / Draw', icon: Receipt },
-        { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
-      ]
-    },
-    {
+    });
+
+    if (!typeConfig) {
+      // Fallback to generic sidebar when no config found
+      groups.push(
+        {
+          id: 'acquisition',
+          label: 'Acquisition',
+          items: [
+            { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
+            { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
+            { id: 'closing', label: 'Closing', icon: Landmark },
+          ]
+        },
+        {
+          id: 'construction',
+          label: 'Construction',
+          items: [
+            { id: 'budget', label: 'Budget', icon: Calculator },
+            { id: 'schedule', label: 'Schedule', icon: Calendar },
+            { id: 'draws', label: 'Build / Draw', icon: Receipt },
+            { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
+          ]
+        }
+      );
+    } else {
+      // Build from type config sections and overrides
+      const overrides = typeConfig.sidebarOverrides || {};
+      const sections = typeConfig.sections || {};
+
+      if (sections.acquisition && overrides.acquisition) {
+        groups.push({
+          id: 'acquisition',
+          label: 'Acquisition',
+          items: overrides.acquisition.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.entitlements && overrides.entitlements) {
+        groups.push({
+          id: 'entitlements',
+          label: 'Entitlements',
+          items: overrides.entitlements.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.horizontal && overrides.horizontal) {
+        groups.push({
+          id: 'horizontal',
+          label: 'Horizontal',
+          items: overrides.horizontal.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.construction && overrides.construction) {
+        groups.push({
+          id: 'construction',
+          label: 'Construction',
+          items: overrides.construction.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.lotSales && overrides.lotSales) {
+        groups.push({
+          id: 'lot-sales',
+          label: 'Lot Sales',
+          items: overrides.lotSales.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.disposition && overrides.disposition) {
+        groups.push({
+          id: 'disposition',
+          label: 'Disposition',
+          items: overrides.disposition.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+    }
+
+    // Finance -- always visible
+    groups.push({
       id: 'finance',
       label: 'Finance',
       items: [
@@ -130,8 +265,10 @@ const ProjectDetailPage = () => {
         { id: 'draws-finance', label: 'Draw Schedule', icon: Receipt },
         { id: 'cash-flow', label: 'Cash Flow', icon: TrendingUp },
       ]
-    },
-    {
+    });
+
+    // Documents -- always visible
+    groups.push({
       id: 'documents',
       label: 'Documents',
       items: [
@@ -139,8 +276,10 @@ const ProjectDetailPage = () => {
         { id: 'mailing', label: 'Mailing', icon: Mail },
         { id: 'communications', label: 'Communications', icon: MessageSquare },
       ]
-    },
-  ];
+    });
+
+    return groups;
+  }, [projectType, typeConfig]);
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev =>
@@ -659,7 +798,15 @@ const ProjectDetailPage = () => {
         return <ProjectContactsSection projectId={projectId} />;
 
       case 'tasks':
-        return <TasksPage projectId={projectId} />;
+        return (
+          <div className="p-6">
+            <RecordTasksPanel
+              module="projects"
+              recordId={projectId}
+              recordName={formData?.name || 'Project'}
+            />
+          </div>
+        );
 
       case 'files':
         return (
@@ -929,6 +1076,50 @@ const ProjectDetailPage = () => {
           </div>
         );
 
+      // -- Entitlement sections --
+
+      case 'zoning':
+        return <ZoningEntitlementsSection projectId={projectId} />;
+
+      case 'plat':
+        return <PlatSubdivisionSection projectId={projectId} />;
+
+      case 'permits-site':
+        return <SitePermitsSection projectId={projectId} />;
+
+      // -- Construction sections --
+
+      case 'houses':
+        return <HousesSection projectId={projectId} />;
+
+      case 'vertical-budget':
+        return <VerticalBudgetSection projectId={projectId} />;
+
+      case 'vertical-schedule':
+        return <VerticalScheduleSection projectId={projectId} />;
+
+      case 'vertical-draws':
+        return <VerticalDrawsSection projectId={projectId} />;
+
+      // -- Lot Sales sections --
+
+      case 'lot-inventory':
+        return <LotInventorySection projectId={projectId} />;
+
+      case 'lot-sales':
+        return <LotSalesSection projectId={projectId} />;
+
+      // -- Disposition sections --
+
+      case 'sales-pipeline':
+        return <SalesPipelineSection projectId={projectId} />;
+
+      case 'closings':
+        return <ClosingsSection projectId={projectId} />;
+
+      case 'project-calendar':
+        return <ProjectCalendarSection projectId={projectId} />;
+
       default:
         return (
           <div className="p-6">
@@ -958,7 +1149,7 @@ const ProjectDetailPage = () => {
               <p className="text-gray-500 text-xs">{rawProject?.entity?.name || 'No Entity'}</p>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className={cn("text-xs px-2 py-0.5 rounded",
               formData?.status === 'active' ? 'bg-emerald-500 text-white' :
               formData?.status === 'completed' ? 'bg-blue-500 text-white' :
@@ -968,30 +1159,34 @@ const ProjectDetailPage = () => {
             {budgetTypeInfo && (
               <span className="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded">{budgetTypeInfo.name}</span>
             )}
+            <span className="text-xs bg-indigo-600 text-indigo-100 px-2 py-0.5 rounded">{typeLabel}</span>
           </div>
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto">
-          {(sidebarGroups || []).map((group) => (
-            <div key={group.id} className="mb-1">
-              <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
-                  {group.label}
-                </div>
-                <ChevronDown className={cn("w-4 h-4 transition-transform", expandedGroups.includes(group.id) ? "" : "-rotate-90")} />
-              </button>
-              {expandedGroups.includes(group.id) && (
-                <div className="ml-4 border-l border-gray-700 space-y-0.5">
-                  {(group.items || []).map((item) => (
-                    <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {(sidebarGroups || []).map((group) => {
+            const GroupHeaderIcon = GROUP_HEADER_ICONS[group.id] || Building2;
+            return (
+              <div key={group.id} className="mb-1">
+                <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
+                  <div className="flex items-center gap-2">
+                    <GroupHeaderIcon className="w-4 h-4" />
+                    {group.label}
+                  </div>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", expandedGroups.includes(group.id) ? "" : "-rotate-90")} />
+                </button>
+                {expandedGroups.includes(group.id) && (
+                  <div className="ml-4 border-l border-gray-700 space-y-0.5">
+                    {(group.items || []).map((item) => (
+                      <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </div>
 

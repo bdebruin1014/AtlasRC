@@ -6,6 +6,14 @@ import { cn } from '@/lib/utils';
 const EOSQuarterlyPlanning = ({ program }) => {
   const [selectedSession, setSelectedSession] = useState('Q1 2025');
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'rocks', 'agenda', 'review'
+  const [sessionChecklist, setSessionChecklist] = useState([
+    { item: 'Book meeting room', done: true },
+    { item: 'Send calendar invites', done: true },
+    { item: 'Prepare V/TO review', done: false },
+    { item: 'Compile rock status', done: false },
+    { item: 'Gather scorecard data', done: false },
+    { item: 'Order lunch', done: false },
+  ]);
 
   const quarterlySessions = [
     { id: 'Q1 2025', status: 'upcoming', date: '2025-01-15', location: 'Office Conference Room' },
@@ -165,16 +173,11 @@ const EOSQuarterlyPlanning = ({ program }) => {
             <div className="bg-white border rounded-lg p-6">
               <h3 className="font-semibold mb-4">Session Checklist</h3>
               <div className="space-y-3">
-                {[
-                  { item: 'Book meeting room', done: true },
-                  { item: 'Send calendar invites', done: true },
-                  { item: 'Prepare V/TO review', done: false },
-                  { item: 'Compile rock status', done: false },
-                  { item: 'Gather scorecard data', done: false },
-                  { item: 'Order lunch', done: false },
-                ].map((task, idx) => (
+                {sessionChecklist.map((task, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <input type="checkbox" checked={task.done} className="w-4 h-4 rounded" onChange={() => {}} />
+                    <input type="checkbox" checked={task.done} className="w-4 h-4 rounded" onChange={() => {
+                      setSessionChecklist(prev => prev.map((t, i) => i === idx ? { ...t, done: !t.done } : t));
+                    }} />
                     <span className={cn(task.done && "line-through text-gray-400")}>{task.item}</span>
                   </div>
                 ))}

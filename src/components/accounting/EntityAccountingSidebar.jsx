@@ -223,6 +223,11 @@ export default function EntityAccountingSidebar({ entity, taskCount = 0 }) {
           <NavItem to={`${basePath}/settings`} icon={Settings} label="Settings" />
         </SidebarSection>
 
+        {/* ADMIN */}
+        <SidebarSection title="Admin">
+          <NavItem to="/accounting/admin" icon={Settings} label="Accounting Admin" />
+        </SidebarSection>
+
       </nav>
     </div>
   );

@@ -6,6 +6,15 @@ import { cn } from '@/lib/utils';
 const EOSAnnualPlanning = ({ program }) => {
   const [selectedYear, setSelectedYear] = useState('2025');
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'vto', 'goals', 'agenda'
+  const [prepChecklist, setPrepChecklist] = useState([
+    { item: 'Book offsite location', done: true },
+    { item: 'Send invitations to team', done: true },
+    { item: 'Prepare V/TO for review', done: false },
+    { item: 'Compile prior year results', done: false },
+    { item: 'Gather team input on issues', done: false },
+    { item: 'Book accommodations', done: false },
+    { item: 'Plan team dinner', done: false },
+  ]);
 
   const annualSessions = [
     { year: '2025', status: 'upcoming', date: '2025-01-08', location: 'Offsite - Lake Keowee', duration: '2 days' },
@@ -170,17 +179,11 @@ const EOSAnnualPlanning = ({ program }) => {
             <div className="bg-white border rounded-lg p-6">
               <h3 className="font-semibold mb-4">Preparation Checklist</h3>
               <div className="space-y-3">
-                {[
-                  { item: 'Book offsite location', done: true },
-                  { item: 'Send invitations to team', done: true },
-                  { item: 'Prepare V/TO for review', done: false },
-                  { item: 'Compile prior year results', done: false },
-                  { item: 'Gather team input on issues', done: false },
-                  { item: 'Book accommodations', done: false },
-                  { item: 'Plan team dinner', done: false },
-                ].map((task, idx) => (
+                {prepChecklist.map((task, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <input type="checkbox" checked={task.done} className="w-4 h-4 rounded" onChange={() => {}} />
+                    <input type="checkbox" checked={task.done} className="w-4 h-4 rounded" onChange={() => {
+                      setPrepChecklist(prev => prev.map((t, i) => i === idx ? { ...t, done: !t.done } : t));
+                    }} />
                     <span className={cn(task.done && "line-through text-gray-400")}>{task.item}</span>
                   </div>
                 ))}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -26,103 +26,121 @@ import {
   Activity,
   Layers
 } from 'lucide-react';
+import { projectService } from '@/services/projectService';
+import { getTeams } from '@/services/teamService';
 
 const ResourceAllocationDashboardPage = () => {
   const navigate = useNavigate();
-  const [view, setView] = useState('team'); // team, project, timeline
+  const [view, setView] = useState('team');
   const [timeRange, setTimeRange] = useState('month');
   const [department, setDepartment] = useState('all');
-  const [expandedTeams, setExpandedTeams] = useState(new Set(['acquisitions', 'construction']));
+  const [expandedTeams, setExpandedTeams] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState([]);
+  const [projects, setProjects] = useState([]);
 
-  // Mock resource data
-  const resourceData = {
-    summary: {
-      totalTeamMembers: 46,
-      activeProjects: 32,
-      avgUtilization: 78,
-      overallocated: 5,
-      underutilized: 8,
-      onTrack: 33,
-    },
-    teams: [
-      {
-        id: 'acquisitions',
-        name: 'Acquisitions',
-        head: 'Sarah Johnson',
-        members: [
-          { id: 1, name: 'Sarah Johnson', role: 'Director', utilization: 95, projects: 8, status: 'overallocated' },
-          { id: 2, name: 'John Smith', role: 'Senior Analyst', utilization: 82, projects: 5, status: 'optimal' },
-          { id: 3, name: 'Emily Chen', role: 'Analyst', utilization: 75, projects: 4, status: 'optimal' },
-          { id: 4, name: 'Michael Brown', role: 'Associate', utilization: 68, projects: 3, status: 'optimal' },
-          { id: 5, name: 'Lisa Wang', role: 'Associate', utilization: 45, projects: 2, status: 'underutilized' },
-        ],
-        avgUtilization: 73,
-        totalProjects: 22,
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const [teamsResult, allProjects] = await Promise.all([
+          getTeams(),
+          projectService.getAll(),
+        ]);
+        setTeams(teamsResult || []);
+        setProjects(allProjects || []);
+        if (teamsResult?.length > 0) {
+          setExpandedTeams(new Set(teamsResult.slice(0, 2).map(t => t.id)));
+        }
+      } catch (err) {
+        console.error('Failed to load resource data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const activeProjects = useMemo(() =>
+    projects.filter(p => p.status === 'active' || p.status === 'in_progress'),
+    [projects]
+  );
+
+  // Build resource data from real teams + projects
+  const resourceData = useMemo(() => {
+    const totalMembers = teams.reduce((sum, t) => sum + (t.members?.length || 0), 0);
+
+    const teamData = teams.map(team => {
+      const members = (team.members || []).map(m => {
+        const memberName = m.user?.full_name || m.full_name || 'Unknown';
+        const memberRole = m.team_role === 'lead' ? 'Team Lead' : 'Member';
+        const assignedCount = activeProjects.filter(p =>
+          p.manager_id === m.user_id || p.manager_id === m.user?.id
+        ).length;
+        const utilization = activeProjects.length > 0
+          ? Math.min(100, Math.round((assignedCount / Math.max(activeProjects.length * 0.3, 1)) * 100))
+          : 0;
+        const status = utilization >= 90 ? 'overallocated' : utilization < 40 ? 'underutilized' : 'optimal';
+        return { id: m.id || m.user_id, name: memberName, role: memberRole, utilization, projects: assignedCount, status };
+      });
+
+      const avgUtil = members.length > 0
+        ? Math.round(members.reduce((s, m) => s + m.utilization, 0) / members.length)
+        : 0;
+      const lead = members.find(m => m.role === 'Team Lead');
+
+      return {
+        id: team.id,
+        name: team.name,
+        head: lead?.name || members[0]?.name || 'Unassigned',
+        members,
+        avgUtilization: avgUtil,
+        totalProjects: members.reduce((s, m) => s + m.projects, 0),
+      };
+    });
+
+    const allMembers = teamData.flatMap(t => t.members);
+    const overallocated = allMembers.filter(m => m.status === 'overallocated').length;
+    const underutilized = allMembers.filter(m => m.status === 'underutilized').length;
+    const avgUtilization = allMembers.length > 0
+      ? Math.round(allMembers.reduce((s, m) => s + m.utilization, 0) / allMembers.length)
+      : 0;
+
+    const projectAllocations = activeProjects.slice(0, 10).map(p => ({
+      id: p.id,
+      name: p.name,
+      type: p.project_type || p.property_type || 'General',
+      resources: 1,
+      totalHours: 40,
+      status: p.status === 'active' ? 'on_track' : p.status === 'on_hold' ? 'delayed' : 'on_track',
+    }));
+
+    const availableHours = Math.max(totalMembers * 40, 1);
+    return {
+      summary: {
+        totalTeamMembers: totalMembers,
+        activeProjects: activeProjects.length,
+        avgUtilization,
+        overallocated,
+        underutilized,
+        onTrack: activeProjects.filter(p => p.status === 'active').length,
       },
-      {
-        id: 'construction',
-        name: 'Construction',
-        head: 'David Wilson',
-        members: [
-          { id: 6, name: 'David Wilson', role: 'Director', utilization: 88, projects: 12, status: 'optimal' },
-          { id: 7, name: 'James Taylor', role: 'Project Manager', utilization: 92, projects: 6, status: 'overallocated' },
-          { id: 8, name: 'Robert Garcia', role: 'Project Manager', utilization: 85, projects: 5, status: 'optimal' },
-          { id: 9, name: 'Jennifer Martinez', role: 'Coordinator', utilization: 78, projects: 4, status: 'optimal' },
-          { id: 10, name: 'Chris Anderson', role: 'Coordinator', utilization: 72, projects: 3, status: 'optimal' },
-          { id: 11, name: 'Amanda White', role: 'Assistant', utilization: 55, projects: 2, status: 'underutilized' },
-        ],
-        avgUtilization: 78,
-        totalProjects: 32,
-      },
-      {
-        id: 'finance',
-        name: 'Finance',
-        head: 'Patricia Lee',
-        members: [
-          { id: 12, name: 'Patricia Lee', role: 'Controller', utilization: 85, projects: 15, status: 'optimal' },
-          { id: 13, name: 'Kevin Thompson', role: 'Senior Accountant', utilization: 90, projects: 10, status: 'overallocated' },
-          { id: 14, name: 'Nancy Harris', role: 'Accountant', utilization: 75, projects: 8, status: 'optimal' },
-          { id: 15, name: 'Steven Clark', role: 'Analyst', utilization: 65, projects: 5, status: 'optimal' },
-        ],
-        avgUtilization: 79,
-        totalProjects: 38,
-      },
-      {
-        id: 'operations',
-        name: 'Operations',
-        head: 'Mark Robinson',
-        members: [
-          { id: 16, name: 'Mark Robinson', role: 'VP Operations', utilization: 80, projects: 20, status: 'optimal' },
-          { id: 17, name: 'Susan Lewis', role: 'Operations Manager', utilization: 85, projects: 12, status: 'optimal' },
-          { id: 18, name: 'Daniel Walker', role: 'Coordinator', utilization: 70, projects: 6, status: 'optimal' },
-        ],
-        avgUtilization: 78,
-        totalProjects: 38,
-      },
-    ],
-    projectAllocations: [
-      { id: 1, name: 'Oakwood Estates Phase 2', type: 'Subdivision', resources: 8, totalHours: 320, status: 'on_track' },
-      { id: 2, name: 'Charlotte Scattered Lots - Q1', type: 'Scattered Lot', resources: 5, totalHours: 180, status: 'on_track' },
-      { id: 3, name: 'Downtown Mixed-Use Tower', type: 'Commercial', resources: 12, totalHours: 480, status: 'at_risk' },
-      { id: 4, name: 'Greenville Renovation Portfolio', type: 'Renovation', resources: 4, totalHours: 160, status: 'on_track' },
-      { id: 5, name: 'Lake Norman Waterfront', type: 'Subdivision', resources: 6, totalHours: 240, status: 'delayed' },
-      { id: 6, name: 'Raleigh Tech Campus', type: 'Commercial', resources: 10, totalHours: 400, status: 'on_track' },
-    ],
-    weeklySchedule: [
-      { week: 'Week 1', available: 1840, allocated: 1650, projects: 28 },
-      { week: 'Week 2', available: 1840, allocated: 1720, projects: 30 },
-      { week: 'Week 3', available: 1760, allocated: 1680, projects: 29 },
-      { week: 'Week 4', available: 1840, allocated: 1780, projects: 32 },
-    ],
-    skills: [
-      { skill: 'Project Management', available: 12, allocated: 10, demand: 'high' },
-      { skill: 'Financial Analysis', available: 8, allocated: 7, demand: 'high' },
-      { skill: 'Site Supervision', available: 15, allocated: 12, demand: 'medium' },
-      { skill: 'Due Diligence', available: 6, allocated: 6, demand: 'high' },
-      { skill: 'Contract Negotiation', available: 5, allocated: 4, demand: 'medium' },
-      { skill: 'Accounting', available: 4, allocated: 4, demand: 'high' },
-    ],
-  };
+      teams: teamData,
+      projectAllocations,
+      weeklySchedule: [
+        { week: 'Week 1', available: availableHours, allocated: Math.round(availableHours * (avgUtilization / 100)), projects: activeProjects.length },
+        { week: 'Week 2', available: availableHours, allocated: Math.round(availableHours * (avgUtilization / 100) * 1.02), projects: activeProjects.length },
+        { week: 'Week 3', available: availableHours, allocated: Math.round(availableHours * (avgUtilization / 100) * 0.98), projects: activeProjects.length },
+        { week: 'Week 4', available: availableHours, allocated: Math.round(availableHours * (avgUtilization / 100) * 1.05), projects: activeProjects.length },
+      ],
+      skills: [
+        { skill: 'Project Management', available: Math.max(teamData.length, 1), allocated: Math.min(teamData.length, activeProjects.length), demand: activeProjects.length > teamData.length ? 'high' : 'medium' },
+        { skill: 'Construction Mgmt', available: Math.max((teamData.find(t => t.name?.toLowerCase().includes('construction'))?.members?.length || 2), 1), allocated: Math.min(Math.round(activeProjects.length * 0.4), totalMembers), demand: 'high' },
+        { skill: 'Financial Analysis', available: Math.max((teamData.find(t => t.name?.toLowerCase().includes('finance'))?.members?.length || 2), 1), allocated: Math.min(Math.round(activeProjects.length * 0.3), totalMembers), demand: 'high' },
+        { skill: 'Site Supervision', available: Math.max(Math.round(totalMembers * 0.3), 1), allocated: Math.min(Math.round(activeProjects.length * 0.5), totalMembers), demand: 'medium' },
+      ],
+    };
+  }, [teams, projects, activeProjects]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -189,9 +207,12 @@ const ResourceAllocationDashboardPage = () => {
                 <Download className="w-4 h-4" />
                 Export
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-[#047857] text-white rounded-lg hover:bg-[#065f46]"
+                onClick={() => navigate('/admin/teams')}
+              >
                 <Plus className="w-4 h-4" />
-                Assign Resources
+                Manage Teams
               </button>
             </div>
           </div>
@@ -258,6 +279,10 @@ const ResourceAllocationDashboardPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {loading && (
+          <div className="text-center py-12 text-gray-500">Loading resource data...</div>
+        )}
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -337,7 +362,7 @@ const ResourceAllocationDashboardPage = () => {
           <>
             {/* Team View */}
             <div className="space-y-4 mb-6">
-              {resourceData.teams.map(team => {
+              {resourceData.teams.filter(t => department === 'all' || t.name.toLowerCase().includes(department)).map(team => {
                 const isExpanded = expandedTeams.has(team.id);
                 return (
                   <div key={team.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -459,9 +484,9 @@ const ResourceAllocationDashboardPage = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {resourceData.projectAllocations.map(project => (
-                    <tr key={project.id} className="hover:bg-gray-50">
+                    <tr key={project.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/project/${project.id}`)}>
                       <td className="px-4 py-4">
-                        <p className="font-medium text-gray-900">{project.name}</p>
+                        <p className="font-medium text-[#047857] hover:underline">{project.name}</p>
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-sm text-gray-600">{project.type}</span>

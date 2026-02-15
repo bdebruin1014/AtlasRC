@@ -4,6 +4,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isDemoMode } from '@/lib/supabase';
 import { opportunityService } from '@/services/opportunityService';
+import { activityService } from '@/services/activityService';
+import { notifyStageChange } from '@/services/notificationTriggerService';
 
 // Stage configuration matching database constraints
 export const OPPORTUNITY_STAGES = [
@@ -14,11 +16,11 @@ export const OPPORTUNITY_STAGES = [
   { key: 'Under Contract', label: 'Under Contract', color: '#22c55e' },
 ];
 
-// Mock data for demo mode
-const MOCK_OPPORTUNITIES = [
+// Fallback data when Supabase is unreachable
+const FALLBACK_OPPORTUNITIES = [
   {
-    id: 'mock-1',
-    deal_number: '25-001',
+    id: 'demo-1',
+    deal_number: '26-001',
     address: '123 Oak Avenue',
     city: 'Greenville',
     state: 'SC',
@@ -27,40 +29,35 @@ const MOCK_OPPORTUNITIES = [
     property_type: 'vacant-lot',
     estimated_value: 85000,
     asking_price: 75000,
-    assignment_fee: 10000,
     seller_name: 'John Smith',
-    seller_phone: '864-555-0101',
-    seller_email: 'john@example.com',
     notes: 'Owner motivated to sell',
     created_at: new Date().toISOString(),
   },
   {
-    id: 'mock-2',
-    deal_number: '25-002',
+    id: 'demo-2',
+    deal_number: '26-002',
     address: '456 Main Street',
     city: 'Greenville',
     state: 'SC',
     zip_code: '29605',
     stage: 'Contacted',
-    property_type: 'flip-property',
+    property_type: 'scattered-lot',
     estimated_value: 150000,
     asking_price: 120000,
-    assignment_fee: 15000,
     seller_name: 'Jane Doe',
-    seller_phone: '864-555-0202',
     created_at: new Date().toISOString(),
   },
   {
-    id: 'mock-3',
-    deal_number: '25-003',
+    id: 'demo-3',
+    deal_number: '26-003',
     address: '789 Pine Road',
-    city: 'Greenville',
+    city: 'Simpsonville',
     state: 'SC',
-    zip_code: '29607',
+    zip_code: '29680',
     stage: 'Qualified',
-    property_type: 'vacant-lot',
-    estimated_value: 95000,
-    asking_price: 80000,
+    property_type: 'development-lot-sale',
+    estimated_value: 950000,
+    asking_price: 800000,
     created_at: new Date().toISOString(),
   },
 ];
@@ -82,19 +79,15 @@ export function useOpportunity(opportunityId) {
     setError(null);
 
     try {
-      if (isDemoMode) {
-        const mockOpp = MOCK_OPPORTUNITIES.find(o => o.id === opportunityId);
-        setOpportunity(mockOpp || null);
-        return;
-      }
-
       const data = await opportunityService.getById(opportunityId);
       setOpportunity(data);
     } catch (err) {
       console.error('Error fetching opportunity:', err);
       setError(err.message);
-      const mockOpp = MOCK_OPPORTUNITIES.find(o => o.id === opportunityId);
-      setOpportunity(mockOpp || null);
+      if (isDemoMode) {
+        const fallback = FALLBACK_OPPORTUNITIES.find(o => o.id === opportunityId);
+        setOpportunity(fallback || null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -116,20 +109,16 @@ export function useOpportunities() {
   const fetchOpportunities = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      if (isDemoMode) {
-        setOpportunities(MOCK_OPPORTUNITIES);
-        return;
-      }
-      
       const data = await opportunityService.getAll();
       setOpportunities(data || []);
     } catch (err) {
       console.error('Error fetching opportunities:', err);
       setError(err.message);
-      // Fallback to mock data on error
-      setOpportunities(MOCK_OPPORTUNITIES);
+      if (isDemoMode) {
+        setOpportunities(FALLBACK_OPPORTUNITIES);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -149,11 +138,18 @@ export function useOpportunityActions() {
   const createOpportunity = useCallback(async (data) => {
     setIsLoading(true);
     try {
-      if (isDemoMode) {
-        console.log('Demo mode: would create opportunity', data);
-        return { ...data, id: `mock-${Date.now()}` };
-      }
-      return await opportunityService.create(data);
+      const result = await opportunityService.create(data);
+      activityService.log({
+        entityType: 'opportunity',
+        entityId: result.id,
+        action: 'created',
+        newValue: data.address || data.deal_number,
+      }).catch(() => {});
+      return result;
+    } catch (err) {
+      console.error('Create opportunity failed:', err);
+      if (isDemoMode) return { ...data, id: `demo-${Date.now()}` };
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -162,11 +158,11 @@ export function useOpportunityActions() {
   const updateOpportunity = useCallback(async (id, data) => {
     setIsLoading(true);
     try {
-      if (isDemoMode) {
-        console.log('Demo mode: would update opportunity', id, data);
-        return { id, ...data };
-      }
       return await opportunityService.update(id, data);
+    } catch (err) {
+      console.error('Update opportunity failed:', err);
+      if (isDemoMode) return { id, ...data };
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -175,18 +171,45 @@ export function useOpportunityActions() {
   const deleteOpportunity = useCallback(async (id) => {
     setIsLoading(true);
     try {
-      if (isDemoMode) {
-        console.log('Demo mode: would delete opportunity', id);
-        return true;
-      }
-      return await opportunityService.delete(id);
+      const result = await opportunityService.delete(id);
+      activityService.log({
+        entityType: 'opportunity',
+        entityId: id,
+        action: 'deleted',
+      }).catch(() => {});
+      return result;
+    } catch (err) {
+      console.error('Delete opportunity failed:', err);
+      if (isDemoMode) return true;
+      throw err;
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const updateStage = useCallback(async (id, stage) => {
-    return updateOpportunity(id, { stage });
+  const updateStage = useCallback(async (id, stage, oldStage) => {
+    const result = await updateOpportunity(id, { stage });
+    activityService.log({
+      entityType: 'opportunity',
+      entityId: id,
+      action: 'status_changed',
+      fieldChanged: 'stage',
+      oldValue: oldStage,
+      newValue: stage,
+    }).catch(() => {});
+
+    // Fire-and-forget notification when stage actually changes
+    if (stage !== oldStage) {
+      notifyStageChange(
+        id,
+        result?.deal_number || result?.address || id,
+        oldStage,
+        stage,
+        'current-user',
+      ).catch(() => {});
+    }
+
+    return result;
   }, [updateOpportunity]);
 
   return {

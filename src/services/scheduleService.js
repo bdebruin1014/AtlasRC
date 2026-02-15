@@ -149,125 +149,145 @@ const DEMO_TEMPLATES = [
 // ─── PROJECT SCHEDULE SERVICE ────────────────────────────────────────────────
 
 export async function getProjectSchedule(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_schedules')
+      .select('*')
+      .eq('project_id', projectId)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  } catch (err) {
+    console.error('Falling back to demo project schedule:', err?.message || err);
     return DEMO_SCHEDULES.find(s => s.project_id === projectId) || null;
   }
-  const { data, error } = await supabase
-    .from('project_schedules')
-    .select('*')
-    .eq('project_id', projectId)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
 }
 
 export async function createProjectSchedule(projectId, scheduleData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('project_schedules')
+      .insert({ project_id: projectId, ...scheduleData }).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo create project schedule:', err?.message || err);
     const schedule = { id: `schedule-${Date.now()}`, project_id: projectId, ...scheduleData, status: scheduleData.status || 'draft', created_at: new Date().toISOString() };
     DEMO_SCHEDULES.push(schedule);
     return schedule;
   }
-  const { data, error } = await supabase.from('project_schedules')
-    .insert({ project_id: projectId, ...scheduleData }).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateProjectSchedule(scheduleId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('project_schedules')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', scheduleId).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo update project schedule:', err?.message || err);
     return { id: scheduleId, ...DEMO_SCHEDULE, ...updates };
   }
-  const { data, error } = await supabase.from('project_schedules')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', scheduleId).select().single();
-  if (error) throw error;
-  return data;
 }
 
 // ─── PHASES SERVICE ──────────────────────────────────────────────────────────
 
 export async function getSchedulePhases(scheduleId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('schedule_phases')
+      .select('*').eq('schedule_id', scheduleId).order('sort_order');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Falling back to demo schedule phases:', err?.message || err);
     return DEMO_PHASES.filter(p => p.schedule_id === scheduleId).sort((a, b) => a.sort_order - b.sort_order);
   }
-  const { data, error } = await supabase.from('schedule_phases')
-    .select('*').eq('schedule_id', scheduleId).order('sort_order');
-  if (error) throw error;
-  return data || [];
 }
 
 export async function createPhase(scheduleId, phaseData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('schedule_phases')
+      .insert({ schedule_id: scheduleId, ...phaseData }).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo create phase:', err?.message || err);
     const newPhase = { id: `phase-${Date.now()}`, schedule_id: scheduleId, ...phaseData };
     DEMO_PHASES.push(newPhase);
     return newPhase;
   }
-  const { data, error } = await supabase.from('schedule_phases')
-    .insert({ schedule_id: scheduleId, ...phaseData }).select().single();
-  if (error) throw error;
-  return data;
 }
 
 // ─── TASKS SERVICE ───────────────────────────────────────────────────────────
 
 export async function getScheduleTasks(scheduleId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('schedule_tasks')
+      .select('*').eq('schedule_id', scheduleId).order('sort_order');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Falling back to demo schedule tasks:', err?.message || err);
     return DEMO_TASKS.filter(t => t.schedule_id === scheduleId).sort((a, b) => a.sort_order - b.sort_order);
   }
-  const { data, error } = await supabase.from('schedule_tasks')
-    .select('*').eq('schedule_id', scheduleId).order('sort_order');
-  if (error) throw error;
-  return data || [];
 }
 
 export async function createTask(scheduleId, taskData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('schedule_tasks')
+      .insert({ schedule_id: scheduleId, ...taskData }).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo create task:', err?.message || err);
     const newTask = { id: `task-${Date.now()}`, schedule_id: scheduleId, status: 'not_started', percent_complete: 0, ...taskData };
     DEMO_TASKS.push(newTask);
     return newTask;
   }
-  const { data, error } = await supabase.from('schedule_tasks')
-    .insert({ schedule_id: scheduleId, ...taskData }).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateTask(taskId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('schedule_tasks')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', taskId).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo update task:', err?.message || err);
     const idx = DEMO_TASKS.findIndex(t => t.id === taskId);
     if (idx >= 0) Object.assign(DEMO_TASKS[idx], updates);
     return DEMO_TASKS[idx] || { id: taskId, ...updates };
   }
-  const { data, error } = await supabase.from('schedule_tasks')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', taskId).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteTask(taskId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase.from('schedule_tasks').delete().eq('id', taskId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Falling back to demo delete task:', err?.message || err);
     const idx = DEMO_TASKS.findIndex(t => t.id === taskId);
     if (idx >= 0) DEMO_TASKS.splice(idx, 1);
     return true;
   }
-  const { error } = await supabase.from('schedule_tasks').delete().eq('id', taskId);
-  if (error) throw error;
-  return true;
 }
 
 // ─── TEMPLATES SERVICE ───────────────────────────────────────────────────────
 
 export async function getScheduleTemplates(projectType) {
-  if (isDemoMode) {
+  try {
+    let query = supabase.from('schedule_templates').select('*').eq('is_active', true);
+    if (projectType) query = query.eq('project_type', projectType);
+    const { data, error } = await query.order('name');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Falling back to demo schedule templates:', err?.message || err);
     if (!projectType) return DEMO_TEMPLATES.filter(t => t.is_active);
     return DEMO_TEMPLATES.filter(t => t.is_active && t.project_type === projectType);
   }
-  let query = supabase.from('schedule_templates').select('*').eq('is_active', true);
-  if (projectType) query = query.eq('project_type', projectType);
-  const { data, error } = await query.order('name');
-  if (error) throw error;
-  return data || [];
 }
 
 // Create a full schedule (schedule + phases + tasks) from a template

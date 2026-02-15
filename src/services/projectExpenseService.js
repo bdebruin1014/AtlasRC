@@ -1,9 +1,9 @@
 // src/services/projectExpenseService.js
 // Project-level expense tracking with approval workflow and budget integration
 
-import { isDemoMode } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// --- Constants ----------------------------------------------------------------
 
 export const EXPENSE_TYPES = [
   { value: 'labor', label: 'Labor' },
@@ -32,7 +32,7 @@ export const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 export function getExpenseTypeLabel(type) {
   return EXPENSE_TYPES.find(t => t.value === type)?.label || type;
@@ -54,7 +54,7 @@ export function calculateExpenseTotals(expenses) {
   return { totalAmount, paidAmount, pendingAmount, approvedAmount, deniedAmount, awaitingApproval, overdueCount, totalCount: expenses.length };
 }
 
-// ─── Demo Data ────────────────────────────────────────────────────────────────
+// --- Demo Data ----------------------------------------------------------------
 
 const DEMO_EXPENSES = [
   {
@@ -199,22 +199,64 @@ const DEMO_EXPENSES = [
   },
 ];
 
-// ─── CRUD Operations ──────────────────────────────────────────────────────────
+// --- CRUD Operations ----------------------------------------------------------
 
 export async function getProjectExpenses(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_expenses')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('expense_date', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Error fetching project expenses:', err);
     return DEMO_EXPENSES.filter(e => e.project_id === projectId);
   }
 }
 
 export async function getExpense(expenseId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_expenses')
+      .select('*')
+      .eq('id', expenseId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching expense:', err);
     return DEMO_EXPENSES.find(e => e.id === expenseId) || null;
   }
 }
 
 export async function createProjectExpense(projectId, data) {
-  if (isDemoMode) {
+  try {
+    const expense = {
+      project_id: projectId,
+      ...data,
+      amount: parseFloat(data.amount) || 0,
+      tax_amount: parseFloat(data.tax_amount) || 0,
+      total_amount: (parseFloat(data.amount) || 0) + (parseFloat(data.tax_amount) || 0),
+      status: data.requires_approval !== false ? 'waiting_approval' : 'pending',
+      source_type: 'manual',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: result, error } = await supabase
+      .from('project_expenses')
+      .insert([expense])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return result;
+  } catch (err) {
+    console.error('Error creating project expense:', err);
     const expense = {
       id: `exp-${Date.now()}`,
       project_id: projectId,
@@ -233,7 +275,18 @@ export async function createProjectExpense(projectId, data) {
 }
 
 export async function updateProjectExpense(expenseId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_expenses')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', expenseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating project expense:', err);
     const idx = DEMO_EXPENSES.findIndex(e => e.id === expenseId);
     if (idx === -1) throw new Error('Expense not found');
     DEMO_EXPENSES[idx] = { ...DEMO_EXPENSES[idx], ...updates, updated_at: new Date().toISOString() };
@@ -242,17 +295,42 @@ export async function updateProjectExpense(expenseId, updates) {
 }
 
 export async function deleteProjectExpense(expenseId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('project_expenses')
+      .delete()
+      .eq('id', expenseId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting project expense:', err);
     const idx = DEMO_EXPENSES.findIndex(e => e.id === expenseId);
     if (idx !== -1) DEMO_EXPENSES.splice(idx, 1);
     return true;
   }
 }
 
-// ─── Approval Workflow ────────────────────────────────────────────────────────
+// --- Approval Workflow --------------------------------------------------------
 
 export async function approveProjectExpense(expenseId, notes) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_expenses')
+      .update({
+        status: 'approved',
+        approved_at: new Date().toISOString(),
+        approval_notes: notes || '',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', expenseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error approving project expense:', err);
     const idx = DEMO_EXPENSES.findIndex(e => e.id === expenseId);
     if (idx === -1) throw new Error('Expense not found');
     DEMO_EXPENSES[idx] = {
@@ -267,7 +345,22 @@ export async function approveProjectExpense(expenseId, notes) {
 }
 
 export async function denyProjectExpense(expenseId, reason) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_expenses')
+      .update({
+        status: 'denied',
+        denial_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', expenseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error denying project expense:', err);
     const idx = DEMO_EXPENSES.findIndex(e => e.id === expenseId);
     if (idx === -1) throw new Error('Expense not found');
     DEMO_EXPENSES[idx] = {
@@ -281,7 +374,24 @@ export async function denyProjectExpense(expenseId, reason) {
 }
 
 export async function markProjectExpensePaid(expenseId, paymentMethod, paymentReference, paidDate) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_expenses')
+      .update({
+        status: 'paid',
+        payment_method: paymentMethod,
+        payment_reference: paymentReference,
+        paid_date: paidDate || new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', expenseId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error marking project expense paid:', err);
     const idx = DEMO_EXPENSES.findIndex(e => e.id === expenseId);
     if (idx === -1) throw new Error('Expense not found');
     DEMO_EXPENSES[idx] = {

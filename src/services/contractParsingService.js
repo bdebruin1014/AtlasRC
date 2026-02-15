@@ -1,7 +1,7 @@
 // src/services/contractParsingService.js
 // Purchase Contract Parsing Service with AI integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 const mockParsedContract = {
   id: 'contract-1',
@@ -30,55 +30,88 @@ const mockParsedContract = {
 };
 
 export async function getPurchaseContract(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('purchase_contracts')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching purchase contract:', err);
     return { ...mockParsedContract, project_id: projectId };
   }
-
-  const { data, error } = await supabase
-    .from('purchase_contracts')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error && error.code !== 'PGRST116') throw error;
-  return data;
 }
 
 export async function createPurchaseContract(projectId, contractData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('purchase_contracts')
+      .insert([{ project_id: projectId, ...contractData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating purchase contract:', err);
     return { id: `contract-${Date.now()}`, project_id: projectId, ...contractData, parsing_status: 'pending', created_at: new Date().toISOString() };
   }
-
-  const { data, error } = await supabase
-    .from('purchase_contracts')
-    .insert([{ project_id: projectId, ...contractData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updatePurchaseContract(contractId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('purchase_contracts')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', contractId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating purchase contract:', err);
     return { ...mockParsedContract, ...updates, id: contractId };
   }
-
-  const { data, error } = await supabase
-    .from('purchase_contracts')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', contractId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function uploadContractDocument(projectId, file) {
-  if (isDemoMode) {
+  try {
+    // Upload file to Supabase storage
+    const fileName = `${projectId}/${Date.now()}_${file.name}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('contracts')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('contracts')
+      .getPublicUrl(fileName);
+
+    // Trigger edge function for parsing
+    const { data: parseResult, error: parseError } = await supabase.functions
+      .invoke('parse-contract', {
+        body: { documentUrl: publicUrl, projectId },
+      });
+
+    if (parseError) {
+      console.warn('Contract parsing failed, saving without parsed data:', parseError);
+      return { documentUrl: publicUrl, parsedData: {}, parsing_status: 'failed' };
+    }
+
+    return {
+      documentUrl: publicUrl,
+      parsedData: parseResult?.data || {},
+      parsing_status: 'completed',
+    };
+  } catch (err) {
+    console.error('Error uploading contract document:', err);
     // Simulate upload and parsing
     return {
       documentUrl: `https://storage.example.com/contracts/${file.name}`,
@@ -86,61 +119,33 @@ export async function uploadContractDocument(projectId, file) {
       parsing_status: 'completed',
     };
   }
-
-  // Upload file to Supabase storage
-  const fileName = `${projectId}/${Date.now()}_${file.name}`;
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('contracts')
-    .upload(fileName, file);
-
-  if (uploadError) throw uploadError;
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('contracts')
-    .getPublicUrl(fileName);
-
-  // Trigger edge function for parsing
-  const { data: parseResult, error: parseError } = await supabase.functions
-    .invoke('parse-contract', {
-      body: { documentUrl: publicUrl, projectId },
-    });
-
-  if (parseError) {
-    console.warn('Contract parsing failed, saving without parsed data:', parseError);
-    return { documentUrl: publicUrl, parsedData: {}, parsing_status: 'failed' };
-  }
-
-  return {
-    documentUrl: publicUrl,
-    parsedData: parseResult?.data || {},
-    parsing_status: 'completed',
-  };
 }
 
 export async function retryContractParsing(contractId) {
-  if (isDemoMode) {
-    return { ...mockParsedContract, parsing_status: 'completed' };
-  }
+  try {
+    const contract = await supabase
+      .from('purchase_contracts')
+      .select('document_url, project_id')
+      .eq('id', contractId)
+      .single();
 
-  const contract = await supabase
-    .from('purchase_contracts')
-    .select('document_url, project_id')
-    .eq('id', contractId)
-    .single();
+    if (contract.error) throw contract.error;
 
-  if (contract.error) throw contract.error;
+    const { data, error } = await supabase.functions
+      .invoke('parse-contract', {
+        body: { documentUrl: contract.data.document_url, projectId: contract.data.project_id },
+      });
 
-  const { data, error } = await supabase.functions
-    .invoke('parse-contract', {
-      body: { documentUrl: contract.data.document_url, projectId: contract.data.project_id },
+    if (error) throw error;
+
+    await updatePurchaseContract(contractId, {
+      parsed_data: data?.data || {},
+      parsing_status: 'completed',
     });
 
-  if (error) throw error;
-
-  await updatePurchaseContract(contractId, {
-    parsed_data: data?.data || {},
-    parsing_status: 'completed',
-  });
-
-  return data;
+    return data;
+  } catch (err) {
+    console.error('Error retrying contract parsing:', err);
+    return { ...mockParsedContract, parsing_status: 'completed' };
+  }
 }

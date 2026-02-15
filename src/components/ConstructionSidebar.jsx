@@ -5,7 +5,7 @@ import {
   LayoutDashboard, ClipboardList, Palette,
   DollarSign, Calendar, FileText, Shield,
   CheckSquare, ListChecks, Camera, ShieldCheck,
-  FileCheck,
+  FileCheck, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -159,6 +159,7 @@ export default function ConstructionSidebar({ house: houseProp }) {
         <SidebarSection title="Compliance">
           <NavItem to={`${basePath}/permits`} icon={Shield} label="Permits" />
           <NavItem to={`${basePath}/inspections`} icon={CheckSquare} label="Inspections" />
+          <NavItem to={`${basePath}/insurance`} icon={ShieldCheck} label="Insurance & Risk" />
         </SidebarSection>
 
         {/* CLOSEOUT */}
@@ -166,6 +167,11 @@ export default function ConstructionSidebar({ house: houseProp }) {
           <NavItem to={`${basePath}/punch-list`} icon={ListChecks} label="Punch List" />
           <NavItem to={`${basePath}/warranty`} icon={ShieldCheck} label="Warranty" />
           <NavItem to={`${basePath}/photos`} icon={Camera} label="Photos" />
+        </SidebarSection>
+
+        {/* ADMIN */}
+        <SidebarSection title="Admin">
+          <NavItem to="/construction/admin" icon={Settings} label="Construction Admin" />
         </SidebarSection>
 
       </nav>

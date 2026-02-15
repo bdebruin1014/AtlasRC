@@ -47,12 +47,13 @@ const AccountingEntitiesListPage = lazy(() => import('@/pages/accounting/Account
 const EntityOwnershipHierarchyPage = lazy(() => import('@/pages/accounting/EntityOwnershipHierarchyPage'));
 const EntityDashboardPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
 const EntityChartOfAccountsPage = lazy(() => import('@/pages/accounting/EntityChartOfAccountsPage'));
-const EntityTransactionsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityTransactionsPage = lazy(() => import('@/pages/accounting/TransactionsPage'));
 const EntityBankingPage = lazy(() => import('@/pages/accounting/BankingPage'));
-const EntityReconciliationPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityInvoicesPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityBillsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityReportsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityReconciliationPage = lazy(() => import('@/pages/accounting/ReconciliationPage'));
+const EntityInvoicesPage = lazy(() => import('@/pages/accounting/InvoicesPage'));
+const EntityBillsPage = lazy(() => import('@/pages/accounting/BillsPage'));
+const EntityReportsPage = lazy(() => import('@/pages/accounting/FinancialReportsPage'));
+const EntityJournalEntriesPage = lazy(() => import('@/pages/accounting/JournalEntriesPage'));
 const EntityOwnershipPage = lazy(() => import('@/pages/accounting/EntityOwnershipPage'));
 const EntityTasksPage = lazy(() => import('@/pages/accounting/EntityTasksPage'));
 
@@ -158,12 +159,13 @@ const FinancialRatiosDashboardPage = lazy(() => import('@/pages/accounting/Finan
 const CustomersPage = lazy(() => import('@/pages/accounting/CustomersPage'));
 const CreditCardsPage = lazy(() => import('@/pages/accounting/CreditCardsPage'));
 const RecurringJournalEntriesPage = lazy(() => import('@/pages/accounting/RecurringJournalEntriesPage'));
+const AccountingVendorsPage = lazy(() => import('@/pages/accounting/VendorsPage'));
 
 // ============================================
 // OPERATIONS ENHANCEMENTS
 // ============================================
 const DocumentExpirationTracker = lazy(() => import('@/components/DocumentExpirationTracker'));
-const WorkOrderSystem = lazy(() => import('@/components/WorkOrderSystem'));
+// WorkOrderSystem removed — property management, not development/construction
 const GanttChart = lazy(() => import('@/components/GanttChart'));
 const AuditTrail = lazy(() => import('@/components/AuditTrail'));
 const ProjectActivityFeed = lazy(() => import('@/components/ProjectActivityFeed'));
@@ -217,12 +219,6 @@ const EntityDetailPage = lazy(() => import('@/pages/Operations/EntityDetail'));
 const EntityFormPage = lazy(() => import('@/pages/Operations/EntityForm'));
 const OpportunityFormPage = lazy(() => import('@/pages/OpportunityForm'));
 
-// ============================================
-// ACQUISITION PIPELINE MODULE
-// ============================================
-const AcquisitionPage = lazy(() => import('@/pages/pipeline/AcquisitionPage'));
-const AcquisitionPropertyPage = lazy(() => import('@/pages/pipeline/AcquisitionPropertyPage'));
-const DealAnalyzerPage = lazy(() => import('@/pages/pipeline/DealAnalyzerPage'));
 
 const ReportsLayout = lazy(() => import('@/components/ReportsLayout'));
 const PresetReportsPage = lazy(() => import('@/pages/reports/PresetReportsPage'));
@@ -302,6 +298,10 @@ const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementSt
 const ConstructionListPage = lazy(() => import('@/pages/construction/ConstructionListPage'));
 const HouseDetailPage = lazy(() => import('@/pages/construction/HouseDetailPage'));
 const ConstructionAdminPage = lazy(() => import('@/pages/construction/ConstructionAdminPage'));
+const ProjectsAdminPage = lazy(() => import('@/pages/projects/ProjectsAdminPage'));
+const OpportunitiesAdminPage = lazy(() => import('@/pages/opportunities/OpportunitiesAdminPage'));
+const AccountingAdminPage = lazy(() => import('@/pages/accounting/AccountingAdminPage'));
+const ContractAssemblerPage = lazy(() => import('@/pages/construction/ContractAssemblerPage'));
 const ConstructionSidebar = lazy(() => import('@/components/ConstructionSidebar'));
 const DailyLogsPage = lazy(() => import('@/pages/projects/DailyLogsPage'));
 const InspectionsPage = lazy(() => import('@/pages/projects/InspectionsPage'));
@@ -496,7 +496,8 @@ const AppContent = () => (
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
     {/* HIDDEN - Atlas Simplification */}
     {/* <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} /> */}
+    <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects/admin" element={<ProtectedRoute><AppLayout><ProjectsAdminPage /></AppLayout></ProtectedRoute>} />
     
     {/* ============================================ */}
     {/* PROJECT DETAIL ROUTES - Streamlined */}
@@ -523,7 +524,7 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/construction/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
+    {/* WorkOrderSystem removed — property management, not development/construction */}
     <Route path="/project/:projectId/construction/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/punch-list" element={<ProtectedRoute><AppLayout><PunchList /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/photos" element={<ProtectedRoute><AppLayout><PhotoProgressTracker /></AppLayout></ProtectedRoute>} />
@@ -596,10 +597,6 @@ const AppContent = () => (
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
 
 
-    {/* ================================================ */}
-    {/* ACCOUNTING MODULE */}
-    {/* ================================================ */}
-            <Route path="/accounting" element={<ProtectedRoute><AppLayout><EntityAccountingLayout><AccountingEntitiesListPage /></EntityAccountingLayout>EntityAccountingLayout></AppLayout>AppLayout></ProtectedRoute>ProtectedRoute>} /></ProtectedRoute>
     {/* ============================================ */}
     {/* CONSTRUCTION MANAGEMENT MODULE */}
     {/* ============================================ */}
@@ -610,10 +607,12 @@ const AppContent = () => (
     <Route path="/construction/admin/upgrades" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><UpgradePricingPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/admin/schedule-templates" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><ScheduleTemplatesPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/admin/municipalities" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><MunicipalityFeesPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/contract-assembler" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/contract-assembler/:houseId" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PermitsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={BidsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/work-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={WorkOrderSystem} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    {/* WorkOrderSystem removed — property management, not development/construction */}
     <Route path="/construction/:houseId/punch-list" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PunchList} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/photos" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PhotoProgressTracker} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/insurance" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={InsurancePage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
@@ -622,14 +621,16 @@ const AppContent = () => (
     <Route path="/construction/:houseId/daily-logs" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={DailyLogsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/inspections" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={InspectionsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/warranty" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={WarrantyPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/change-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={ChangeOrdersPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/selections" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* OPPORTUNITIES MODULE */}
     {/* ============================================ */}
     <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunities/new" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
-    {/* HIDDEN - Atlas Simplification */}
-    {/* <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} /> */}
+    <Route path="/opportunities/admin" element={<ProtectedRoute><AppLayout><OpportunitiesAdminPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} />
     {/* <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
@@ -674,6 +675,7 @@ const AppContent = () => (
     <Route path="/accounting/consolidation" element={<ProtectedRoute><AppLayout><ConsolidationPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/admin" element={<ProtectedRoute><AppLayout><AccountingAdminPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ENTITY ACCOUNTING ROUTES - Canonical Pattern: /accounting/entities/:entityId/... */}
@@ -702,7 +704,7 @@ const AppContent = () => (
 
       {/* TRANSACTIONS */}
       <Route path="transactions" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
-      <Route path="journal-entries" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
+      <Route path="journal-entries" element={<Suspense fallback={<LoadingState />}><EntityJournalEntriesPage /></Suspense>} />
       <Route path="journal-entries/new" element={<Suspense fallback={<LoadingState />}><TransactionFormPage /></Suspense>} />
       <Route path="journal-entries/:entryId" element={<Suspense fallback={<LoadingState />}><TransactionFormPage /></Suspense>} />
       <Route path="reconciliation" element={<Suspense fallback={<LoadingState />}><BankReconciliationPage /></Suspense>} />
@@ -718,14 +720,14 @@ const AppContent = () => (
       <Route path="bills" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
       <Route path="bills/new" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
       <Route path="bills/:billId" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
-      <Route path="vendors" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="vendors" element={<Suspense fallback={<LoadingState />}><AccountingVendorsPage /></Suspense>} />
       <Route path="batch-payments" element={<Suspense fallback={<LoadingState />}><BatchPaymentsPage /></Suspense>} />
       <Route path="1099" element={<Suspense fallback={<LoadingState />}><Vendors1099Page /></Suspense>} />
       <Route path="expenses" element={<Suspense fallback={<LoadingState />}><ExpenseManagementPage /></Suspense>} />
 
       {/* LOANS */}
       <Route path="loans" element={<Suspense fallback={<LoadingState />}><LoansPayablePage /></Suspense>} />
-      <Route path="loans/:loanId" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="loans/:loanId" element={<Suspense fallback={<LoadingState />}><LoansPayablePage /></Suspense>} />
 
       {/* PAYROLL */}
       <Route path="payroll" element={<Suspense fallback={<LoadingState />}><PayrollPage /></Suspense>} />
@@ -776,10 +778,8 @@ const AppContent = () => (
     <Route path="/accounting/:entityId" element={<LegacyAccountingRedirect />} />
     <Route path="/accounting/:entityId/*" element={<LegacyAccountingRedirect />} />
 
-    {/* Legacy /entities routes - redirect to /accounting/entities */}
-    <Route path="/entities" element={<Navigate to="/accounting/entities" replace />} />
-    <Route path="/entities/:entityId" element={<LegacyEntitiesRedirect />} />
-    <Route path="/entities/:entityId/*" element={<LegacyEntitiesRedirect />} />
+    {/* Note: /entities routes are defined above in the ENTITIES MODULE section */}
+    {/* These legacy accounting-context redirects handle deep entity paths that should go to accounting */}
 
     {/* Reports */}
     <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsLayout /></AppLayout></ProtectedRoute>}>
@@ -872,13 +872,6 @@ const AppContent = () => (
     <Route path="/operations/notifications" element={<ProtectedRoute><AppLayout><NotificationCenterPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/contract-templates" element={<ProtectedRoute><AppLayout><ContractTemplatesPage /></AppLayout></ProtectedRoute>} />
 
-    {/* ============================================ */}
-    {/* ACQUISITION PIPELINE MODULE */}
-    {/* ============================================ */}
-    {/* HIDDEN - Atlas Simplification */}
-    {/* <Route path="/acquisition" element={<ProtectedRoute><AppLayout><AcquisitionPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/acquisition/:propertyId" element={<ProtectedRoute><AppLayout><AcquisitionPropertyPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/deal-analyzer" element={<ProtectedRoute><AppLayout><DealAnalyzerPage /></AppLayout></ProtectedRoute>} /> */}
 
     {/* EOS Module */}
     <Route path="/eos" element={<ProtectedRoute><AppLayout><EOSMainPage /></AppLayout></ProtectedRoute>} />
