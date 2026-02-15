@@ -1,715 +1,381 @@
 // pages/pipeline/DealAnalyzerPage.jsx
-// Standalone Deal Analyzer for quick property evaluation
+// Sources & Uses Pro Forma Calculator
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 
-// Market configurations for Red Cedar Homes
-const MARKETS = {
-  nickeltown_city_core: {
-    name: 'Nickeltown/City Core',
-    avgSalePrice: 360000,
-    maxLandBasis: 90000,
-    products: ['cherry', 'magnolia'],
-    pricePerSfRange: [180, 240],
-    weights: { demographics: 0.20, income: 0.25, comps: 0.25, lot: 0.15, infra: 0.15 }
-  },
-  travelers_rest: {
-    name: 'Travelers Rest',
-    avgSalePrice: 400000,
-    maxLandBasis: 100000,
-    products: ['cherry', 'magnolia'],
-    pricePerSfRange: [190, 260],
-    weights: { demographics: 0.25, income: 0.20, comps: 0.25, lot: 0.15, infra: 0.15 }
-  },
-  taylors: {
-    name: 'Taylors',
-    avgSalePrice: 440000,
-    maxLandBasis: 110000,
-    products: ['magnolia', 'atlas'],
-    pricePerSfRange: [200, 280],
-    weights: { demographics: 0.25, income: 0.20, comps: 0.20, lot: 0.20, infra: 0.15 }
-  },
-  greer: {
-    name: 'Greer',
-    avgSalePrice: 475000,
-    maxLandBasis: 118750,
-    products: ['magnolia', 'atlas', 'anchorage'],
-    pricePerSfRange: [210, 300],
-    weights: { demographics: 0.20, income: 0.20, comps: 0.20, lot: 0.25, infra: 0.15 }
-  }
+const PLANS = {
+  cherry:   { name: 'Cherry',    sqft: 1350, baseCost: 180000 },
+  magnolia: { name: 'Magnolia',  sqft: 1800, baseCost: 215000 },
+  atlas:    { name: 'Atlas',     sqft: 2500, baseCost: 285000 },
+  dogwood:  { name: 'Dogwood',   sqft: 1800, baseCost: 198000 },
+  palmetto: { name: 'Palmetto',  sqft: 2100, baseCost: 220000 },
+  juniper:  { name: 'Juniper',   sqft: 2200, baseCost: 225000 },
 };
 
-const PRODUCTS = {
-  cherry: { name: 'Cherry', sqFt: 1350, costPerSf: 165, minLot: 5000, priceRange: [320000, 380000] },
-  magnolia: { name: 'Magnolia', sqFt: 1800, costPerSf: 175, minLot: 6500, priceRange: [380000, 480000] },
-  atlas: { name: 'Atlas', sqFt: 2500, costPerSf: 185, minLot: 8000, priceRange: [480000, 550000] },
-  anchorage: { name: 'Anchorage', sqFt: 3200, costPerSf: 195, minLot: 10000, priceRange: [550000, 650000] }
+const UPGRADE_PACKAGES = {
+  standard: { label: 'Standard',  cost: 0 },
+  classic:  { label: 'Classic',   cost: 12000 },
+  elegance: { label: 'Elegance',  cost: 24000 },
 };
 
-const COST_ASSUMPTIONS = {
-  waterTap: 3500,
-  sewerTap: 4500,
-  electricService: 2500,
-  gasService: 1500,
-  sitePrepPerSf: 0.50,
-  impactFees: 4500,
-  permitPct: 0.015,
-  softCostsPct: 0.08,
-  contingencyPct: 0.10,
-  salesCommission: 0.06,
-  closingCosts: 0.02,
-  landLoanRate: 0.08,
-  constructionLoanRate: 0.085
-};
+const MUNICIPALITIES = [
+  'City of Greenville', 'Greenville County', 'City of Greer',
+  'City of Simpsonville', 'City of Mauldin', 'City of Travelers Rest',
+  'Spartanburg County', 'Anderson County', 'Other',
+];
 
-// Helper functions
-const formatCurrency = (value) => {
-  if (value === null || value === undefined) return '-';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
-};
+const fmt = (v) => v == null || isNaN(v) ? '$0' : `$${Math.round(v).toLocaleString()}`;
+const fmtPct = (v) => `${(v || 0).toFixed(1)}%`;
 
-const formatPercent = (value) => {
-  if (value === null || value === undefined) return '-';
-  return `${(value * 100).toFixed(1)}%`;
-};
-
-const getRecommendedProduct = (lotSize, market) => {
-  if (lotSize >= 10000 && market === 'greer') return 'anchorage';
-  if (lotSize >= 8000 && ['taylors', 'greer'].includes(market)) return 'atlas';
-  if (lotSize >= 6500) return 'magnolia';
-  return 'cherry';
-};
-
-// Section component with collapse
-const Section = ({ title, children, defaultOpen = true }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  return (
-    <div className="border border-gray-700 rounded-lg mb-4 overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-gray-800 flex items-center justify-between text-left font-semibold text-white hover:bg-gray-700"
-      >
-        {title}
-        <span className="text-gray-400">{isOpen ? '▲' : '▼'}</span>
-      </button>
-      {isOpen && <div className="p-4 bg-gray-900">{children}</div>}
-    </div>
-  );
-};
-
-// Input components
-const InputField = ({ label, value, onChange, type = "text", placeholder, suffix, prefix, help }) => (
+// --- Reusable components ---
+const Field = ({ label, children }) => (
   <div className="mb-3">
-    <label className="block text-sm font-medium text-gray-300 mb-1">
-      {label}
-      {help && <span className="ml-1 text-gray-500 text-xs">({help})</span>}
-    </label>
-    <div className="relative">
-      {prefix && <span className="absolute left-3 top-2 text-gray-400">{prefix}</span>}
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-12' : ''}`}
-      />
-      {suffix && <span className="absolute right-3 top-2 text-gray-400 text-sm">{suffix}</span>}
-    </div>
+    <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
+    {children}
   </div>
 );
 
-const SelectField = ({ label, value, onChange, options }) => (
-  <div className="mb-3">
-    <label className="block text-sm font-medium text-gray-300 mb-1">{label}</label>
-    <select
+const NumInput = ({ value, onChange, prefix, suffix, placeholder }) => (
+  <div className="relative">
+    {prefix && <span className="absolute left-3 top-2 text-gray-500 text-sm">{prefix}</span>}
+    <input
+      type="number"
+      step="any"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-    >
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-  </div>
-);
-
-const CheckboxField = ({ label, checked, onChange }) => (
-  <label className="flex items-center mb-2 cursor-pointer">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="w-4 h-4 text-indigo-600 border-gray-600 rounded focus:ring-indigo-500 bg-gray-800"
+      placeholder={placeholder}
+      className={`w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-10' : ''}`}
     />
-    <span className="ml-2 text-sm text-gray-300">{label}</span>
-  </label>
-);
-
-const ScoreBar = ({ score, label }) => {
-  const getColor = (s) => {
-    if (s >= 80) return 'bg-green-500';
-    if (s >= 70) return 'bg-green-400';
-    if (s >= 60) return 'bg-yellow-400';
-    if (s >= 50) return 'bg-orange-400';
-    return 'bg-red-500';
-  };
-  
-  return (
-    <div className="mb-2">
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-medium text-white">{score}/100</span>
-      </div>
-      <div className="w-full bg-gray-700 rounded-full h-2">
-        <div className={`h-2 rounded-full ${getColor(score)}`} style={{ width: `${score}%` }} />
-      </div>
-    </div>
-  );
-};
-
-const ResultCard = ({ title, value, subtitle, trend }) => (
-  <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-    <span className="text-sm text-gray-400">{title}</span>
-    <div className="text-2xl font-bold text-white mt-1">{value}</div>
-    {subtitle && <div className="text-sm text-gray-500 mt-1">{subtitle}</div>}
-    {trend !== undefined && (
-      <div className={`text-sm mt-1 ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-        {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}% vs target
-      </div>
-    )}
+    {suffix && <span className="absolute right-3 top-2 text-gray-500 text-sm">{suffix}</span>}
   </div>
 );
 
-const Alert = ({ type, title, children }) => {
-  const styles = {
-    success: 'bg-green-900/30 border-green-700 text-green-300',
-    warning: 'bg-yellow-900/30 border-yellow-700 text-yellow-300',
-    error: 'bg-red-900/30 border-red-700 text-red-300',
-    info: 'bg-blue-900/30 border-blue-700 text-blue-300'
-  };
-  
-  const icons = { success: '✓', warning: '⚠️', error: '✗', info: 'ℹ' };
-  
-  return (
-    <div className={`border rounded-lg p-4 mb-4 ${styles[type]}`}>
-      <div className="flex items-start">
-        <span className="mr-3 mt-0.5">{icons[type]}</span>
-        <div>
-          <div className="font-semibold">{title}</div>
-          <div className="text-sm mt-1">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
+const Sel = ({ value, onChange, options }) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+  >
+    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+  </select>
+);
 
-// Main Component
+const Row = ({ label, value, bold, accent, border }) => (
+  <div className={`flex justify-between py-1.5 ${border ? 'border-t border-gray-600 mt-1 pt-2' : ''}`}>
+    <span className={`text-sm ${bold ? 'font-semibold text-white' : 'text-gray-400'}`}>{label}</span>
+    <span className={`text-sm font-mono ${accent === 'green' ? 'text-emerald-400 font-semibold' : accent === 'red' ? 'text-red-400 font-semibold' : bold ? 'font-semibold text-white' : 'text-gray-200'}`}>
+      {value}
+    </span>
+  </div>
+);
+
+// --- Main Component ---
 export default function DealAnalyzerPage() {
-  // Property inputs
-  const [address, setAddress] = useState('');
-  const [market, setMarket] = useState('travelers_rest');
-  const [askingPrice, setAskingPrice] = useState('');
-  const [lotSizeSf, setLotSizeSf] = useState('');
-  
-  // Zoning & Environmental
-  const [zoning, setZoning] = useState('R-1');
-  const [floodZone, setFloodZone] = useState('X');
-  const [wetlandsPercent, setWetlandsPercent] = useState('0');
-  const [avgSlope, setAvgSlope] = useState('5');
-  
-  // Utilities
-  const [hasWater, setHasWater] = useState(true);
-  const [hasSewer, setHasSewer] = useState(true);
-  const [hasElectric, setHasElectric] = useState(true);
-  const [hasGas, setHasGas] = useState(false);
-  const [utilityDistance, setUtilityDistance] = useState('100');
-  
-  // Comps
-  const [avgCompPrice, setAvgCompPrice] = useState('');
-  const [avgDaysOnMarket, setAvgDaysOnMarket] = useState('30');
-  
-  // Analysis state
-  const [analysis, setAnalysis] = useState(null);
-  const [showResults, setShowResults] = useState(false);
+  const [searchParams] = useSearchParams();
+  const opportunityId = searchParams.get('opportunityId') || null;
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const runAnalysis = useCallback(() => {
-    const lotSize = parseInt(lotSizeSf) || 0;
-    const price = parseInt(askingPrice) || 0;
-    const marketConfig = MARKETS[market];
-    
-    // Check instant disqualifiers
-    const disqualifiers = [];
-    if (['A', 'AE', 'AO', 'AH'].includes(floodZone)) disqualifiers.push('Flood Zone A/AE');
-    if (!hasWater && parseInt(utilityDistance) > 500) disqualifiers.push('No water within 500ft');
-    if (['C-1', 'C-2', 'I-1', 'I-2'].includes(zoning)) disqualifiers.push('Prohibited zoning');
-    if (parseInt(wetlandsPercent) > 25) disqualifiers.push('Wetlands > 25%');
-    if (parseInt(avgSlope) > 25) disqualifiers.push('Slope > 25%');
-    if (lotSize > 0 && price / lotSize > 15) disqualifiers.push('Price/SF > $15');
-    
-    const passedBuyBox = disqualifiers.length === 0;
-    
-    // Calculate scores
-    const demographicsScore = 75;
-    const incomeScore = 80;
-    const compScore = avgCompPrice ? Math.min(100, Math.max(0, 100 - Math.abs((parseInt(avgCompPrice) - marketConfig.avgSalePrice) / marketConfig.avgSalePrice * 100))) : 70;
-    const lotScore = lotSize >= 6500 ? 85 : lotSize >= 5000 ? 70 : 50;
-    const infraScore = (hasWater ? 25 : 0) + (hasSewer ? 25 : 0) + (hasElectric ? 20 : 0) + (hasGas ? 10 : 0) + (parseInt(utilityDistance) < 200 ? 20 : 10);
-    
-    const weights = marketConfig.weights;
-    const finalScore = Math.round(
-      demographicsScore * weights.demographics +
-      incomeScore * weights.income +
-      compScore * weights.comps +
-      lotScore * weights.lot +
-      infraScore * weights.infra
-    );
-    
-    // Determine product
-    const recommendedProduct = getRecommendedProduct(lotSize, market);
-    const product = PRODUCTS[recommendedProduct];
-    
-    // Calculate scattered lot scenario
-    const utilityConnections = (hasWater ? COST_ASSUMPTIONS.waterTap : 0) +
-      (hasSewer ? COST_ASSUMPTIONS.sewerTap : 0) +
-      (hasElectric ? COST_ASSUMPTIONS.electricService : 0) +
-      (hasGas ? COST_ASSUMPTIONS.gasService : 0);
-    
-    const sitePrep = lotSize * COST_ASSUMPTIONS.sitePrepPerSf;
-    const closingCosts = price * 0.02;
-    const holdingCosts = price * COST_ASSUMPTIONS.landLoanRate * (3/12);
-    
-    const landBasis = price + closingCosts + sitePrep + utilityConnections + COST_ASSUMPTIONS.impactFees + holdingCosts;
-    
-    const constructionCost = product.sqFt * product.costPerSf;
-    const softCosts = constructionCost * COST_ASSUMPTIONS.softCostsPct;
-    const constructionFinancing = constructionCost * COST_ASSUMPTIONS.constructionLoanRate * 0.5;
-    
-    const totalProjectCost = landBasis + constructionCost + softCosts + constructionFinancing;
-    
-    const projectedSalePrice = avgCompPrice ? parseInt(avgCompPrice) : (product.priceRange[0] + product.priceRange[1]) / 2;
-    const salesCosts = projectedSalePrice * (COST_ASSUMPTIONS.salesCommission + COST_ASSUMPTIONS.closingCosts);
-    const netProceeds = projectedSalePrice - salesCosts;
-    const grossProfit = netProceeds - totalProjectCost;
-    const grossMargin = grossProfit / projectedSalePrice;
-    const roi = grossProfit / totalProjectCost;
-    const landBasisPercent = landBasis / projectedSalePrice;
-    
-    const passes25Rule = landBasisPercent <= 0.25;
-    const maxLandBasis = marketConfig.maxLandBasis;
-    
-    const scatteredViable = lotSize >= 5000 && lotSize <= 20000 && passedBuyBox && passes25Rule;
-    const subdivisionViable = lotSize >= 217800 && passedBuyBox;
-    const btrViable = lotSize >= 217800 && ['R-2', 'R-3', 'PD'].includes(zoning) && passedBuyBox;
-    const lotDevViable = lotSize >= 217800 && passedBuyBox;
-    
-    let recommendation = 'PASS';
-    let confidence = 'HIGH';
-    
-    if (!passedBuyBox) {
-      recommendation = 'PASS';
-      confidence = 'HIGH';
-    } else if (scatteredViable && grossMargin >= 0.18 && roi >= 0.20 && passes25Rule) {
-      if (finalScore >= 80 && grossMargin >= 0.22) {
-        recommendation = 'STRONG_BUY';
-        confidence = 'HIGH';
-      } else if (finalScore >= 70) {
-        recommendation = 'BUY';
-        confidence = finalScore >= 75 ? 'HIGH' : 'MEDIUM';
-      } else if (finalScore >= 60) {
-        recommendation = 'HOLD';
-        confidence = 'MEDIUM';
-      } else {
-        recommendation = 'PASS';
-        confidence = 'MEDIUM';
-      }
-    } else if (finalScore >= 60 && (grossMargin >= 0.15 || !passes25Rule)) {
-      recommendation = 'HOLD';
-      confidence = 'LOW';
-    }
-    
-    const targetLandBasis = projectedSalePrice * 0.22;
-    const maxOffer = targetLandBasis - closingCosts - sitePrep - utilityConnections - COST_ASSUMPTIONS.impactFees - holdingCosts;
-    
-    setAnalysis({
-      passedBuyBox,
-      disqualifiers,
-      scores: { demographics: demographicsScore, income: incomeScore, comps: compScore, lot: lotScore, infrastructure: infraScore },
-      finalScore,
-      recommendedProduct,
-      scattered: {
-        viable: scatteredViable,
-        landBasis,
-        constructionCost,
-        totalProjectCost,
-        projectedSalePrice,
-        netProceeds,
-        grossProfit,
-        grossMargin,
-        roi,
-        landBasisPercent,
-        passes25Rule
-      },
-      subdivision: { viable: subdivisionViable },
-      btr: { viable: btrViable },
-      lotDev: { viable: lotDevViable },
-      recommendation,
-      confidence,
-      maxOffer: Math.max(0, maxOffer),
-      maxLandBasis
-    });
-    
-    setShowResults(true);
-  }, [address, market, askingPrice, lotSizeSf, zoning, floodZone, wetlandsPercent, avgSlope, hasWater, hasSewer, hasElectric, hasGas, utilityDistance, avgCompPrice, avgDaysOnMarket]);
+  // Property
+  const [address, setAddress] = useState(searchParams.get('address') || '');
+  const [municipality, setMunicipality] = useState(searchParams.get('municipality') || 'Greenville County');
+  const [lotSize, setLotSize] = useState(searchParams.get('lot_size') || '');
 
-  const getRecommendationColor = (rec) => {
-    switch(rec) {
-      case 'STRONG_BUY': return 'bg-green-600';
-      case 'BUY': return 'bg-green-500';
-      case 'HOLD': return 'bg-yellow-500';
-      case 'PASS': return 'bg-red-500';
-      default: return 'bg-gray-500';
+  // Acquisition
+  const [askingPrice, setAskingPrice] = useState(searchParams.get('asking_price') || '');
+  const [ourOffer, setOurOffer] = useState(searchParams.get('our_offer') || '');
+  const [earnestMoney, setEarnestMoney] = useState('5000');
+  const [buyerClosing, setBuyerClosing] = useState('3500');
+
+  // Construction
+  const [plan, setPlan] = useState('cherry');
+  const [baseBuildOverride, setBaseBuildOverride] = useState('');
+  const [lotPrep, setLotPrep] = useState('16000');
+  const [softCosts, setSoftCosts] = useState('21000');
+  const [upgradePkg, setUpgradePkg] = useState('standard');
+  const [contingencyPct, setContingencyPct] = useState('5');
+
+  // Sale
+  const [salePrice, setSalePrice] = useState(searchParams.get('sale_price') || '');
+  const [commissionPct, setCommissionPct] = useState('3.0');
+  const [sellerClosingPct, setSellerClosingPct] = useState('2.0');
+
+  // Financing
+  const [loanRate, setLoanRate] = useState('8.5');
+  const [loanTerm, setLoanTerm] = useState('10');
+  const [ltcPct, setLtcPct] = useState('85');
+
+  // --- Auto-calculated analysis ---
+  const analysis = useMemo(() => {
+    const n = (v) => parseFloat(v) || 0;
+
+    // Uses
+    const landCost = n(ourOffer) || n(askingPrice);
+    const closingBuyer = n(buyerClosing);
+    const baseBuild = n(baseBuildOverride) || PLANS[plan]?.baseCost || 0;
+    const lotPrepCost = n(lotPrep);
+    const softCostAmt = n(softCosts);
+    const upgradeAmt = UPGRADE_PACKAGES[upgradePkg]?.cost || 0;
+    const hardCosts = baseBuild + lotPrepCost + softCostAmt + upgradeAmt;
+    const contingency = hardCosts * (n(contingencyPct) / 100);
+    const totalConstruction = hardCosts + contingency;
+
+    // Total uses before carry (needed to calc loan, then carry)
+    const usesBeforeCarry = landCost + closingBuyer + totalConstruction;
+    const loanAmt = usesBeforeCarry * (n(ltcPct) / 100);
+    const carryCosts = loanAmt * (n(loanRate) / 100) * (n(loanTerm) / 12);
+    const totalUses = usesBeforeCarry + carryCosts;
+
+    // Sources
+    const cashEquity = totalUses - loanAmt;
+
+    // Sale
+    const projSale = n(salePrice);
+    const commission = projSale * (n(commissionPct) / 100);
+    const sellerClosing = projSale * (n(sellerClosingPct) / 100);
+    const netProceeds = projSale - commission - sellerClosing;
+
+    // Returns
+    const netProfit = netProceeds - totalUses;
+    const marginPct = projSale > 0 ? (netProfit / projSale) * 100 : 0;
+    const roiTotal = totalUses > 0 ? (netProfit / totalUses) * 100 : 0;
+    const roiCash = cashEquity > 0 ? (netProfit / cashEquity) * 100 : 0;
+
+    return {
+      landCost, closingBuyer, baseBuild, lotPrepCost, softCostAmt, upgradeAmt,
+      hardCosts, contingency, totalConstruction, carryCosts, totalUses,
+      loanAmt, cashEquity,
+      projSale, commission, sellerClosing, netProceeds,
+      netProfit, marginPct, roiTotal, roiCash,
+    };
+  }, [askingPrice, ourOffer, buyerClosing, plan, baseBuildOverride, lotPrep, softCosts, upgradePkg, contingencyPct, salePrice, commissionPct, sellerClosingPct, loanRate, loanTerm, ltcPct]);
+
+  // Verdict
+  const verdict = analysis.marginPct > 15 ? 'GO' : analysis.marginPct >= 10 ? 'MARGINAL' : 'PASS';
+
+  // --- Save to opportunity ---
+  const handleSave = async () => {
+    if (!opportunityId) return;
+    setSaving(true);
+    try {
+      const snapshot = {
+        saved_at: new Date().toISOString(),
+        inputs: {
+          address, municipality, lotSize, askingPrice, ourOffer, earnestMoney,
+          buyerClosing, plan, baseBuildOverride, lotPrep, softCosts, upgradePkg,
+          contingencyPct, salePrice, commissionPct, sellerClosingPct,
+          loanRate, loanTerm, ltcPct,
+        },
+        outputs: { ...analysis, verdict },
+      };
+      await supabase
+        .from('opportunities')
+        .update({ deal_analysis: snapshot, updated_at: new Date().toISOString() })
+        .eq('id', opportunityId);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getScoreInterpretation = (score) => {
-    if (score >= 90) return 'EXCELLENT';
-    if (score >= 80) return 'VERY GOOD';
-    if (score >= 70) return 'GOOD';
-    if (score >= 60) return 'ACCEPTABLE';
-    if (score >= 50) return 'MARGINAL';
-    return 'POOR';
+  // --- Copy to clipboard ---
+  const handleCopy = () => {
+    const a = analysis;
+    const text = [
+      `SOURCES & USES PRO FORMA`,
+      `${address || 'No address'} | ${municipality}`,
+      `Plan: ${PLANS[plan]?.name} ${PLANS[plan]?.sqft}sf | ${UPGRADE_PACKAGES[upgradePkg]?.label} upgrades`,
+      ``,
+      `SOURCES OF FUNDS`,
+      `  Your Cash (Equity)     ${fmt(a.cashEquity)}`,
+      `  Construction Loan      ${fmt(a.loanAmt)}`,
+      `  = Total Sources        ${fmt(a.totalUses)}`,
+      ``,
+      `USES OF FUNDS`,
+      `  Land Acquisition       ${fmt(a.landCost)}`,
+      `  Acquisition Closing    ${fmt(a.closingBuyer)}`,
+      `  Base Build Cost        ${fmt(a.baseBuild)}`,
+      `  Lot Prep               ${fmt(a.lotPrepCost)}`,
+      `  Soft Costs             ${fmt(a.softCostAmt)}`,
+      `  Upgrade Delta          ${fmt(a.upgradeAmt)}`,
+      `  Contingency (${contingencyPct}%)      ${fmt(a.contingency)}`,
+      `  Carry Costs            ${fmt(a.carryCosts)}`,
+      `  = Total Uses           ${fmt(a.totalUses)}`,
+      ``,
+      `RETURNS`,
+      `  Projected Sale Price   ${fmt(a.projSale)}`,
+      `  Less: Commission       (${fmt(a.commission)})`,
+      `  Less: Closing Costs    (${fmt(a.sellerClosing)})`,
+      `  = Net Proceeds         ${fmt(a.netProceeds)}`,
+      ``,
+      `  Net Profit             ${fmt(a.netProfit)}`,
+      `  Gross Margin           ${fmtPct(a.marginPct)}`,
+      `  ROI (Total Cost)       ${fmtPct(a.roiTotal)}`,
+      `  ROI (Cash Invested)    ${fmtPct(a.roiCash)}`,
+      `  Cash Required          ${fmt(a.cashEquity)}`,
+      ``,
+      `  Verdict: ${verdict}`,
+    ].join('\n');
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white flex items-center">
-                📊 Red Cedar Deal Analyzer
-              </h1>
-              <p className="text-gray-400 mt-1">Evaluate scattered lot and development opportunities</p>
-            </div>
-            <div className="text-right text-sm text-gray-400">
-              <div>25% Rule Active</div>
-              <div>Greenville Metro Markets</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Section */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-5 mb-6 flex items-center justify-between">
           <div>
-            <Section title="📍 Property Information">
-              <InputField
-                label="Property Address"
-                value={address}
-                onChange={setAddress}
-                placeholder="123 Main St, Greenville, SC"
-              />
-              <SelectField
-                label="Target Market"
-                value={market}
-                onChange={setMarket}
-                options={Object.entries(MARKETS).map(([key, val]) => ({ value: key, label: val.name }))}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <InputField
-                  label="Asking Price"
-                  value={askingPrice}
-                  onChange={setAskingPrice}
-                  type="number"
-                  prefix="$"
-                />
-                <InputField
-                  label="Lot Size"
-                  value={lotSizeSf}
-                  onChange={setLotSizeSf}
-                  type="number"
-                  suffix="SF"
-                />
-              </div>
-            </Section>
-            
-            <Section title="🏛️ Zoning & Environmental" defaultOpen={false}>
-              <div className="grid grid-cols-2 gap-4">
-                <SelectField
-                  label="Zoning"
-                  value={zoning}
-                  onChange={setZoning}
-                  options={[
-                    { value: 'R-1', label: 'R-1 (Single Family)' },
-                    { value: 'R-2', label: 'R-2 (Single Family)' },
-                    { value: 'R-3', label: 'R-3 (Multi-Family)' },
-                    { value: 'PD', label: 'PD (Planned Dev)' },
-                    { value: 'MX', label: 'MX (Mixed Use)' },
-                    { value: 'C-1', label: 'C-1 (Commercial)' },
-                    { value: 'I-1', label: 'I-1 (Industrial)' }
-                  ]}
-                />
-                <SelectField
-                  label="FEMA Flood Zone"
-                  value={floodZone}
-                  onChange={setFloodZone}
-                  options={[
-                    { value: 'X', label: 'Zone X (Minimal)' },
-                    { value: 'X500', label: 'Zone X (500-yr)' },
-                    { value: 'AE', label: 'Zone AE (High Risk)' },
-                    { value: 'A', label: 'Zone A (High Risk)' }
-                  ]}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <InputField
-                  label="Wetlands Coverage"
-                  value={wetlandsPercent}
-                  onChange={setWetlandsPercent}
-                  type="number"
-                  suffix="%"
-                />
-                <InputField
-                  label="Average Slope"
-                  value={avgSlope}
-                  onChange={setAvgSlope}
-                  type="number"
-                  suffix="%"
-                />
-              </div>
-            </Section>
-            
-            <Section title="⚡ Utilities" defaultOpen={false}>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <CheckboxField label="Municipal Water" checked={hasWater} onChange={setHasWater} />
-                  <CheckboxField label="Municipal Sewer" checked={hasSewer} onChange={setHasSewer} />
-                </div>
-                <div>
-                  <CheckboxField label="Electric Available" checked={hasElectric} onChange={setHasElectric} />
-                  <CheckboxField label="Natural Gas" checked={hasGas} onChange={setHasGas} />
-                </div>
-              </div>
-              <InputField
-                label="Distance to Utilities"
-                value={utilityDistance}
-                onChange={setUtilityDistance}
-                type="number"
-                suffix="ft"
-              />
-            </Section>
-            
-            <Section title="📊 Market Comps" defaultOpen={false}>
-              <InputField
-                label="Average Comp Sale Price"
-                value={avgCompPrice}
-                onChange={setAvgCompPrice}
-                type="number"
-                prefix="$"
-                help="Leave blank to use market default"
-              />
-              <InputField
-                label="Avg Days on Market"
-                value={avgDaysOnMarket}
-                onChange={setAvgDaysOnMarket}
-                type="number"
-                suffix="days"
-              />
-            </Section>
-            
+            <h1 className="text-xl font-bold text-white">Sources & Uses Pro Forma</h1>
+            <p className="text-sm text-gray-400 mt-1">Scattered lot build-to-sell calculator</p>
+          </div>
+          <div className="flex gap-2">
             <button
-              onClick={runAnalysis}
-              disabled={!lotSizeSf || !askingPrice}
-              className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+              onClick={handleCopy}
+              className="px-4 py-2 bg-gray-700 text-gray-200 text-sm rounded hover:bg-gray-600 transition-colors"
             >
-              Run Analysis
+              {copied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
-          </div>
-          
-          {/* Results Section */}
-          <div>
-            {!showResults ? (
-              <div className="bg-gray-800 rounded-lg shadow-sm p-8 text-center border border-gray-700">
-                <div className="text-6xl mb-4">📊</div>
-                <h3 className="text-lg font-medium text-gray-400">Enter property details and click &quot;Run Analysis&quot;</h3>
-                <p className="text-sm text-gray-500 mt-2">Analysis will evaluate against buy box criteria and calculate returns</p>
-              </div>
-            ) : analysis && (
-              <>
-                {/* Recommendation Banner */}
-                <div className={`${getRecommendationColor(analysis.recommendation)} text-white rounded-lg p-6 mb-4`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm opacity-80">Recommendation</div>
-                      <div className="text-3xl font-bold">{analysis.recommendation.replace('_', ' ')}</div>
-                      <div className="text-sm opacity-80 mt-1">Confidence: {analysis.confidence}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm opacity-80">Score</div>
-                      <div className="text-4xl font-bold">{analysis.finalScore}</div>
-                      <div className="text-sm opacity-80">{getScoreInterpretation(analysis.finalScore)}</div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Disqualifiers */}
-                {analysis.disqualifiers.length > 0 && (
-                  <Alert type="error" title="Instant Disqualifiers Triggered">
-                    <ul className="list-disc list-inside">
-                      {analysis.disqualifiers.map((d, i) => <li key={i}>{d}</li>)}
-                    </ul>
-                  </Alert>
-                )}
-                
-                {/* 25% Rule */}
-                {analysis.scattered.viable && (
-                  <Alert 
-                    type={analysis.scattered.passes25Rule ? 'success' : 'warning'} 
-                    title="25% Rule Check"
-                  >
-                    Land Basis: {formatCurrency(analysis.scattered.landBasis)} ({formatPercent(analysis.scattered.landBasisPercent)} of sale price)
-                    <br />
-                    Max Allowed: {formatCurrency(analysis.maxLandBasis)} (25% of avg sale price)
-                  </Alert>
-                )}
-                
-                {/* Key Metrics */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <ResultCard
-                    title="Max Offer Price"
-                    value={formatCurrency(analysis.maxOffer)}
-                    subtitle="To meet 25% rule with margin"
-                  />
-                  <ResultCard
-                    title="Recommended Product"
-                    value={PRODUCTS[analysis.recommendedProduct]?.name || '-'}
-                    subtitle={`${PRODUCTS[analysis.recommendedProduct]?.sqFt} SF`}
-                  />
-                </div>
-                
-                {/* Scores */}
-                <Section title="📈 Scoring Breakdown">
-                  <ScoreBar score={analysis.scores.demographics} label="Demographics" />
-                  <ScoreBar score={analysis.scores.income} label="Income Fit" />
-                  <ScoreBar score={analysis.scores.comps} label="Comp Alignment" />
-                  <ScoreBar score={analysis.scores.lot} label="Lot Characteristics" />
-                  <ScoreBar score={analysis.scores.infrastructure} label="Infrastructure" />
-                </Section>
-                
-                {/* Scattered Lot Analysis */}
-                {analysis.scattered.viable && (
-                  <Section title="🏠 Scattered Lot Analysis">
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <ResultCard
-                        title="Gross Profit"
-                        value={formatCurrency(analysis.scattered.grossProfit)}
-                        trend={parseFloat(((analysis.scattered.grossMargin - 0.18) / 0.18 * 100).toFixed(0))}
-                      />
-                      <ResultCard
-                        title="ROI"
-                        value={formatPercent(analysis.scattered.roi)}
-                        trend={parseFloat(((analysis.scattered.roi - 0.20) / 0.20 * 100).toFixed(0))}
-                      />
-                    </div>
-                    <div className="bg-gray-800 rounded-lg p-4 text-sm border border-gray-700">
-                      <div className="grid grid-cols-2 gap-2 text-gray-300">
-                        <div>Land Basis:</div><div className="text-right font-medium text-white">{formatCurrency(analysis.scattered.landBasis)}</div>
-                        <div>Construction:</div><div className="text-right font-medium text-white">{formatCurrency(analysis.scattered.constructionCost)}</div>
-                        <div>Total Project Cost:</div><div className="text-right font-medium text-white">{formatCurrency(analysis.scattered.totalProjectCost)}</div>
-                        <div className="border-t border-gray-700 pt-2">Projected Sale:</div><div className="text-right font-medium border-t border-gray-700 pt-2 text-white">{formatCurrency(analysis.scattered.projectedSalePrice)}</div>
-                        <div>Net Proceeds:</div><div className="text-right font-medium text-white">{formatCurrency(analysis.scattered.netProceeds)}</div>
-                        <div className="font-semibold">Gross Profit:</div><div className="text-right font-bold text-green-400">{formatCurrency(analysis.scattered.grossProfit)}</div>
-                      </div>
-                    </div>
-                  </Section>
-                )}
-                
-                {/* Other Scenarios */}
-                <Section title="🏗️ Other Development Scenarios" defaultOpen={false}>
-                  <div className="space-y-3">
-                    <div className={`p-3 rounded-lg ${analysis.subdivision.viable ? 'bg-green-900/30 border border-green-700' : 'bg-gray-800 border border-gray-700'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-white">Subdivision For-Sale</span>
-                        <span className={analysis.subdivision.viable ? 'text-green-400' : 'text-gray-500'}>
-                          {analysis.subdivision.viable ? 'Viable' : 'Not Viable (< 5 acres)'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={`p-3 rounded-lg ${analysis.btr.viable ? 'bg-green-900/30 border border-green-700' : 'bg-gray-800 border border-gray-700'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-white">Build-to-Rent</span>
-                        <span className={analysis.btr.viable ? 'text-green-400' : 'text-gray-500'}>
-                          {analysis.btr.viable ? 'Viable' : 'Not Viable'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={`p-3 rounded-lg ${analysis.lotDev.viable ? 'bg-green-900/30 border border-green-700' : 'bg-gray-800 border border-gray-700'}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-white">Lot Development</span>
-                        <span className={analysis.lotDev.viable ? 'text-green-400' : 'text-gray-500'}>
-                          {analysis.lotDev.viable ? 'Viable' : 'Not Viable (< 5 acres)'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Section>
-                
-                {/* Next Steps */}
-                <Section title="✅ Next Steps">
-                  <ul className="space-y-2">
-                    {analysis.recommendation === 'PASS' ? (
-                      <>
-                        <li className="flex items-center text-red-400">
-                          <span className="mr-2">✗</span>
-                          Property does not meet investment criteria
-                        </li>
-                        <li className="flex items-center text-gray-400">
-                          <span className="mr-2">ℹ</span>
-                          Archive and move to next opportunity
-                        </li>
-                      </>
-                    ) : analysis.recommendation === 'HOLD' ? (
-                      <>
-                        <li className="flex items-center text-yellow-400">
-                          <span className="mr-2">⚠️</span>
-                          Requires price negotiation or additional due diligence
-                        </li>
-                        <li className="flex items-center text-gray-400">
-                          <span className="mr-2">ℹ</span>
-                          Counter offer at {formatCurrency(analysis.maxOffer)} or below
-                        </li>
-                      </>
-                    ) : (
-                      <>
-                        <li className="flex items-center text-green-400">
-                          <span className="mr-2">✓</span>
-                          Schedule site visit
-                        </li>
-                        <li className="flex items-center text-gray-400">
-                          <span className="mr-2">ℹ</span>
-                          Order title search and survey
-                        </li>
-                        <li className="flex items-center text-gray-400">
-                          <span className="mr-2">ℹ</span>
-                          Verify utility connections with municipality
-                        </li>
-                        <li className="flex items-center text-gray-400">
-                          <span className="mr-2">ℹ</span>
-                          Submit offer at {formatCurrency(Math.min(parseInt(askingPrice) || 0, analysis.maxOffer))}
-                        </li>
-                      </>
-                    )}
-                  </ul>
-                </Section>
-              </>
+            {opportunityId && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 bg-emerald-700 text-white text-sm rounded hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Saving...' : 'Save Analysis'}
+              </button>
             )}
           </div>
         </div>
-        
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Red Cedar Homes Deal Analyzer v1.0 | 25% Rule: Land + Prep ≤ 25% of Sale Price</p>
-          <p className="mt-1">Target Markets: Nickeltown, Travelers Rest, Taylors, Greer</p>
+
+        <div className="grid grid-cols-5 gap-6">
+          {/* LEFT COLUMN — INPUTS (2/5 = 40%) */}
+          <div className="col-span-2 space-y-4">
+            {/* Property */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Property</h3>
+              <Field label="Address">
+                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St, Greenville, SC" className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500" />
+              </Field>
+              <Field label="Municipality">
+                <Sel value={municipality} onChange={setMunicipality} options={MUNICIPALITIES.map(m => ({ value: m, label: m }))} />
+              </Field>
+              <Field label="Lot Size (sf)">
+                <NumInput value={lotSize} onChange={setLotSize} suffix="sf" placeholder="10890" />
+              </Field>
+            </div>
+
+            {/* Acquisition */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Acquisition</h3>
+              <Field label="Asking Price"><NumInput value={askingPrice} onChange={setAskingPrice} prefix="$" placeholder="200000" /></Field>
+              <Field label="Our Offer"><NumInput value={ourOffer} onChange={setOurOffer} prefix="$" placeholder="180000" /></Field>
+              <Field label="Earnest Money"><NumInput value={earnestMoney} onChange={setEarnestMoney} prefix="$" /></Field>
+              <Field label="Closing Costs — Buyer"><NumInput value={buyerClosing} onChange={setBuyerClosing} prefix="$" /></Field>
+            </div>
+
+            {/* Construction */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Construction</h3>
+              <Field label="Plan">
+                <Sel value={plan} onChange={(v) => { setPlan(v); setBaseBuildOverride(''); }} options={Object.entries(PLANS).map(([k, p]) => ({ value: k, label: `${p.name} ${p.sqft.toLocaleString()}sf` }))} />
+              </Field>
+              <Field label={`Base Build Cost (${PLANS[plan]?.name})`}>
+                <NumInput value={baseBuildOverride || PLANS[plan]?.baseCost} onChange={setBaseBuildOverride} prefix="$" />
+              </Field>
+              <Field label="Lot Prep"><NumInput value={lotPrep} onChange={setLotPrep} prefix="$" /></Field>
+              <Field label="Soft Costs"><NumInput value={softCosts} onChange={setSoftCosts} prefix="$" /></Field>
+              <Field label="Upgrade Package">
+                <Sel value={upgradePkg} onChange={setUpgradePkg} options={Object.entries(UPGRADE_PACKAGES).map(([k, p]) => ({ value: k, label: `${p.label} (${fmt(p.cost)})` }))} />
+              </Field>
+              <Field label="Contingency %"><NumInput value={contingencyPct} onChange={setContingencyPct} suffix="%" /></Field>
+            </div>
+
+            {/* Sale */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Sale</h3>
+              <Field label="Projected Sale Price"><NumInput value={salePrice} onChange={setSalePrice} prefix="$" placeholder="380000" /></Field>
+              <Field label="Commission %"><NumInput value={commissionPct} onChange={setCommissionPct} suffix="%" /></Field>
+              <Field label="Seller Closing Costs %"><NumInput value={sellerClosingPct} onChange={setSellerClosingPct} suffix="%" /></Field>
+            </div>
+
+            {/* Financing */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Financing</h3>
+              <Field label="Construction Loan Rate %"><NumInput value={loanRate} onChange={setLoanRate} suffix="%" /></Field>
+              <Field label="Loan Term (months)"><NumInput value={loanTerm} onChange={setLoanTerm} suffix="mo" /></Field>
+              <Field label="LTC % (Loan-to-Cost)"><NumInput value={ltcPct} onChange={setLtcPct} suffix="%" /></Field>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN — ANALYSIS (3/5 = 60%) */}
+          <div className="col-span-3 space-y-4">
+            {/* Verdict */}
+            <div className={`rounded-lg p-6 border text-center ${
+              verdict === 'GO' ? 'bg-emerald-900/40 border-emerald-600' :
+              verdict === 'MARGINAL' ? 'bg-yellow-900/40 border-yellow-600' :
+              'bg-red-900/40 border-red-600'
+            }`}>
+              <div className={`text-4xl font-bold ${
+                verdict === 'GO' ? 'text-emerald-400' :
+                verdict === 'MARGINAL' ? 'text-yellow-400' :
+                'text-red-400'
+              }`}>
+                {verdict === 'GO' ? 'GO' : verdict === 'MARGINAL' ? 'MARGINAL' : 'PASS'}
+              </div>
+              <p className="text-sm text-gray-400 mt-1">
+                {verdict === 'GO' ? 'Margin > 15% — proceed with offer' :
+                 verdict === 'MARGINAL' ? 'Margin 10-15% — negotiate harder or reduce costs' :
+                 'Margin < 10% — does not meet criteria'}
+              </p>
+            </div>
+
+            {/* Sources & Uses */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
+              <h3 className="text-sm font-semibold text-white mb-4">Sources & Uses</h3>
+              <div className="grid grid-cols-2 gap-8">
+                {/* Sources */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Sources of Funds</p>
+                  <Row label="Your Cash (Equity)" value={fmt(analysis.cashEquity)} />
+                  <Row label={`Construction Loan (${ltcPct}%)`} value={fmt(analysis.loanAmt)} />
+                  <Row label="= Total Sources" value={fmt(analysis.totalUses)} bold border />
+                </div>
+                {/* Uses */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Uses of Funds</p>
+                  <Row label="Land Acquisition" value={fmt(analysis.landCost)} />
+                  <Row label="Acquisition Closing Costs" value={fmt(analysis.closingBuyer)} />
+                  <Row label="Base Build Cost" value={fmt(analysis.baseBuild)} />
+                  <Row label="Lot Prep" value={fmt(analysis.lotPrepCost)} />
+                  <Row label="Soft Costs" value={fmt(analysis.softCostAmt)} />
+                  <Row label="Upgrade Delta" value={fmt(analysis.upgradeAmt)} />
+                  <Row label={`Contingency (${contingencyPct}%)`} value={fmt(analysis.contingency)} />
+                  <Row label="Carry Costs (loan interest)" value={fmt(analysis.carryCosts)} />
+                  <Row label="= Total Uses" value={fmt(analysis.totalUses)} bold border />
+                </div>
+              </div>
+            </div>
+
+            {/* Returns */}
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
+              <h3 className="text-sm font-semibold text-white mb-4">Returns</h3>
+              <Row label="Projected Sale Price" value={fmt(analysis.projSale)} />
+              <Row label={`Less: Commission (${commissionPct}%)`} value={`(${fmt(analysis.commission)})`} />
+              <Row label={`Less: Closing Costs (${sellerClosingPct}%)`} value={`(${fmt(analysis.sellerClosing)})`} />
+              <Row label="= Net Proceeds" value={fmt(analysis.netProceeds)} bold border />
+
+              <div className="mt-4 pt-3 border-t border-gray-700 space-y-1">
+                <Row label="Net Profit" value={fmt(analysis.netProfit)} bold accent={analysis.netProfit >= 0 ? 'green' : 'red'} />
+                <Row label="Gross Margin" value={fmtPct(analysis.marginPct)} />
+                <Row label="ROI (on total cost)" value={fmtPct(analysis.roiTotal)} />
+                <Row label="ROI (on cash invested)" value={fmtPct(analysis.roiCash)} />
+                <Row label="Cash Required" value={fmt(analysis.cashEquity)} bold />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

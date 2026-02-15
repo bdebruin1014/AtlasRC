@@ -145,6 +145,19 @@ const ContractTemplatesPage = lazy(() => import('@/pages/operations/ContractTemp
 // Accounting Module Enhancements (Phase 12)
 const FinancialForecastingPage = lazy(() => import('@/pages/accounting/FinancialForecastingPage'));
 const InvestorPortalPage = lazy(() => import('@/pages/accounting/InvestorPortalPage'));
+const ConsolidationPage = lazy(() => import('@/pages/accounting/ConsolidationPage'));
+
+// Accounting — Entity sub-pages (Equity, Tax, Assets, Reports)
+const CapitalContributionsPage = lazy(() => import('@/pages/accounting/CapitalContributionsPage'));
+const DistributionsPage = lazy(() => import('@/pages/accounting/DistributionsPage'));
+const DepreciationSchedulePage = lazy(() => import('@/pages/accounting/DepreciationSchedulePage'));
+const TaxTrackingPage = lazy(() => import('@/pages/accounting/TaxTrackingPage'));
+const FixedAssetManagementPage = lazy(() => import('@/pages/accounting/FixedAssetManagementPage'));
+const BudgetVsActualPage = lazy(() => import('@/pages/accounting/BudgetVsActualPage'));
+const FinancialRatiosDashboardPage = lazy(() => import('@/pages/accounting/FinancialRatiosDashboardPage'));
+const CustomersPage = lazy(() => import('@/pages/accounting/CustomersPage'));
+const CreditCardsPage = lazy(() => import('@/pages/accounting/CreditCardsPage'));
+const RecurringJournalEntriesPage = lazy(() => import('@/pages/accounting/RecurringJournalEntriesPage'));
 
 // ============================================
 // OPERATIONS ENHANCEMENTS
@@ -649,11 +662,11 @@ const AppContent = () => (
 
     {/* Global accounting tools (no entity context) */}
     <Route path="/accounting/dashboard" element={<ProtectedRoute><AppLayout><AccountingDashboardPage /></AppLayout></ProtectedRoute>} />
-    {/* HIDDEN - Atlas Simplification */}
-    {/* <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/accounting/chart-of-accounts" element={<ProtectedRoute><AppLayout><ChartOfAccountsPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} /> */}
+    <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/chart-of-accounts" element={<ProtectedRoute><AppLayout><ChartOfAccountsPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/consolidation" element={<ProtectedRoute><AppLayout><ConsolidationPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ENTITY ACCOUNTING ROUTES - Canonical Pattern: /accounting/entities/:entityId/... */}
@@ -678,7 +691,7 @@ const AppContent = () => (
       <Route path="bank-accounts/:bankAccountId/transactions" element={<Suspense fallback={<LoadingState />}><BankTransactionsPage /></Suspense>} />
       <Route path="bank-accounts/:bankAccountId/reconcile" element={<Suspense fallback={<LoadingState />}><BankReconciliationPage /></Suspense>} />
       <Route path="bank-feeds" element={<Suspense fallback={<LoadingState />}><BankFeedsPage /></Suspense>} />
-      <Route path="credit-cards" element={<Suspense fallback={<LoadingState />}><BankAccountsPage /></Suspense>} />
+      <Route path="credit-cards" element={<Suspense fallback={<LoadingState />}><CreditCardsPage /></Suspense>} />
 
       {/* TRANSACTIONS */}
       <Route path="transactions" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
@@ -691,7 +704,7 @@ const AppContent = () => (
       <Route path="invoices" element={<Suspense fallback={<LoadingState />}><EntityInvoicesPage /></Suspense>} />
       <Route path="invoices/new" element={<Suspense fallback={<LoadingState />}><EntityInvoicesPage /></Suspense>} />
       <Route path="invoices/:invoiceId" element={<Suspense fallback={<LoadingState />}><EntityInvoicesPage /></Suspense>} />
-      <Route path="customers" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="customers" element={<Suspense fallback={<LoadingState />}><CustomersPage /></Suspense>} />
       <Route path="ar-aging" element={<Suspense fallback={<LoadingState />}><ARAgingReportPage /></Suspense>} />
 
       {/* PAYABLES (AP) */}
@@ -730,6 +743,23 @@ const AppContent = () => (
       <Route path="files" element={<Suspense fallback={<LoadingState />}><EntityFilesPage /></Suspense>} />
       <Route path="communications" element={<Suspense fallback={<LoadingState />}><EntityCommunicationsPage /></Suspense>} />
       <Route path="settings" element={<Suspense fallback={<LoadingState />}><EntityAccountingSettingsPage /></Suspense>} />
+
+      {/* EQUITY & OWNERSHIP */}
+      <Route path="ownership" element={<Suspense fallback={<LoadingState />}><EntityOwnershipPage /></Suspense>} />
+      <Route path="capital-contributions" element={<Suspense fallback={<LoadingState />}><CapitalContributionsPage /></Suspense>} />
+      <Route path="distributions" element={<Suspense fallback={<LoadingState />}><DistributionsPage /></Suspense>} />
+
+      {/* TAX & ASSETS */}
+      <Route path="depreciation" element={<Suspense fallback={<LoadingState />}><DepreciationSchedulePage /></Suspense>} />
+      <Route path="tax-tracking" element={<Suspense fallback={<LoadingState />}><TaxTrackingPage /></Suspense>} />
+      <Route path="fixed-assets" element={<Suspense fallback={<LoadingState />}><FixedAssetManagementPage /></Suspense>} />
+
+      {/* ADDITIONAL REPORTS */}
+      <Route path="budget-vs-actual" element={<Suspense fallback={<LoadingState />}><BudgetVsActualPage /></Suspense>} />
+      <Route path="financial-ratios" element={<Suspense fallback={<LoadingState />}><FinancialRatiosDashboardPage /></Suspense>} />
+
+      {/* RECURRING */}
+      <Route path="recurring-journal-entries" element={<Suspense fallback={<LoadingState />}><RecurringJournalEntriesPage /></Suspense>} />
 
       {/* Catch-all for unbuilt pages */}
       <Route path="*" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
