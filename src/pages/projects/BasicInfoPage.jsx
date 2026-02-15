@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Save, Building2, Users, Calendar, CheckCircle, Plus, Search, X } from 'lucide-react';
+import { Save, Building2, Users, Calendar, CheckCircle, Plus, Search, X, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,15 @@ const BasicInfoPage = () => {
     description: 'Spec home build in Highland Park subdivision',
     startDate: '2025-01-15',
     targetCompletion: '2025-08-30',
+    // Address & Location
+    address: '',
+    city: 'Greenville',
+    state: 'SC',
+    zip: '',
+    county: 'Greenville County',
+    parcelId: '',
+    lotSize: '',
+    zoning: '',
   });
 
   // Load teams on mount
@@ -207,6 +216,99 @@ const BasicInfoPage = () => {
                   rows={3}
                   className={inputClass}
                   placeholder="Enter project description..."
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Address & Location */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-[#2F855A]" />
+              Address & Location
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                <input
+                  type="text"
+                  value={formData.address || ''}
+                  onChange={(e) => updateField('address', e.target.value)}
+                  className={inputClass}
+                  placeholder="123 Main Street"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input
+                  type="text"
+                  value={formData.city || 'Greenville'}
+                  onChange={(e) => updateField('city', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                <input
+                  type="text"
+                  value={formData.state || 'SC'}
+                  onChange={(e) => updateField('state', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+                <input
+                  type="text"
+                  value={formData.zip || ''}
+                  onChange={(e) => updateField('zip', e.target.value)}
+                  className={inputClass}
+                  placeholder="29601"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
+                <input
+                  type="text"
+                  value={formData.county || ''}
+                  onChange={(e) => updateField('county', e.target.value)}
+                  className={inputClass}
+                  placeholder="Greenville County"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parcel / Tax ID</label>
+                <input
+                  type="text"
+                  value={formData.parcelId || ''}
+                  onChange={(e) => updateField('parcelId', e.target.value)}
+                  className={inputClass}
+                  placeholder="0123-45-67-890"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lot Size (acres)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.lotSize || ''}
+                  onChange={(e) => updateField('lotSize', e.target.value)}
+                  className={inputClass}
+                  placeholder="0.25"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Zoning</label>
+                <input
+                  type="text"
+                  value={formData.zoning || ''}
+                  onChange={(e) => updateField('zoning', e.target.value)}
+                  className={inputClass}
+                  placeholder="R-1, PD, C-2..."
                 />
               </div>
             </div>

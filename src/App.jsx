@@ -354,6 +354,12 @@ const ConstructionPageWrapper = ({ Component, ...props }) => {
   return <Component projectId={houseId} {...props} />;
 };
 
+// Redirect /project/:projectId/overview to /project/:projectId
+const ProjectOverviewRedirect = () => {
+  const { projectId } = useParams();
+  return <Navigate to={`/project/${projectId}`} replace />;
+};
+
 const AccountingEntityLayout = ({ children }) => {
   const { entityId } = useParams();
   const [entity, setEntity] = React.useState(null);
@@ -479,7 +485,7 @@ const AppContent = () => (
     <Route path="/project/:projectId" element={<ProtectedRoute><AppLayout><ProjectDetailPage /></AppLayout></ProtectedRoute>} />
     
     {/* Overview Section */}
-    <Route path="/project/:projectId/overview" element={<ProtectedRoute><AppLayout><ProjectOverviewPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/overview" element={<ProtectedRoute><AppLayout><ProjectOverviewRedirect /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/property-details" element={<ProtectedRoute><AppLayout><PropertyDetailsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/contacts" element={<ProtectedRoute><AppLayout><ProjectContactsPage /></AppLayout></ProtectedRoute>} />
     

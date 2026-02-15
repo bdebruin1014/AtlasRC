@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import BasicInfoPage from '@/pages/projects/BasicInfoPage';
 import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
+import TasksPage from '@/pages/projects/TasksPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, Truck, FileCheck, Receipt, Shield, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,13 +95,14 @@ const ProjectDetailPage = () => {
         { id: 'basic-info', label: 'Basic Info', icon: FileText },
         { id: 'property', label: 'Property Details', icon: MapPin },
         { id: 'contacts', label: 'Contacts', icon: Users },
+        { id: 'tasks', label: 'Tasks', icon: CheckSquare },
       ]
     },
     {
       id: 'acquisition',
       label: 'Acquisition',
       items: [
-        { id: 'purchase-contract', label: 'Purchase Contract', icon: FileCheck },
+        { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
         { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
         { id: 'closing', label: 'Closing', icon: Landmark },
       ]
@@ -111,10 +113,8 @@ const ProjectDetailPage = () => {
       items: [
         { id: 'budget', label: 'Budget', icon: Calculator },
         { id: 'schedule', label: 'Schedule', icon: Calendar },
-        { id: 'draws', label: 'Draw Requests', icon: Receipt },
+        { id: 'draws', label: 'Build / Draw', icon: Receipt },
         { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
-        { id: 'permits', label: 'Permits', icon: Shield },
-        { id: 'bids', label: 'Bids', icon: Truck },
       ]
     },
     {
@@ -122,13 +122,11 @@ const ProjectDetailPage = () => {
       label: 'Finance',
       items: [
         { id: 'finance-summary', label: 'Summary', icon: PieChart },
-        { id: 'pro-forma', label: 'Pro Forma', icon: FileText },
         { id: 'budget-vs-actual', label: 'Budget vs Actual', icon: TrendingUp },
         { id: 'expenses', label: 'Expenses', icon: CreditCard },
-        { id: 'revenue', label: 'Revenue & Sales', icon: DollarSign },
         { id: 'loans', label: 'Loans', icon: Landmark },
-        { id: 'draws-finance', label: 'Draw Schedule', icon: Receipt },
-        { id: 'cash-flow', label: 'Cash Flow', icon: TrendingUp },
+        { id: 'draws-finance', label: 'Bank Draw', icon: Receipt },
+        { id: 'revenue', label: 'Revenue & Sales', icon: DollarSign },
       ]
     },
     {
@@ -658,6 +656,9 @@ const ProjectDetailPage = () => {
       case 'contacts':
         return <ProjectContactsSection projectId={projectId} />;
 
+      case 'tasks':
+        return <TasksPage projectId={projectId} />;
+
       case 'files':
         return (
           <div className="p-6">
@@ -704,63 +705,21 @@ const ProjectDetailPage = () => {
         );
 
       case 'permits':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Permits & Inspections</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]">Add Permit</Button>
-            </div>
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Total Permits</p>
-                <p className="text-2xl font-semibold">0</p>
-              </div>
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Approved</p>
-                <p className="text-2xl font-semibold text-green-600">0</p>
-              </div>
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-semibold text-amber-600">0</p>
-              </div>
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Inspections Due</p>
-                <p className="text-2xl font-semibold text-blue-600">0</p>
-              </div>
-            </div>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No permits tracked yet. Click "Add Permit" to add one.</p>
-            </div>
-          </div>
-        );
-
       case 'bids':
         return (
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Bids & Subcontracts</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]">Create Bid Package</Button>
-            </div>
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Bid Packages</p>
-                <p className="text-2xl font-semibold">0</p>
-              </div>
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Bids Received</p>
-                <p className="text-2xl font-semibold">0</p>
-              </div>
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Awarded</p>
-                <p className="text-2xl font-semibold text-green-600">0</p>
-              </div>
-              <div className="bg-white border rounded-lg p-4">
-                <p className="text-sm text-gray-500">Total Contract Value</p>
-                <p className="text-2xl font-semibold">$0</p>
-              </div>
-            </div>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">No bid packages yet. Click "Create Bid Package" to start.</p>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Hammer className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Moved to Construction Management</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Permits and Purchase Orders are now managed per-house in the Construction Management module.
+              </p>
+              <Button
+                onClick={() => navigate('/construction')}
+                className="bg-[#047857] hover:bg-[#065f46]"
+              >
+                Go to Construction Management
+              </Button>
             </div>
           </div>
         );
