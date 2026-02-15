@@ -5,16 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { PROJECT_TYPE_CONFIG } from '@/lib/constants';
 
 const PROJECT_TYPES = [
-  { value: 'lot-development', label: 'Lot Development' },
-  { value: 'build-to-rent', label: 'Build to Rent' },
-  { value: 'for-sale-development', label: 'For Sale Development' },
   { value: 'scattered-lot', label: 'Scattered Lot' },
-  { value: 'fix-flip', label: 'Fix & Flip' },
-  { value: 'brrr', label: 'BRRR' },
-  { value: 'spec-build', label: 'Spec Build' },
+  { value: 'lot-development', label: 'Lot Development' },
+  { value: 'lot-purchase-development', label: 'Lot Purchase Development' },
+  { value: 'community-development', label: 'Community Development' },
 ];
+
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'completed', label: 'Completed' },
@@ -22,20 +21,22 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
+const ProjectModal = ({ open, onClose, project, onSave, isLoading, preselectedType }) => {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     city: '',
-    state: '',
+    state: 'SC',
     zip_code: '',
     entity_name: '',
-    project_type: 'spec-build',
+    project_type: 'scattered-lot',
     status: 'active',
     start_date: '',
     target_completion_date: '',
     actual_completion_date: '',
     budget: '',
+    units_to_develop: '1',
+    budget_type: '',
     notes: '',
   });
   const [errors, setErrors] = useState({});
@@ -46,35 +47,41 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
         name: project.name || '',
         address: project.address || '',
         city: project.city || '',
-        state: project.state || '',
+        state: project.state || 'SC',
         zip_code: project.zip_code || '',
         entity_name: project.entity?.name || '',
-        project_type: project.project_type || 'spec-build',
+        project_type: project.project_type || 'scattered-lot',
         status: project.status || 'active',
         start_date: project.start_date || '',
         target_completion_date: project.target_completion_date || '',
         actual_completion_date: project.actual_completion_date || '',
         budget: project.budget || '',
+        units_to_develop: project.units_to_develop || '1',
+        budget_type: project.budget_type || '',
         notes: project.notes || '',
       });
     } else {
+      const typeKey = preselectedType || 'scattered-lot';
+      const typeConfig = PROJECT_TYPE_CONFIG[typeKey];
       setFormData({
         name: '',
         address: '',
         city: '',
-        state: '',
+        state: 'SC',
         zip_code: '',
         entity_name: '',
-        project_type: 'spec-build',
+        project_type: typeKey,
         status: 'active',
         start_date: new Date().toISOString().split('T')[0],
         target_completion_date: '',
         actual_completion_date: '',
         budget: '',
+        units_to_develop: typeKey === 'scattered-lot' ? '1' : '',
+        budget_type: typeConfig?.budgetType || '',
         notes: '',
       });
     }
-  }, [project, open]);
+  }, [project, open, preselectedType]);
 
   const validate = () => {
     const errs = {};
@@ -89,25 +96,44 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      // Auto-set budget_type when project_type changes
+      if (field === 'project_type') {
+        const config = PROJECT_TYPE_CONFIG[value];
+        if (config) {
+          next.budget_type = config.budgetType;
+          if (value === 'scattered-lot') next.units_to_develop = '1';
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    // Don't send entity_name to DB - it's a display helper
     const { entity_name, ...dataToSave } = formData;
     await onSave({
       ...dataToSave,
       budget: formData.budget ? parseFloat(formData.budget) : null,
+      units_to_develop: formData.units_to_develop ? parseInt(formData.units_to_develop) : 1,
     });
   };
+
+  const selectedTypeConfig = PROJECT_TYPE_CONFIG[formData.project_type];
+  const showUnits = formData.project_type !== 'scattered-lot';
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{project ? 'Edit Project' : 'New Project'}</DialogTitle>
+          <DialogTitle>
+            {project ? 'Edit Project' : `New ${selectedTypeConfig?.label || 'Project'}`}
+          </DialogTitle>
+          {!project && selectedTypeConfig && (
+            <p className="text-sm text-gray-500 mt-1">{selectedTypeConfig.description}</p>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* BASIC INFORMATION */}
@@ -116,7 +142,7 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Project Name *</Label>
-                <Input value={formData.name} onChange={e => handleChange('name', e.target.value)} required minLength={3} />
+                <Input value={formData.name} onChange={e => handleChange('name', e.target.value)} required minLength={2} placeholder="e.g. Driftwood, Ambleside Phase 1" />
                 {errors.name && <div className="text-xs text-red-500 mt-1">{errors.name}</div>}
               </div>
               <div>
@@ -125,7 +151,7 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
               </div>
               <div>
                 <Label>City</Label>
-                <Input value={formData.city} onChange={e => handleChange('city', e.target.value)} />
+                <Input value={formData.city} onChange={e => handleChange('city', e.target.value)} placeholder="Greenville" />
               </div>
               <div>
                 <Label>State</Label>
@@ -140,7 +166,7 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
                 <Input
                   value={formData.entity_name || ''}
                   onChange={e => handleChange('entity_name', e.target.value)}
-                  placeholder="e.g., Watson House LLC"
+                  placeholder="e.g. Red Cedar Homes LLC"
                 />
               </div>
             </div>
@@ -177,6 +203,29 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
             </div>
           </div>
 
+          {/* UNITS (for multi-lot project types) */}
+          {showUnits && (
+            <div>
+              <h4 className="font-medium mb-2">Development Scale</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>
+                    {formData.project_type === 'lot-development' ? 'Number of Lots' :
+                     formData.project_type === 'lot-purchase-development' ? 'Number of Homes' :
+                     'Total Units / Lots'}
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.units_to_develop}
+                    onChange={e => handleChange('units_to_develop', e.target.value)}
+                    min={1}
+                    placeholder="e.g. 48"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TIMELINE */}
           <div>
             <h4 className="font-medium mb-2">Timeline</h4>
@@ -206,7 +255,6 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
                   value={formData.actual_completion_date ? formData.actual_completion_date.split('T')[0] : ''}
                   onChange={e => handleChange('actual_completion_date', e.target.value)}
                 />
-                {errors.actual_completion_date && <div className="text-xs text-red-500 mt-1">{errors.actual_completion_date}</div>}
               </div>
             </div>
           </div>
@@ -215,8 +263,8 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
           <div>
             <h4 className="font-medium mb-2">Financial</h4>
             <div>
-              <Label>Total Budget *</Label>
-              <Input type="number" value={formData.budget} onChange={e => handleChange('budget', e.target.value)} required min={0} />
+              <Label>Total Budget</Label>
+              <Input type="number" value={formData.budget} onChange={e => handleChange('budget', e.target.value)} min={0} placeholder="0.00" />
               {errors.budget && <div className="text-xs text-red-500 mt-1">{errors.budget}</div>}
             </div>
           </div>
@@ -231,8 +279,8 @@ const ProjectModal = ({ open, onClose, project, onSave, isLoading }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Project'}
+            <Button type="submit" disabled={isLoading} className="bg-[#047857] hover:bg-[#065f46]">
+              {isLoading ? 'Saving...' : project ? 'Update Project' : 'Create Project'}
             </Button>
           </div>
         </form>

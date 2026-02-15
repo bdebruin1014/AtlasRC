@@ -13,66 +13,69 @@ export const PROJECT_STATUSES = [
   { key: 'cancelled', label: 'Cancelled', color: '#ef4444' },
 ];
 
-// Project types matching database constraints
+// Project types — aligned with constants.js and the New Project dropdown
 export const PROJECT_TYPES = [
+  { key: 'scattered-lot', label: 'Scattered Lot' },
   { key: 'lot-development', label: 'Lot Development' },
-  { key: 'spec-build', label: 'Spec Build' },
-  { key: 'fix-flip', label: 'Fix & Flip' },
-  { key: 'build-to-rent', label: 'Build to Rent' },
+  { key: 'lot-purchase-development', label: 'Lot Purchase Development' },
+  { key: 'community-development', label: 'Community Development' },
 ];
 
-// Mock data for demo mode
-const MOCK_PROJECTS = [
+// Fallback data when Supabase is unreachable (demo/dev only)
+const FALLBACK_PROJECTS = [
   {
-    id: 'mock-1',
-    name: 'Watson House',
-    address: '123 Main Street, Greenville, SC 29601',
+    id: 'demo-1',
+    name: 'Driftwood',
+    address: '100 Driftwood Lane, Greenville, SC 29601',
     status: 'active',
-    project_type: 'spec-build',
-    budget: 265000,
-    start_date: '2024-12-01',
-    target_completion_date: '2025-05-15',
-    notes: 'Single family spec home build',
-    entity: { id: 'ent-1', name: 'Watson House LLC', type: 'project' },
+    project_type: 'scattered-lot',
+    budget: 385000,
+    start_date: '2025-01-15',
+    target_completion_date: '2025-07-01',
+    notes: 'Scattered lot spec home',
+    entity: { id: 'ent-1', name: 'Red Cedar Homes LLC', type: 'project' },
     created_at: new Date().toISOString(),
   },
   {
-    id: 'mock-2',
-    name: 'Oslo Townhomes',
-    address: '456 Oslo Drive, Spartanburg, SC 29302',
+    id: 'demo-2',
+    name: 'Ambleside',
+    address: 'Ambleside Drive, Simpsonville, SC 29680',
     status: 'active',
-    project_type: 'build-to-rent',
-    budget: 4500000,
+    project_type: 'community-development',
+    budget: 12500000,
     start_date: '2024-06-01',
-    target_completion_date: '2025-12-31',
-    notes: '12-unit townhome development',
-    entity: { id: 'ent-2', name: 'Oslo Townhomes LLC', type: 'project' },
+    target_completion_date: '2027-12-31',
+    units_to_develop: 48,
+    notes: '48-lot community development',
+    entity: { id: 'ent-2', name: 'VanRock Holdings LLC', type: 'operating' },
     created_at: new Date().toISOString(),
   },
   {
-    id: 'mock-3',
-    name: 'Pine Valley Lots',
-    address: 'Pine Valley Road, Simpsonville, SC 29680',
+    id: 'demo-3',
+    name: 'Magnolia Lots',
+    address: 'Magnolia Road, Travelers Rest, SC 29690',
     status: 'active',
     project_type: 'lot-development',
     budget: 2800000,
-    start_date: '2024-03-01',
-    target_completion_date: '2024-12-31',
-    notes: '35 lot subdivision development',
+    start_date: '2024-09-01',
+    target_completion_date: '2025-10-31',
+    units_to_develop: 22,
+    notes: '22-lot horizontal development',
     entity: { id: 'ent-3', name: 'VanRock Holdings LLC', type: 'operating' },
     created_at: new Date().toISOString(),
   },
   {
-    id: 'mock-4',
-    name: 'Maple Street Flip',
-    address: '789 Maple Street, Greenville, SC 29605',
+    id: 'demo-4',
+    name: 'Palmetto Ridge',
+    address: '450 Palmetto Blvd, Greer, SC 29650',
     status: 'active',
-    project_type: 'fix-flip',
-    budget: 185000,
-    start_date: '2024-11-01',
-    target_completion_date: '2025-02-28',
-    notes: 'Single family renovation',
-    entity: { id: 'ent-4', name: 'VanRock Holdings LLC', type: 'operating' },
+    project_type: 'lot-purchase-development',
+    budget: 4200000,
+    start_date: '2025-02-01',
+    target_completion_date: '2026-06-30',
+    units_to_develop: 8,
+    notes: 'Buy 8 finished lots, build spec homes',
+    entity: { id: 'ent-4', name: 'Red Cedar Homes LLC', type: 'project' },
     created_at: new Date().toISOString(),
   },
 ];
@@ -88,18 +91,15 @@ export function useProjects() {
     setError(null);
 
     try {
-      if (isDemoMode) {
-        setProjects(MOCK_PROJECTS);
-        return;
-      }
-
       const data = await projectService.getAll();
       setProjects(data || []);
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError(err.message);
-      // Fallback to mock data on error
-      setProjects(MOCK_PROJECTS);
+      // Fallback only when Supabase is truly unreachable
+      if (isDemoMode) {
+        setProjects(FALLBACK_PROJECTS);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -129,20 +129,15 @@ export function useProject(projectId) {
     setError(null);
 
     try {
-      if (isDemoMode) {
-        const mockProject = MOCK_PROJECTS.find(p => p.id === projectId);
-        setProject(mockProject || null);
-        return;
-      }
-
       const data = await projectService.getById(projectId);
       setProject(data);
     } catch (err) {
       console.error('Error fetching project:', err);
       setError(err.message);
-      // Try mock data as fallback
-      const mockProject = MOCK_PROJECTS.find(p => p.id === projectId);
-      setProject(mockProject || null);
+      if (isDemoMode) {
+        const fallback = FALLBACK_PROJECTS.find(p => p.id === projectId);
+        setProject(fallback || null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -162,11 +157,11 @@ export function useProjectActions() {
   const createProject = useCallback(async (data) => {
     setIsLoading(true);
     try {
-      if (isDemoMode) {
-        console.log('Demo mode: would create project', data);
-        return { ...data, id: `mock-${Date.now()}` };
-      }
       return await projectService.create(data);
+    } catch (err) {
+      console.error('Create project failed:', err);
+      if (isDemoMode) return { ...data, id: `demo-${Date.now()}` };
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -175,11 +170,11 @@ export function useProjectActions() {
   const updateProject = useCallback(async (id, data) => {
     setIsLoading(true);
     try {
-      if (isDemoMode) {
-        console.log('Demo mode: would update project', id, data);
-        return { id, ...data };
-      }
       return await projectService.update(id, data);
+    } catch (err) {
+      console.error('Update project failed:', err);
+      if (isDemoMode) return { id, ...data };
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -188,11 +183,11 @@ export function useProjectActions() {
   const deleteProject = useCallback(async (id) => {
     setIsLoading(true);
     try {
-      if (isDemoMode) {
-        console.log('Demo mode: would delete project', id);
-        return true;
-      }
       return await projectService.delete(id);
+    } catch (err) {
+      console.error('Delete project failed:', err);
+      if (isDemoMode) return true;
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -301,31 +296,11 @@ export function useProjectFinancials(projectId) {
     setError(null);
 
     try {
-      if (isDemoMode) {
-        // Return mock financials for demo mode
-        setFinancials({
-          budget: 265000,
-          actualCost: 125000,
-          totalExpenses: 125000,
-          totalIncome: 0,
-          percentSpent: 47,
-          budgetRemaining: 140000,
-          expensesByCategory: {
-            'materials': 45000,
-            'labor': 55000,
-            'permits': 5000,
-            'other': 20000
-          }
-        });
-        return;
-      }
-
       const data = await projectService.getFinancials(projectId);
       setFinancials(data);
     } catch (err) {
       console.error('Error fetching project financials:', err);
       setError(err.message);
-      // Provide empty financials as fallback
       setFinancials({
         budget: 0,
         actualCost: 0,
@@ -361,12 +336,6 @@ export function useProjectProgress(projectId) {
       }
 
       try {
-        if (isDemoMode) {
-          // Mock progress for demo mode
-          setProgress(45);
-          return;
-        }
-
         // Get schedule items to calculate progress
         const { data: scheduleItems, error } = await supabase
           .from('schedule_items')

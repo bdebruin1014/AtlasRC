@@ -18,11 +18,10 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 const PROJECT_TYPES = [
-  { id: 'scattered_lot', name: 'Scattered Lot', description: 'Single-family lot development' },
-  { id: 'build_to_rent', name: 'Build-to-Rent', description: 'BTR community development' },
-  { id: 'horizontal_development', name: 'Horizontal Development', description: 'Land subdivision & lot sales' },
-  { id: 'multifamily', name: 'Multifamily Acquisition', description: 'Existing multifamily property' },
-  { id: 'commercial', name: 'Commercial', description: 'Commercial property development' },
+  { id: 'scattered-lot', name: 'Scattered Lot', description: 'Buy a lot, build a spec home, sell it' },
+  { id: 'lot-development', name: 'Lot Development', description: 'Develop raw land into finished lots' },
+  { id: 'lot-purchase-development', name: 'Lot Purchase Development', description: 'Buy finished lots, build homes for sale' },
+  { id: 'community-development', name: 'Community Development', description: 'Full subdivision from raw land to sold homes' },
 ];
 
 const formatCurrency = (value) => {
@@ -64,20 +63,21 @@ export default function ConvertToProjectModal({
       switch (oppType) {
         case 'vacant-lot':
         case 'scattered-lot':
-          setProjectType('scattered_lot');
-          break;
-        case 'development-btr':
-          setProjectType('build_to_rent');
+        case 'flip-property':
+          setProjectType('scattered-lot');
           break;
         case 'development-lot-sale':
-          setProjectType('horizontal_development');
+          setProjectType('lot-development');
           break;
-        case 'flip-property':
-        case 'BRRR':
-          setProjectType('multifamily');
+        case 'development-for-sale':
+          setProjectType('lot-purchase-development');
+          break;
+        case 'development-btr':
+        case 'community':
+          setProjectType('community-development');
           break;
         default:
-          setProjectType('scattered_lot');
+          setProjectType('scattered-lot');
       }
     }
   }, [opportunity]);
@@ -109,7 +109,7 @@ export default function ConvertToProjectModal({
         name: projectName,
         project_type: projectType,
         description: description,
-        status: 'Planning',
+        status: 'active',
         address: opportunity?.address,
         city: opportunity?.city,
         state: opportunity?.state,

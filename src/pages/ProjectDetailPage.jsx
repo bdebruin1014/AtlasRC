@@ -4,7 +4,8 @@ import BasicInfoPage from '@/pages/projects/BasicInfoPage';
 import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import TasksPage from '@/pages/projects/TasksPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer, Home, Map, Shield, Layers, ShoppingBag } from 'lucide-react';
+import { PROJECT_TYPE_CONFIG } from '@/lib/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,39 +88,108 @@ const ProjectDetailPage = () => {
     }
   };
 
-  const sidebarGroups = [
-    {
-      id: 'overview',
-      label: 'Overview',
+  // Icon map for sidebar overrides
+  const SIDEBAR_ICONS = {
+    'purchase-contract': FileCheck, 'due-diligence': ClipboardList, 'closing': Landmark,
+    'zoning': Shield, 'plat': Map, 'permits-site': FileText,
+    'budget': Calculator, 'schedule': Calendar, 'draws': Receipt, 'change-orders': FileCheck,
+    'houses': Home, 'lot-inventory': Layers, 'lot-sales': DollarSign,
+    'sales-pipeline': ShoppingBag, 'closings': Landmark,
+    'vertical-budget': Calculator, 'vertical-schedule': Calendar, 'vertical-draws': Receipt,
+  };
+
+  // Dynamically build sidebar groups based on project type
+  const projectType = formData?.project_type || rawProject?.project_type || 'scattered-lot';
+  const typeConfig = PROJECT_TYPE_CONFIG[projectType];
+  const typeLabel = typeConfig?.label || 'Project';
+
+  const sidebarGroups = useMemo(() => {
+    const groups = [];
+
+    // Overview — always visible
+    groups.push({
+      id: 'overview', label: 'Overview',
       items: [
         { id: 'basic-info', label: 'Basic Info', icon: FileText },
         { id: 'property', label: 'Property Details', icon: MapPin },
         { id: 'contacts', label: 'Contacts', icon: Users },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
       ]
-    },
-    {
-      id: 'acquisition',
-      label: 'Acquisition',
-      items: [
-        { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
-        { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
-        { id: 'closing', label: 'Closing', icon: Landmark },
-      ]
-    },
-    {
-      id: 'construction',
-      label: 'Construction',
-      items: [
-        { id: 'budget', label: 'Budget', icon: Calculator },
-        { id: 'schedule', label: 'Schedule', icon: Calendar },
-        { id: 'draws', label: 'Build / Draw', icon: Receipt },
-        { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
-      ]
-    },
-    {
-      id: 'finance',
-      label: 'Finance',
+    });
+
+    if (!typeConfig) {
+      // Fallback to generic sidebar
+      groups.push(
+        { id: 'acquisition', label: 'Acquisition', items: [
+          { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
+          { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
+          { id: 'closing', label: 'Closing', icon: Landmark },
+        ]},
+        { id: 'construction', label: 'Construction', items: [
+          { id: 'budget', label: 'Budget', icon: Calculator },
+          { id: 'schedule', label: 'Schedule', icon: Calendar },
+          { id: 'draws', label: 'Build / Draw', icon: Receipt },
+          { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
+        ]}
+      );
+    } else {
+      // Build from type config overrides
+      const overrides = typeConfig.sidebarOverrides || {};
+      const sections = typeConfig.sections || {};
+
+      if (sections.acquisition && overrides.acquisition) {
+        groups.push({
+          id: 'acquisition', label: 'Acquisition',
+          items: overrides.acquisition.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.entitlements && overrides.entitlements) {
+        groups.push({
+          id: 'entitlements', label: 'Entitlements',
+          items: overrides.entitlements.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.horizontal && overrides.horizontal) {
+        groups.push({
+          id: 'horizontal', label: 'Site Development',
+          items: overrides.horizontal.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.construction && overrides.construction) {
+        groups.push({
+          id: 'construction', label: 'Construction',
+          items: overrides.construction.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.lotSales && overrides.lotSales) {
+        groups.push({
+          id: 'lot-sales', label: 'Lot Sales',
+          items: overrides.lotSales.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+      if (sections.disposition && overrides.disposition) {
+        groups.push({
+          id: 'disposition', label: 'Disposition',
+          items: overrides.disposition.map(item => ({
+            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
+          })),
+        });
+      }
+    }
+
+    // Finance — always visible
+    groups.push({
+      id: 'finance', label: 'Finance',
       items: [
         { id: 'finance-summary', label: 'Summary', icon: PieChart },
         { id: 'pro-forma', label: 'Pro Forma', icon: Calculator },
@@ -130,17 +200,20 @@ const ProjectDetailPage = () => {
         { id: 'draws-finance', label: 'Draw Schedule', icon: Receipt },
         { id: 'cash-flow', label: 'Cash Flow', icon: TrendingUp },
       ]
-    },
-    {
-      id: 'documents',
-      label: 'Documents',
+    });
+
+    // Documents — always visible
+    groups.push({
+      id: 'documents', label: 'Documents',
       items: [
         { id: 'files', label: 'Files', icon: FolderOpen },
         { id: 'mailing', label: 'Mailing', icon: Mail },
         { id: 'communications', label: 'Communications', icon: MessageSquare },
       ]
-    },
-  ];
+    });
+
+    return groups;
+  }, [projectType, typeConfig]);
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev =>
@@ -929,6 +1002,184 @@ const ProjectDetailPage = () => {
           </div>
         );
 
+      // ─── New type-specific sections ─────────────────────────────────
+      case 'zoning':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Zoning & Entitlements</h2>
+            <div className="bg-white border rounded-lg p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Current Zoning</Label>
+                  <Input value={formData?.zoning || ''} onChange={e => setField('zoning', e.target.value)} placeholder="e.g. R-15, PD" />
+                </div>
+                <div>
+                  <Label>Required Zoning</Label>
+                  <Input value={formData?.required_zoning || ''} onChange={e => setField('required_zoning', e.target.value)} placeholder="e.g. PD-Residential" />
+                </div>
+                <div>
+                  <Label>Max Density</Label>
+                  <Input value={formData?.max_density || ''} onChange={e => setField('max_density', e.target.value)} placeholder="Units per acre" />
+                </div>
+                <div>
+                  <Label>Entitlement Status</Label>
+                  <Select value={formData?.entitlement_status || ''} onValueChange={v => setField('entitlement_status', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not_entitled">Not Entitled</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="partially_entitled">Partially Entitled</SelectItem>
+                      <SelectItem value="fully_entitled">Fully Entitled</SelectItem>
+                      <SelectItem value="by_right">By Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Entitlement Notes</Label>
+                <Textarea value={formData?.entitlement_notes || ''} onChange={e => setField('entitlement_notes', e.target.value)} rows={4} placeholder="Rezoning hearings, conditions, variances needed..." />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'plat':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Plat / Subdivision</h2>
+            <div className="bg-white border rounded-lg p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Preliminary Plat Date</Label>
+                  <Input type="date" value={formData?.prelim_plat_date || ''} onChange={e => setField('prelim_plat_date', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Final Plat Date</Label>
+                  <Input type="date" value={formData?.final_plat_date || ''} onChange={e => setField('final_plat_date', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Number of Lots</Label>
+                  <Input type="number" value={formData?.units_to_develop || ''} onChange={e => setField('units_to_develop', e.target.value)} />
+                </div>
+                <div>
+                  <Label>Total Acreage</Label>
+                  <Input value={formData?.lot_size || ''} onChange={e => setField('lot_size', e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Subdivision Notes</Label>
+                <Textarea value={formData?.plat_notes || ''} onChange={e => setField('plat_notes', e.target.value)} rows={3} placeholder="HOA, common areas, open space requirements..." />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'permits-site':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Site Permits</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-4 mb-4">Track grading, stormwater, erosion control, and utility permits.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Land Disturbance Permit</Label>
+                  <Input value={formData?.ld_permit || ''} onChange={e => setField('ld_permit', e.target.value)} placeholder="Permit # or status" />
+                </div>
+                <div>
+                  <Label>Stormwater Permit</Label>
+                  <Input value={formData?.stormwater_permit || ''} onChange={e => setField('stormwater_permit', e.target.value)} placeholder="Permit # or status" />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'houses':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Houses</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <div className="text-center py-8">
+                <Home className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500">Houses linked to this project will appear here.</p>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => navigate('/construction')}>
+                  Go to Construction
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'lot-inventory':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lot Inventory</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Lot inventory tracking for this development will appear here.</p>
+            </div>
+          </div>
+        );
+
+      case 'lot-sales':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lot Sales</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Lot sale contracts and closings will be tracked here.</p>
+            </div>
+          </div>
+        );
+
+      case 'sales-pipeline':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales Pipeline</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Home sales pipeline for this community will appear here.</p>
+            </div>
+          </div>
+        );
+
+      case 'closings':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Closings</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Closing schedule and settlement tracking will appear here.</p>
+            </div>
+          </div>
+        );
+
+      case 'vertical-budget':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Vertical Construction Budget</h2>
+            <div className="bg-white border rounded-lg p-6">
+              {renderBudget()}
+            </div>
+          </div>
+        );
+
+      case 'vertical-schedule':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Build Schedule</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Vertical construction schedule for homes will appear here.</p>
+            </div>
+          </div>
+        );
+
+      case 'vertical-draws':
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Construction Draws</h2>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">Construction draw requests for vertical builds will appear here.</p>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="p-6">
@@ -965,6 +1216,7 @@ const ProjectDetailPage = () => {
               formData?.status === 'on-hold' ? 'bg-amber-500 text-white' :
               'bg-gray-500 text-white'
             )}>{formData?.status || 'active'}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-600 text-gray-300">{typeLabel}</span>
             {budgetTypeInfo && (
               <span className="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded">{budgetTypeInfo.name}</span>
             )}
