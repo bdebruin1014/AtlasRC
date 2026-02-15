@@ -534,15 +534,17 @@ const OpportunityDetailPage = () => {
 
       case 'property-details':
         return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Property Details</h2>
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
+
+            {/* Location & Identification */}
             <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Location & Identification</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Location</h3>
                   <div>
                     <Label className="text-xs text-gray-500">Address *</Label>
                     <Input
@@ -581,27 +583,28 @@ const OpportunityDetailPage = () => {
                       />
                     </div>
                   </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">County</Label>
-                    <Input
-                      value={formData?.county || ''}
-                      onChange={(e) => setField('county', e.target.value)}
-                      className="mt-1"
-                      placeholder="Greenville"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Parcel ID</Label>
-                    <Input
-                      value={formData?.parcel_id || ''}
-                      onChange={(e) => setField('parcel_id', e.target.value)}
-                      className="mt-1"
-                      placeholder="0234-56-78-9012"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500">County</Label>
+                      <Input
+                        value={formData?.county || ''}
+                        onChange={(e) => setField('county', e.target.value)}
+                        className="mt-1"
+                        placeholder="Greenville"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Parcel ID / TMS#</Label>
+                      <Input
+                        value={formData?.parcel_id || ''}
+                        onChange={(e) => setField('parcel_id', e.target.value)}
+                        className="mt-1"
+                        placeholder="0234-56-78-9012"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Property Info</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-gray-500">Acres</Label>
@@ -631,7 +634,7 @@ const OpportunityDetailPage = () => {
                       value={formData?.zoning || ''}
                       onChange={(e) => setField('zoning', e.target.value)}
                       className="mt-1"
-                      placeholder="R-1 Residential"
+                      placeholder="R-S, R-6, PD, etc."
                     />
                   </div>
                   <div>
@@ -643,6 +646,200 @@ const OpportunityDetailPage = () => {
                       placeholder="Direct Mail, Referral, etc."
                     />
                   </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Legal Description</Label>
+                    <Textarea
+                      value={formData?.legal_description || ''}
+                      onChange={(e) => setField('legal_description', e.target.value)}
+                      className="mt-1"
+                      rows={2}
+                      placeholder="Lot 5, Block A, Heritage Subdivision..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Land & Zoning — shown for lot/development types */}
+            {(formData?.property_type || '').match(/lot|development/i) && (
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium text-gray-900 mb-4">Land & Zoning</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Municipality</Label>
+                    <Select value={formData?.municipality || ''} onValueChange={(v) => setField('municipality', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="City of Greenville">City of Greenville</SelectItem>
+                        <SelectItem value="Greenville County">Greenville County</SelectItem>
+                        <SelectItem value="City of Greer">City of Greer</SelectItem>
+                        <SelectItem value="City of Simpsonville">City of Simpsonville</SelectItem>
+                        <SelectItem value="City of Mauldin">City of Mauldin</SelectItem>
+                        <SelectItem value="City of Travelers Rest">City of Travelers Rest</SelectItem>
+                        <SelectItem value="Spartanburg County">Spartanburg County</SelectItem>
+                        <SelectItem value="Anderson County">Anderson County</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Lot Size (sf)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.lot_size_sf || ''}
+                      onChange={(e) => setField('lot_size_sf', e.target.value)}
+                      className="mt-1"
+                      placeholder="10890"
+                    />
+                    {formData?.lot_size_sf > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">{(formData.lot_size_sf / 43560).toFixed(2)} acres</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Flood Zone</Label>
+                    <Select value={formData?.flood_zone || ''} onValueChange={(v) => setField('flood_zone', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="X - Minimal">X - Minimal</SelectItem>
+                        <SelectItem value="A - Moderate">A - Moderate</SelectItem>
+                        <SelectItem value="AE - High">AE - High</SelectItem>
+                        <SelectItem value="VE - Coastal">VE - Coastal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Topography</Label>
+                    <Select value={formData?.topography || ''} onValueChange={(v) => setField('topography', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Flat">Flat</SelectItem>
+                        <SelectItem value="Gentle Slope">Gentle Slope</SelectItem>
+                        <SelectItem value="Moderate Slope">Moderate Slope</SelectItem>
+                        <SelectItem value="Steep">Steep</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Tree Coverage</Label>
+                    <Select value={formData?.tree_coverage || ''} onValueChange={(v) => setField('tree_coverage', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Light">Light</SelectItem>
+                        <SelectItem value="Moderate">Moderate</SelectItem>
+                        <SelectItem value="Heavy">Heavy</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Road Access</Label>
+                    <Select value={formData?.road_access || ''} onValueChange={(v) => setField('road_access', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Public">Public</SelectItem>
+                        <SelectItem value="Private">Private</SelectItem>
+                        <SelectItem value="Easement">Easement</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Utilities Available */}
+                <div className="mt-4">
+                  <Label className="text-xs text-gray-500 mb-2 block">Utilities Available</Label>
+                  <div className="flex flex-wrap gap-4">
+                    {['Water', 'Sewer', 'Electric', 'Gas'].map((util) => {
+                      const current = formData?.utilities_available || [];
+                      const isChecked = current.includes(util);
+                      return (
+                        <label key={util} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              const updated = isChecked
+                                ? current.filter(u => u !== util)
+                                : [...current, util];
+                              setField('utilities_available', updated);
+                            }}
+                            className="rounded border-gray-300 text-emerald-600"
+                          />
+                          <span className="text-sm">{util}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">School District</Label>
+                    <Input
+                      value={formData?.school_district || ''}
+                      onChange={(e) => setField('school_district', e.target.value)}
+                      className="mt-1"
+                      placeholder="Greenville County Schools"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">HOA Amount ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.hoa_amount || ''}
+                      onChange={(e) => setField('hoa_amount', e.target.value)}
+                      className="mt-1"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Wetlands %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={formData?.wetlands_pct || ''}
+                      onChange={(e) => setField('wetlands_pct', e.target.value)}
+                      className="mt-1"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tax & Valuation */}
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Tax & Valuation</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500">Tax Assessed Value ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.tax_assessed_value || ''}
+                    onChange={(e) => setField('tax_assessed_value', e.target.value)}
+                    className="mt-1"
+                    placeholder="150000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Annual Property Taxes ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.annual_taxes || ''}
+                    onChange={(e) => setField('annual_taxes', e.target.value)}
+                    className="mt-1"
+                    placeholder="2400"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Estimated Value ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.estimated_value || ''}
+                    onChange={(e) => setField('estimated_value', e.target.value)}
+                    className="mt-1"
+                    placeholder="250000"
+                  />
                 </div>
               </div>
             </div>
@@ -651,15 +848,17 @@ const OpportunityDetailPage = () => {
 
       case 'seller-info':
         return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Seller Information</h2>
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
+
+            {/* Contact & Seller Details */}
             <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Seller Details</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Contact Details</h3>
                   <div>
                     <Label className="text-xs text-gray-500">Seller Name</Label>
                     <Input
@@ -680,6 +879,16 @@ const OpportunityDetailPage = () => {
                     />
                   </div>
                   <div>
+                    <Label className="text-xs text-gray-500">Secondary Phone</Label>
+                    <Input
+                      type="tel"
+                      value={formData?.seller_phone_2 || ''}
+                      onChange={(e) => setField('seller_phone_2', e.target.value)}
+                      className="mt-1"
+                      placeholder="(864) 555-4567"
+                    />
+                  </div>
+                  <div>
                     <Label className="text-xs text-gray-500">Email</Label>
                     <Input
                       type="email"
@@ -689,19 +898,75 @@ const OpportunityDetailPage = () => {
                       placeholder="seller@email.com"
                     />
                   </div>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Additional Info</h3>
                   <div>
-                    <Label className="text-xs text-gray-500">Motivation</Label>
-                    <Textarea
-                      value={formData?.seller_motivation || ''}
-                      onChange={(e) => setField('seller_motivation', e.target.value)}
+                    <Label className="text-xs text-gray-500">Seller Address (if different)</Label>
+                    <Input
+                      value={formData?.seller_address || ''}
+                      onChange={(e) => setField('seller_address', e.target.value)}
                       className="mt-1"
-                      rows={3}
-                      placeholder="Why is the seller selling? Timeline, situation, etc."
+                      placeholder="456 Other St, City, ST 12345"
                     />
                   </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Seller Type</Label>
+                    <Select value={formData?.seller_type || ''} onValueChange={(v) => setField('seller_type', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Owner Occupant">Owner Occupant</SelectItem>
+                        <SelectItem value="Absentee Owner">Absentee Owner</SelectItem>
+                        <SelectItem value="Estate/Probate">Estate/Probate</SelectItem>
+                        <SelectItem value="Bank/REO">Bank/REO</SelectItem>
+                        <SelectItem value="Government">Government</SelectItem>
+                        <SelectItem value="Corporate">Corporate</SelectItem>
+                        <SelectItem value="Trust">Trust</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Ownership Duration (years)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.ownership_duration_years || ''}
+                      onChange={(e) => setField('ownership_duration_years', e.target.value)}
+                      className="mt-1"
+                      placeholder="5"
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData?.agent_involved || false}
+                        onChange={(e) => setField('agent_involved', e.target.checked)}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className="text-sm text-gray-700">Agent Involved</span>
+                    </label>
+                  </div>
+                  {formData?.agent_involved && (
+                    <>
+                      <div>
+                        <Label className="text-xs text-gray-500">Agent Name</Label>
+                        <Input
+                          value={formData?.agent_name || ''}
+                          onChange={(e) => setField('agent_name', e.target.value)}
+                          className="mt-1"
+                          placeholder="Agent name"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Agent Company</Label>
+                        <Input
+                          value={formData?.agent_company || ''}
+                          onChange={(e) => setField('agent_company', e.target.value)}
+                          className="mt-1"
+                          placeholder="Brokerage name"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
                     <Label className="text-xs text-gray-500">Contact Notes</Label>
                     <Textarea
@@ -715,83 +980,390 @@ const OpportunityDetailPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Motivation Assessment */}
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Motivation Assessment</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block">Motivation Level (1-10)</Label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setField('motivation_level', level)}
+                          className={cn(
+                            "w-9 h-9 rounded-lg text-sm font-medium transition-colors",
+                            formData?.motivation_level === level
+                              ? level >= 7 ? "bg-emerald-600 text-white" : level >= 4 ? "bg-yellow-500 text-white" : "bg-red-500 text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          )}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block">Motivation Types</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        'Financial Distress', 'Divorce', 'Probate/Inherited', 'Relocating',
+                        'Tired Landlord', 'Tax Liens', 'Code Violations', 'Vacant/Abandoned',
+                        'Downsizing', 'Health Issues', 'Behind on Payments'
+                      ].map((mtype) => {
+                        const current = formData?.motivation_types || [];
+                        const isChecked = current.includes(mtype);
+                        return (
+                          <label key={mtype} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const updated = isChecked
+                                  ? current.filter(m => m !== mtype)
+                                  : [...current, mtype];
+                                setField('motivation_types', updated);
+                              }}
+                              className="rounded border-gray-300 text-emerald-600"
+                            />
+                            <span className="text-xs">{mtype}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Mortgage Balance ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.mortgage_balance || ''}
+                      onChange={(e) => setField('mortgage_balance', e.target.value)}
+                      className="mt-1"
+                      placeholder="120000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Timeline to Sell</Label>
+                    <Select value={formData?.timeline_to_sell || ''} onValueChange={(v) => setField('timeline_to_sell', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Immediately">Immediately</SelectItem>
+                        <SelectItem value="1-2 Weeks">1-2 Weeks</SelectItem>
+                        <SelectItem value="1 Month">1 Month</SelectItem>
+                        <SelectItem value="2-3 Months">2-3 Months</SelectItem>
+                        <SelectItem value="Flexible">Flexible</SelectItem>
+                        <SelectItem value="Unknown">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Asking Price Firm or Flexible</Label>
+                    <Select value={formData?.price_flexibility || ''} onValueChange={(v) => setField('price_flexibility', v)}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Firm">Firm</SelectItem>
+                        <SelectItem value="Somewhat Flexible">Somewhat Flexible</SelectItem>
+                        <SelectItem value="Very Flexible">Very Flexible</SelectItem>
+                        <SelectItem value="Unknown">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Competing Offers</Label>
+                    <Input
+                      type="number"
+                      value={formData?.competing_offers || ''}
+                      onChange={(e) => setField('competing_offers', e.target.value)}
+                      className="mt-1"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Seller Motivation Notes</Label>
+                    <Textarea
+                      value={formData?.seller_motivation || ''}
+                      onChange={(e) => setField('seller_motivation', e.target.value)}
+                      className="mt-1"
+                      rows={3}
+                      placeholder="Why is the seller selling? Situation details..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         );
 
       case 'deal-terms':
         return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Deal Terms</h2>
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
+
+            {/* Pricing */}
             <div className="bg-white border rounded-lg p-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Pricing</h3>
-                  <div>
-                    <Label className="text-xs text-gray-500">Asking Price ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.asking_price || ''}
-                      onChange={(e) => setField('asking_price', e.target.value)}
-                      className="mt-1"
-                      placeholder="200000"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Estimated Value ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.estimated_value || ''}
-                      onChange={(e) => setField('estimated_value', e.target.value)}
-                      className="mt-1"
-                      placeholder="250000"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Assignment Fee ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.assignment_fee || ''}
-                      onChange={(e) => setField('assignment_fee', e.target.value)}
-                      className="mt-1"
-                      placeholder="10000"
-                    />
-                  </div>
+              <h3 className="font-medium text-gray-900 mb-4">Pricing</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500">Asking Price ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.asking_price || ''}
+                    onChange={(e) => setField('asking_price', e.target.value)}
+                    className="mt-1"
+                    placeholder="200000"
+                  />
                 </div>
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Contract Terms</h3>
-                  <div>
-                    <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.earnest_money || ''}
-                      onChange={(e) => setField('earnest_money', e.target.value)}
-                      className="mt-1"
-                      placeholder="5000"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">DD Deadline</Label>
-                    <Input
-                      type="date"
-                      value={formData?.dd_deadline ? formData.dd_deadline.split('T')[0] : ''}
-                      onChange={(e) => setField('dd_deadline', e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Target Close Date</Label>
-                    <Input
-                      type="date"
-                      value={formData?.close_date ? formData.close_date.split('T')[0] : ''}
-                      onChange={(e) => setField('close_date', e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Our Offer / MAO ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.initial_offer || ''}
+                    onChange={(e) => setField('initial_offer', e.target.value)}
+                    className="mt-1"
+                    placeholder="175000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Counter Offer ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.counter_offer || ''}
+                    onChange={(e) => setField('counter_offer', e.target.value)}
+                    className="mt-1"
+                    placeholder="185000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Final Agreed Price ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.final_price || ''}
+                    onChange={(e) => setField('final_price', e.target.value)}
+                    className="mt-1"
+                    placeholder="180000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Assignment Fee ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.assignment_fee || ''}
+                    onChange={(e) => setField('assignment_fee', e.target.value)}
+                    className="mt-1"
+                    placeholder="10000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">ARV / After Developed Value ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.estimated_value || ''}
+                    onChange={(e) => setField('estimated_value', e.target.value)}
+                    className="mt-1"
+                    placeholder="250000"
+                  />
                 </div>
               </div>
+
+              {/* 70% Rule Check */}
+              {(formData?.estimated_value > 0) && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1 font-medium">70% Rule Check</p>
+                  {(() => {
+                    const arv = parseFloat(formData?.estimated_value) || 0;
+                    const repair = parseFloat(formData?.repair_estimate) || 0;
+                    const mao = arv * 0.7 - repair;
+                    const offer = parseFloat(formData?.initial_offer) || parseFloat(formData?.asking_price) || 0;
+                    const isGood = offer <= mao;
+                    return (
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600">
+                          ${arv.toLocaleString()} x 0.70 - ${repair.toLocaleString()} = <span className="font-semibold">${mao.toLocaleString()}</span> MAO
+                        </span>
+                        <Badge className={isGood ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                          {isGood ? 'Good' : 'Over MAO'}
+                        </Badge>
+                        {offer > 0 && (
+                          <span className="text-xs text-gray-400">
+                            (Offer: ${offer.toLocaleString()}, {isGood ? 'under' : 'over'} by ${Math.abs(mao - offer).toLocaleString()})
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Deal Structure */}
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Deal Structure</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500">Deal Type</Label>
+                  <Select value={formData?.deal_type || 'assignment'} onValueChange={(v) => setField('deal_type', v)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="assignment">Assignment</SelectItem>
+                      <SelectItem value="double_close">Double Close</SelectItem>
+                      <SelectItem value="novation">Novation</SelectItem>
+                      <SelectItem value="subject_to">Subject-To</SelectItem>
+                      <SelectItem value="seller_finance">Seller Finance</SelectItem>
+                      <SelectItem value="cash_purchase">Cash Purchase</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.earnest_money || ''}
+                    onChange={(e) => setField('earnest_money', e.target.value)}
+                    className="mt-1"
+                    placeholder="5000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Due Diligence Period (days)</Label>
+                  <Input
+                    type="number"
+                    value={formData?.dd_period_days || ''}
+                    onChange={(e) => setField('dd_period_days', e.target.value)}
+                    className="mt-1"
+                    placeholder="14"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">DD Deadline</Label>
+                  <Input
+                    type="date"
+                    value={formData?.dd_deadline ? formData.dd_deadline.split('T')[0] : ''}
+                    onChange={(e) => setField('dd_deadline', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Target Close Date</Label>
+                  <Input
+                    type="date"
+                    value={formData?.closing_date ? formData.closing_date.split('T')[0] : ''}
+                    onChange={(e) => setField('closing_date', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Contract Date</Label>
+                  <Input
+                    type="date"
+                    value={formData?.contract_date ? formData.contract_date.split('T')[0] : ''}
+                    onChange={(e) => setField('contract_date', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Title Company</Label>
+                  <Input
+                    value={formData?.title_company || ''}
+                    onChange={(e) => setField('title_company', e.target.value)}
+                    className="mt-1"
+                    placeholder="ABC Title Company"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500">Closing Attorney</Label>
+                  <Input
+                    value={formData?.closing_attorney || ''}
+                    onChange={(e) => setField('closing_attorney', e.target.value)}
+                    className="mt-1"
+                    placeholder="Attorney name"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 mt-6 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData?.financing_contingency || false}
+                      onChange={(e) => setField('financing_contingency', e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600"
+                    />
+                    <span className="text-sm text-gray-700">Financing Contingency</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Wholesale / Assignment — shown for assignment or double_close */}
+            {(formData?.deal_type === 'assignment' || formData?.deal_type === 'double_close') && (
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium text-gray-900 mb-4">Wholesale / Assignment</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">End Buyer</Label>
+                    <Input
+                      value={formData?.end_buyer_name || ''}
+                      onChange={(e) => setField('end_buyer_name', e.target.value)}
+                      className="mt-1"
+                      placeholder="Buyer name or company"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">End Buyer Offer ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.end_buyer_offer || ''}
+                      onChange={(e) => setField('end_buyer_offer', e.target.value)}
+                      className="mt-1"
+                      placeholder="195000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">B-to-C Contract Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.btoc_contract_date ? formData.btoc_contract_date.split('T')[0] : ''}
+                      onChange={(e) => setField('btoc_contract_date', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                {/* Auto-calculated assignment fee */}
+                {(parseFloat(formData?.end_buyer_offer) > 0 && parseFloat(formData?.final_price || formData?.initial_offer || formData?.asking_price) > 0) && (
+                  <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-emerald-700 font-medium">Assignment Fee (calculated)</span>
+                      <span className="text-lg font-semibold text-emerald-700">
+                        ${(
+                          (parseFloat(formData?.end_buyer_offer) || 0) -
+                          (parseFloat(formData?.final_price) || parseFloat(formData?.initial_offer) || parseFloat(formData?.asking_price) || 0)
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-600 mt-1">
+                      End Buyer Offer (${(parseFloat(formData?.end_buyer_offer) || 0).toLocaleString()})
+                      {' '}- Contract Price (${(parseFloat(formData?.final_price) || parseFloat(formData?.initial_offer) || parseFloat(formData?.asking_price) || 0).toLocaleString()})
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Negotiation Notes */}
+            <div className="bg-white border rounded-lg p-6">
+              <h3 className="font-medium text-gray-900 mb-4">Negotiation Notes</h3>
+              <Textarea
+                value={formData?.negotiation_notes || ''}
+                onChange={(e) => setField('negotiation_notes', e.target.value)}
+                rows={4}
+                placeholder="Track negotiation details, seller concerns, terms discussed..."
+              />
             </div>
           </div>
         );
