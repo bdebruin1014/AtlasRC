@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Flag, ClipboardList,
   DollarSign, Calendar, FileText, Shield,
   CheckSquare, ListChecks, Camera, ShieldCheck,
-  FileShield, Wrench,
+  Wrench,
   Layout, Calculator, Hammer, ArrowUpCircle,
   CalendarDays, GitBranch, Building2, Receipt, Shovel,
 } from 'lucide-react';
