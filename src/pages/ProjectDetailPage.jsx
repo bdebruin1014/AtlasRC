@@ -28,6 +28,11 @@ import BuildToRentBudget from '@/features/budgets/components/BuildToRentBudget';
 import BuildToSellBudget from '@/features/budgets/components/BuildToSellBudget';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
 
+// Entitlement Section Components
+import ZoningEntitlementsSection from '@/pages/projects/sections/ZoningEntitlementsSection';
+import PlatSubdivisionSection from '@/pages/projects/sections/PlatSubdivisionSection';
+import SitePermitsSection from '@/pages/projects/sections/SitePermitsSection';
+
 // Icon map for sidebar item overrides
 const SIDEBAR_ICONS = {
   'purchase-contract': FileCheck,
@@ -1057,52 +1062,13 @@ const ProjectDetailPage = () => {
       // -- New placeholder sections for Entitlements --
 
       case 'zoning':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Zoning & Entitlements</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Zoning research, entitlement tracking, and approval workflows will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <ZoningEntitlementsSection projectId={projectId} />;
 
       case 'plat':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Plat / Subdivision</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Map className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Plat maps, subdivision planning, and lot layout management will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <PlatSubdivisionSection projectId={projectId} />;
 
       case 'permits-site':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Site Permits</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <FileBarChart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Site permit applications, tracking, and inspection scheduling will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <SitePermitsSection projectId={projectId} />;
 
       // -- New placeholder sections for Construction (community-development type) --
 
