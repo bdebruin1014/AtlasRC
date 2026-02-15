@@ -1,16 +1,63 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, Settings, Building2, FileText, Workflow, BarChart3, ChevronRight } from 'lucide-react';
+import { Home, FileText, Users, Settings, Shield, ChevronRight } from 'lucide-react';
 
 const AdminOverviewPage = () => {
   const navigate = useNavigate();
   const sections = [
-    { title: 'Organization', icon: Users, items: [{ label: 'Users', path: '/admin/organization/users' }, { label: 'Permission Groups', path: '/admin/organization/permissions' }] },
-    { title: 'Security', icon: Shield, items: [{ label: 'Account Security', path: '/admin/security/account' }, { label: 'Activity Log', path: '/admin/security/activity' }] },
-    { title: 'Preferences', icon: Settings, items: [{ label: 'Basic Preferences', path: '/admin/preferences/basic' }, { label: 'Integrations', path: '/admin/preferences/integrations' }] },
-    { title: 'Workflows', icon: Workflow, items: [{ label: 'Workflow Types', path: '/admin/workflows/types' }, { label: 'Project Templates', path: '/admin/workflows/templates' }] },
-    { title: 'Documents', icon: FileText, items: [{ label: 'Custom Documents', path: '/admin/documents/custom' }, { label: 'Document Packages', path: '/admin/documents/packages' }] },
-    { title: 'Reports', icon: BarChart3, items: [{ label: 'Report Packages', path: '/admin/reports/packages' }, { label: 'K-1 Reporting', path: '/admin/reports/k1' }] },
+    {
+      title: 'Product Catalog',
+      icon: Home,
+      items: [
+        { label: 'Home Plan Library', path: '/admin/plans' },
+        { label: 'Pricing Library', path: '/admin/pricing' },
+      ]
+    },
+    {
+      title: 'Templates',
+      icon: FileText,
+      items: [
+        { label: 'Project Templates', path: '/admin/project-templates' },
+        { label: 'Budget Templates', path: '/admin/budget-templates' },
+        { label: 'Schedule Templates', path: '/admin/schedule-templates' },
+        { label: 'Proforma Templates', path: '/admin/proforma-templates' },
+        { label: 'Deal Analyzer Templates', path: '/admin/deal-templates' },
+        { label: 'Task Templates', path: '/admin/task-templates' },
+        { label: 'Milestone Templates', path: '/admin/milestone-templates' },
+        { label: 'COA Templates', path: '/admin/coa-templates' },
+      ]
+    },
+    {
+      title: 'Organization',
+      icon: Users,
+      items: [
+        { label: 'Organization Settings', path: '/admin/organization' },
+        { label: 'User Management', path: '/admin/users' },
+        { label: 'Team Management', path: '/admin/team' },
+        { label: 'Teams', path: '/admin/teams' },
+        { label: 'Permissions Matrix', path: '/admin/permissions' },
+      ]
+    },
+    {
+      title: 'Configuration',
+      icon: Settings,
+      items: [
+        { label: 'General Settings', path: '/admin/settings' },
+        { label: 'Integrations', path: '/admin/integrations' },
+        { label: 'Tags', path: '/admin/tags' },
+        { label: 'Custom Fields', path: '/admin/custom-fields' },
+      ]
+    },
+    {
+      title: 'System',
+      icon: Shield,
+      items: [
+        { label: 'Activity Log', path: '/admin/activity-log' },
+        { label: 'Audit Logs', path: '/admin/audit-logs' },
+        { label: 'User Analytics', path: '/admin/analytics' },
+        { label: 'Bulk Actions', path: '/admin/bulk-actions' },
+      ]
+    },
   ];
   return (
     <div className="p-6 bg-gray-50 min-h-full overflow-auto">

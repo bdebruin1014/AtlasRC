@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Users, Building2, Settings, Shield,
   Database, Key, Layers, CheckSquare, Calendar,
   Calculator, LineChart, DollarSign, Target, Milestone,
-  FolderKanban, ClipboardList, Home, GitBranch
+  FolderKanban, ClipboardList, Home, GitBranch,
+  Tag, BarChart3, ListChecks, Sliders
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,28 +31,22 @@ const AdminSidebar = () => {
       items: [
         { label: 'Project Templates', path: '/admin/project-templates', icon: FolderKanban },
         { label: 'Budget Templates', path: '/admin/budget-templates', icon: Calculator },
-        { label: 'Proforma Templates', path: '/admin/proforma-templates', icon: LineChart },
         { label: 'Schedule Templates', path: '/admin/schedule-templates', icon: Calendar },
+        { label: 'Proforma Templates', path: '/admin/proforma-templates', icon: LineChart },
         { label: 'Deal Analyzer Templates', path: '/admin/deal-templates', icon: Target },
-        { label: 'Task List Templates', path: '/admin/task-templates', icon: CheckSquare },
+        { label: 'Task Templates', path: '/admin/task-templates', icon: CheckSquare },
         { label: 'Milestone Templates', path: '/admin/milestone-templates', icon: Milestone },
-      ]
-    },
-    {
-      title: 'Accounting',
-      items: [
         { label: 'COA Templates', path: '/admin/coa-templates', icon: GitBranch },
       ]
     },
     {
-      title: 'People & Access',
+      title: 'Organization',
       items: [
-        { label: 'Settings Hub', path: '/admin/settings-hub', icon: Settings, exact: true },
-        { label: 'Users', path: '/admin/settings-hub?tab=users', icon: Users },
-        { label: 'Teams', path: '/admin/settings-hub?tab=teams', icon: Building2 },
-        { label: 'Roles & Templates', path: '/admin/settings-hub?tab=roles', icon: Shield },
-        { label: 'Permissions', path: '/admin/settings-hub?tab=permissions', icon: Key },
-        { label: 'Audit Log', path: '/admin/settings-hub?tab=audit', icon: ClipboardList },
+        { label: 'Organization Settings', path: '/admin/organization', icon: Building2 },
+        { label: 'User Management', path: '/admin/users', icon: Users },
+        { label: 'Team Management', path: '/admin/team', icon: Users },
+        { label: 'Teams', path: '/admin/teams', icon: Building2 },
+        { label: 'Permissions Matrix', path: '/admin/permissions', icon: Key },
       ]
     },
     {
@@ -59,13 +54,17 @@ const AdminSidebar = () => {
       items: [
         { label: 'General Settings', path: '/admin/settings', icon: Settings },
         { label: 'Integrations', path: '/admin/integrations', icon: Layers },
+        { label: 'Tags', path: '/admin/tags', icon: Tag },
+        { label: 'Custom Fields', path: '/admin/custom-fields', icon: Sliders },
       ]
     },
     {
       title: 'System',
       items: [
         { label: 'Activity Log', path: '/admin/activity-log', icon: ClipboardList },
-        { label: 'System Audit Logs', path: '/admin/audit-logs', icon: Database },
+        { label: 'Audit Logs', path: '/admin/audit-logs', icon: Database },
+        { label: 'User Analytics', path: '/admin/analytics', icon: BarChart3 },
+        { label: 'Bulk Actions', path: '/admin/bulk-actions', icon: ListChecks },
       ]
     },
   ];
