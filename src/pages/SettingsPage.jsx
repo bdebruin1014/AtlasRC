@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import EditableField from '@/components/EditableField';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   isOutlookConfigured,
@@ -80,6 +81,41 @@ const SettingsPage = () => {
   const [outlookLoading, setOutlookLoading] = useState(false);
   const [outlookConnecting, setOutlookConnecting] = useState(false);
   const [outlookDisconnecting, setOutlookDisconnecting] = useState(false);
+
+  // Load saved settings on mount
+  useEffect(() => {
+    const loadSavedSettings = async () => {
+      if (!user?.id) return;
+      try {
+        // Load user profile settings
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('settings')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.settings?.appearance) {
+          setAppearance(prev => ({ ...prev, ...profile.settings.appearance }));
+        }
+
+        // Load company settings
+        const { data: companySettings } = await supabase
+          .from('admin_settings')
+          .select('value')
+          .eq('key', 'company_settings')
+          .single();
+
+        if (companySettings?.value) {
+          setCompanyData(prev => ({ ...prev, ...companySettings.value }));
+        }
+      } catch (err) {
+        // Silently fall back to defaults for demo mode
+        console.debug('Using default settings');
+      }
+    };
+
+    loadSavedSettings();
+  }, [user?.id]);
 
   useEffect(() => {
     if (user?.id) {
@@ -159,13 +195,52 @@ const SettingsPage = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSaving(false);
-    toast({
-      title: 'Settings Saved',
-      description: 'Your changes have been saved successfully.',
-    });
+    try {
+      // Save user profile settings
+      if (user?.id) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: user.id,
+            settings: {
+              appearance,
+              notifications: activeTab === 'notifications' ? true : undefined,
+            },
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+
+        if (profileError) {
+          console.error('Error saving profile settings:', profileError);
+        }
+
+        // Save organization/company settings
+        const { error: orgError } = await supabase
+          .from('admin_settings')
+          .upsert({
+            key: 'company_settings',
+            value: companyData,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'key' });
+
+        if (orgError) {
+          console.error('Error saving company settings:', orgError);
+        }
+      }
+
+      toast({
+        title: 'Settings Saved',
+        description: 'Your changes have been saved successfully.',
+      });
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleToggleIntegration = (integrationId) => {

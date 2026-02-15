@@ -47,12 +47,13 @@ const AccountingEntitiesListPage = lazy(() => import('@/pages/accounting/Account
 const EntityOwnershipHierarchyPage = lazy(() => import('@/pages/accounting/EntityOwnershipHierarchyPage'));
 const EntityDashboardPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
 const EntityChartOfAccountsPage = lazy(() => import('@/pages/accounting/EntityChartOfAccountsPage'));
-const EntityTransactionsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityTransactionsPage = lazy(() => import('@/pages/accounting/TransactionsPage'));
 const EntityBankingPage = lazy(() => import('@/pages/accounting/BankingPage'));
-const EntityReconciliationPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityInvoicesPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityBillsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityReportsPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
+const EntityReconciliationPage = lazy(() => import('@/pages/accounting/ReconciliationPage'));
+const EntityInvoicesPage = lazy(() => import('@/pages/accounting/InvoicesPage'));
+const EntityBillsPage = lazy(() => import('@/pages/accounting/BillsPage'));
+const EntityReportsPage = lazy(() => import('@/pages/accounting/FinancialReportsPage'));
+const EntityJournalEntriesPage = lazy(() => import('@/pages/accounting/JournalEntriesPage'));
 const EntityOwnershipPage = lazy(() => import('@/pages/accounting/EntityOwnershipPage'));
 const EntityTasksPage = lazy(() => import('@/pages/accounting/EntityTasksPage'));
 
@@ -701,7 +702,7 @@ const AppContent = () => (
 
       {/* TRANSACTIONS */}
       <Route path="transactions" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
-      <Route path="journal-entries" element={<Suspense fallback={<LoadingState />}><EntityTransactionsPage /></Suspense>} />
+      <Route path="journal-entries" element={<Suspense fallback={<LoadingState />}><EntityJournalEntriesPage /></Suspense>} />
       <Route path="journal-entries/new" element={<Suspense fallback={<LoadingState />}><TransactionFormPage /></Suspense>} />
       <Route path="journal-entries/:entryId" element={<Suspense fallback={<LoadingState />}><TransactionFormPage /></Suspense>} />
       <Route path="reconciliation" element={<Suspense fallback={<LoadingState />}><BankReconciliationPage /></Suspense>} />
@@ -775,10 +776,8 @@ const AppContent = () => (
     <Route path="/accounting/:entityId" element={<LegacyAccountingRedirect />} />
     <Route path="/accounting/:entityId/*" element={<LegacyAccountingRedirect />} />
 
-    {/* Legacy /entities routes - redirect to /accounting/entities */}
-    <Route path="/entities" element={<Navigate to="/accounting/entities" replace />} />
-    <Route path="/entities/:entityId" element={<LegacyEntitiesRedirect />} />
-    <Route path="/entities/:entityId/*" element={<LegacyEntitiesRedirect />} />
+    {/* Note: /entities routes are defined above in the ENTITIES MODULE section */}
+    {/* These legacy accounting-context redirects handle deep entity paths that should go to accounting */}
 
     {/* Reports */}
     <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsLayout /></AppLayout></ProtectedRoute>}>

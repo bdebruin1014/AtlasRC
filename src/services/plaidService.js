@@ -255,13 +255,24 @@ export const getBankTransactions = async (bankAccountId, filters = {}) => {
 };
 
 export const getUnmatchedTransactions = async (entityId) => {
+  // First get bank account IDs for this entity
+  const { data: accounts, error: accountsError } = await supabase
+    .from('bank_accounts')
+    .select('id')
+    .eq('entity_id', entityId);
+
+  if (accountsError) throw accountsError;
+  if (!accounts || accounts.length === 0) return [];
+
+  const accountIds = accounts.map(a => a.id);
+
   const { data, error } = await supabase
     .from('bank_transactions')
     .select(`
       *,
       bank_account:bank_accounts(name, entity_id)
     `)
-    .eq('bank_account.entity_id', entityId)
+    .in('bank_account_id', accountIds)
     .eq('match_status', MATCH_STATUS.UNMATCHED)
     .order('date', { ascending: false });
 

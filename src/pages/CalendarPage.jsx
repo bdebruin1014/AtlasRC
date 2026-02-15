@@ -1,7 +1,7 @@
 // src/pages/CalendarPage.jsx
 // Enhanced Calendar with full CRUD, multiple views, and integrations
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, Plus, Search, Filter, Calendar as CalendarIcon,
   Clock, MapPin, Users, Tag, Bell, Repeat, X, Edit2, Trash2, CheckSquare,
@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 /*
  * ENHANCED CALENDAR PAGE
@@ -28,6 +30,7 @@ import { cn } from '@/lib/utils';
  */
 
 const CalendarPage = () => {
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -36,6 +39,7 @@ const CalendarPage = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
 
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const daysOfWeekShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -210,6 +214,56 @@ const CalendarPage = () => {
       createdBy: 'John Smith',
     },
   ]);
+
+  // Load events from Supabase on mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      if (!user?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: true });
+
+        if (data && !error && data.length > 0) {
+          setEvents(data.map(e => ({
+            ...e,
+            attendees: e.attendees || [],
+            project: e.project || null,
+            recurring: e.recurring || null,
+          })));
+        }
+        // If no saved events, keep the demo events
+      } catch (err) {
+        console.debug('Using demo calendar events');
+      }
+      setEventsLoaded(true);
+    };
+
+    loadEvents();
+  }, [user?.id]);
+
+  // Persist events to Supabase when they change (after initial load)
+  useEffect(() => {
+    if (!eventsLoaded || !user?.id) return;
+    const saveEvents = async () => {
+      try {
+        // Upsert all current events
+        const eventsToSave = events.map(e => ({
+          ...e,
+          user_id: user.id,
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase
+          .from('calendar_events')
+          .upsert(eventsToSave, { onConflict: 'id' });
+      } catch (err) {
+        console.debug('Calendar events saved locally only');
+      }
+    };
+    saveEvents();
+  }, [events, eventsLoaded, user?.id]);
 
   // Calendar calculations
   const getDaysInMonth = (date) => {

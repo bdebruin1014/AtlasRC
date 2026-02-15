@@ -1338,7 +1338,19 @@ function Step5Generate({ houseData, isGenerating, generatedContract, onGenerate,
           description="Generate an editable .docx for manual adjustments before sending."
           buttonLabel="Download DOCX"
           buttonColor="outline"
-          onClick={() => {}}
+          onClick={() => {
+            if (!generatedContract) return;
+            // Create a downloadable blob from the contract HTML
+            const blob = new Blob([generatedContract.html || generatedContract.content || ''], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `contract-${generatedContract.id || 'draft'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}
           disabled={!generatedContract}
         />
         <ActionCard
@@ -1347,7 +1359,20 @@ function Step5Generate({ houseData, isGenerating, generatedContract, onGenerate,
           description={`Send via DocuSeal to ${houseData?.buyer?.full_name || houseData?.house?.buyer_name || 'buyer'} for electronic signatures.`}
           buttonLabel="Send for E-Sign"
           buttonColor="blue"
-          onClick={() => {}}
+          onClick={async () => {
+            if (!generatedContract) return;
+            try {
+              const { createSigningRequest } = await import('@/services/esignService');
+              await createSigningRequest({
+                document_id: generatedContract.id,
+                signers: [{ name: houseData?.buyer?.full_name || houseData?.house?.buyer_name || 'Buyer', email: houseData?.buyer?.email || '' }],
+              });
+              toast?.({ title: 'Sent for E-Signature', description: 'The contract has been sent for electronic signatures.' });
+            } catch (err) {
+              console.error('Error sending for e-signature:', err);
+              toast?.({ title: 'Error', description: 'Failed to send for e-signature. Please try again.', variant: 'destructive' });
+            }
+          }}
           disabled={!generatedContract}
         />
       </div>
