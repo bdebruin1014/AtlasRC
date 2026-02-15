@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Link2, Building, DollarSign, CheckCircle, XCircle, Clock,
   AlertTriangle, RefreshCw, Search, ArrowDownUp, Eye, Zap,
@@ -7,67 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-
-const mockBankAccounts = [
-  {
-    id: 'BANK-001',
-    bankName: 'Chase',
-    accountName: 'Operating Account',
-    accountNumber: '****4521',
-    entity: 'Atlas Holdings LLC',
-    currentBalance: 2450000.00,
-    lastSync: '2024-01-30 14:32',
-    status: 'connected',
-    pendingTransactions: 12,
-    unmatchedTransactions: 3
-  },
-  {
-    id: 'BANK-002',
-    bankName: 'Chase',
-    accountNumber: '****7832',
-    accountName: 'Payroll Account',
-    entity: 'Atlas Holdings LLC',
-    currentBalance: 185000.00,
-    lastSync: '2024-01-30 14:32',
-    status: 'connected',
-    pendingTransactions: 5,
-    unmatchedTransactions: 0
-  },
-  {
-    id: 'BANK-003',
-    bankName: 'Wells Fargo',
-    accountNumber: '****9156',
-    accountName: 'Security Deposits',
-    entity: 'Riverside Plaza LLC',
-    currentBalance: 428500.00,
-    lastSync: '2024-01-30 08:15',
-    status: 'connected',
-    pendingTransactions: 8,
-    unmatchedTransactions: 2
-  },
-  {
-    id: 'BANK-004',
-    bankName: 'Bank of America',
-    accountNumber: '****2847',
-    accountName: 'Construction Account',
-    entity: 'Oak Street Partners LP',
-    currentBalance: 1250000.00,
-    lastSync: '2024-01-29 22:00',
-    status: 'error',
-    errorMessage: 'Authentication expired - please reconnect',
-    pendingTransactions: 0,
-    unmatchedTransactions: 0
-  }
-];
-
-const mockTransactions = [
-  { id: 'TXN-001', date: '2024-01-30', description: 'Wire Transfer - Metro Industrial', amount: -500000.00, type: 'debit', matched: true, matchedTo: 'JE-2024-0892', confidence: 100 },
-  { id: 'TXN-002', date: '2024-01-30', description: 'ACH Credit - Riverside Rent Collection', amount: 125000.00, type: 'credit', matched: true, matchedTo: 'AR-2024-0445', confidence: 98 },
-  { id: 'TXN-003', date: '2024-01-29', description: 'Check #4521 - ABC Contractors', amount: -45000.00, type: 'debit', matched: true, matchedTo: 'AP-2024-0312', confidence: 100 },
-  { id: 'TXN-004', date: '2024-01-29', description: 'Wire Transfer - Unknown Sender', amount: 75000.00, type: 'credit', matched: false, suggestedMatch: null, confidence: 0 },
-  { id: 'TXN-005', date: '2024-01-28', description: 'Service Charge', amount: -45.00, type: 'debit', matched: false, suggestedMatch: 'Create Bank Fee JE', confidence: 95 },
-  { id: 'TXN-006', date: '2024-01-28', description: 'Interest Earned', amount: 1250.00, type: 'credit', matched: false, suggestedMatch: 'Create Interest Income JE', confidence: 95 }
-];
+import { getBankAccounts, getBankTransactions } from '@/services/bankAccountsService';
 
 const statusConfig = {
   connected: { label: 'Connected', color: 'bg-green-100 text-green-800', icon: CheckCircle },
@@ -77,22 +17,82 @@ const statusConfig = {
 };
 
 export default function BankFeedIntegrationPage() {
-  const [selectedAccount, setSelectedAccount] = useState(mockBankAccounts[0]);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const [showUnmatchedOnly, setShowUnmatchedOnly] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadAccounts() {
+      try {
+        // Fetch all bank accounts across entities for the integration overview
+        const data = await getBankAccounts(undefined, { includeInactive: false });
+        if (data?.length) {
+          const mapped = data.map(a => ({
+            id: a.id,
+            bankName: a.bank_name || a.plaid_connection?.institution_name || 'Bank',
+            accountName: a.account_name || a.name || 'Account',
+            accountNumber: `****${a.account_number_last4 || '0000'}`,
+            entity: a.entity_name || '',
+            currentBalance: a.current_balance || 0,
+            lastSync: a.last_synced_at || 'Never',
+            status: a.plaid_connection?.status || 'connected',
+            pendingTransactions: 0,
+            unmatchedTransactions: 0,
+          }));
+          setBankAccounts(mapped);
+          setSelectedAccount(mapped[0]);
+        }
+      } catch {
+        // No accounts available
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadAccounts();
+  }, []);
+
+  useEffect(() => {
+    async function loadTransactions() {
+      if (!selectedAccount?.id) return;
+      try {
+        const data = await getBankTransactions(selectedAccount.id);
+        if (data?.length) {
+          setTransactions(data.map(t => ({
+            id: t.id,
+            date: t.date || t.transaction_date,
+            description: t.description || t.name || '',
+            amount: t.amount || 0,
+            type: t.amount < 0 ? 'debit' : 'credit',
+            matched: t.match_status === 'matched',
+            matchedTo: t.matched_transaction_id || null,
+            suggestedMatch: null,
+            confidence: t.match_status === 'matched' ? 100 : 0,
+          })));
+        } else {
+          setTransactions([]);
+        }
+      } catch {
+        setTransactions([]);
+      }
+    }
+    loadTransactions();
+  }, [selectedAccount?.id]);
 
   const filteredTransactions = useMemo(() => {
-    if (showUnmatchedOnly) return mockTransactions.filter(t => !t.matched);
-    return mockTransactions;
-  }, [showUnmatchedOnly]);
+    if (showUnmatchedOnly) return transactions.filter(t => !t.matched);
+    return transactions;
+  }, [showUnmatchedOnly, transactions]);
 
   const stats = useMemo(() => ({
-    totalAccounts: mockBankAccounts.length,
-    connected: mockBankAccounts.filter(a => a.status === 'connected').length,
-    errors: mockBankAccounts.filter(a => a.status === 'error').length,
-    totalBalance: mockBankAccounts.reduce((sum, a) => sum + a.currentBalance, 0),
-    pendingTransactions: mockBankAccounts.reduce((sum, a) => sum + a.pendingTransactions, 0),
-    unmatchedTransactions: mockBankAccounts.reduce((sum, a) => sum + a.unmatchedTransactions, 0)
-  }), []);
+    totalAccounts: bankAccounts.length,
+    connected: bankAccounts.filter(a => a.status === 'connected').length,
+    errors: bankAccounts.filter(a => a.status === 'error').length,
+    totalBalance: bankAccounts.reduce((sum, a) => sum + a.currentBalance, 0),
+    pendingTransactions: bankAccounts.reduce((sum, a) => sum + a.pendingTransactions, 0),
+    unmatchedTransactions: bankAccounts.reduce((sum, a) => sum + a.unmatchedTransactions, 0)
+  }), [bankAccounts]);
 
   return (
     <div className="p-6 space-y-6">
@@ -180,7 +180,7 @@ export default function BankFeedIntegrationPage() {
       <div className="grid grid-cols-4 gap-6">
         <div className="col-span-1 space-y-2">
           <h3 className="font-semibold text-gray-900 mb-3">Bank Accounts</h3>
-          {mockBankAccounts.map((account) => (
+          {bankAccounts.map((account) => (
             <div
               key={account.id}
               onClick={() => setSelectedAccount(account)}
