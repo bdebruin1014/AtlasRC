@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown, ChevronRight, ChevronLeft,
-  LayoutDashboard, ClipboardList,
+  LayoutDashboard, ClipboardList, Palette,
   DollarSign, Calendar, FileText, Shield,
   CheckSquare, ListChecks, Camera, ShieldCheck,
-  Wrench,
-  Layout, Calculator, Hammer, ArrowUpCircle,
-  CalendarDays, GitBranch, Building2, Receipt, Shovel,
+  FileCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MILESTONES, getMilestoneLabel } from '@/services/constructionService';
+import { getMilestoneLabel, getHouseById } from '@/services/constructionService';
 
 const MILESTONE_COLORS = {
   pre_contract: 'bg-gray-100 text-gray-700',
@@ -82,12 +80,32 @@ function NavItem({ to, icon: Icon, label }) {
   );
 }
 
-export default function ConstructionSidebar({ house }) {
+export default function ConstructionSidebar({ house: houseProp }) {
   const { houseId } = useParams();
   const navigate = useNavigate();
+  const [house, setHouse] = useState(houseProp || null);
+
+  // Fetch house record if not passed as prop
+  useEffect(() => {
+    if (houseProp) {
+      setHouse(houseProp);
+      return;
+    }
+    if (!houseId) return;
+
+    async function fetchHouse() {
+      const { data } = await getHouseById(houseId);
+      if (data) setHouse(data);
+    }
+    fetchHouse();
+  }, [houseId, houseProp]);
+
   const basePath = `/construction/${houseId}`;
   const milestone = house?.current_milestone || 'pre_contract';
   const milestoneColor = MILESTONE_COLORS[milestone] || MILESTONE_COLORS.pre_contract;
+
+  // Build plan subtitle: "Plan Name — Elevation" or just plan name
+  const planSubtitle = [house?.plan_name, house?.elevation].filter(Boolean).join(' — ');
 
   return (
     <div className="w-60 bg-[#1a1f2e] h-full overflow-y-auto flex flex-col text-white">
@@ -109,59 +127,46 @@ export default function ConstructionSidebar({ house }) {
         <h2 className="font-semibold text-sm truncate text-white">
           {house?.house_name || 'House'}
         </h2>
-        <p className="text-xs text-gray-400 truncate mt-0.5">
-          {house?.address || ''}
-        </p>
+        {planSubtitle && (
+          <p className="text-xs text-gray-400 truncate mt-0.5">
+            {planSubtitle}
+          </p>
+        )}
         <Badge className={cn('text-xs mt-2', milestoneColor)}>
           {getMilestoneLabel(milestone)}
         </Badge>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — 4 sections, 12 per-house items */}
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
 
-        {/* TRACKING */}
-        <SidebarSection title="Tracking" defaultOpen={true}>
-          <NavItem to={basePath} icon={LayoutDashboard} label="Overview" />
+        {/* OVERVIEW */}
+        <SidebarSection title="Overview" defaultOpen={true}>
+          <NavItem to={basePath} icon={LayoutDashboard} label="House Overview" />
+          <NavItem to={`${basePath}/selections`} icon={Palette} label="Selections" />
           <NavItem to={`${basePath}/daily-logs`} icon={ClipboardList} label="Daily Logs" />
         </SidebarSection>
 
-        {/* CONSTRUCTION */}
-        <SidebarSection title="Construction">
+        {/* BUILD */}
+        <SidebarSection title="Build">
           <NavItem to={`${basePath}/budget`} icon={DollarSign} label="Budget" />
           <NavItem to={`${basePath}/schedule`} icon={Calendar} label="Schedule" />
           <NavItem to={`${basePath}/purchase-orders`} icon={FileText} label="Purchase Orders" />
+          <NavItem to={`${basePath}/change-orders`} icon={FileCheck} label="Change Orders" />
+        </SidebarSection>
+
+        {/* COMPLIANCE */}
+        <SidebarSection title="Compliance">
           <NavItem to={`${basePath}/permits`} icon={Shield} label="Permits" />
-        </SidebarSection>
-
-        {/* QUALITY */}
-        <SidebarSection title="Quality">
           <NavItem to={`${basePath}/inspections`} icon={CheckSquare} label="Inspections" />
+        </SidebarSection>
+
+        {/* CLOSEOUT */}
+        <SidebarSection title="Closeout">
           <NavItem to={`${basePath}/punch-list`} icon={ListChecks} label="Punch List" />
-          <NavItem to={`${basePath}/photos`} icon={Camera} label="Photos" />
           <NavItem to={`${basePath}/warranty`} icon={ShieldCheck} label="Warranty" />
+          <NavItem to={`${basePath}/photos`} icon={Camera} label="Photos" />
         </SidebarSection>
-
-        {/* OTHER */}
-        <SidebarSection title="Other">
-          <NavItem to={`${basePath}/insurance`} icon={Shield} label="Insurance" />
-          <NavItem to={`${basePath}/work-orders`} icon={Wrench} label="Work Orders" />
-        </SidebarSection>
-
-        {/* ADMIN */}
-        <div className="border-t border-white/10 mt-3 pt-3">
-          <SidebarSection title="Admin">
-            <NavItem to="/construction/admin/floor-plans" icon={Layout} label="Floor Plans" />
-            <NavItem to="/construction/admin/plans" icon={Calculator} label="Plan Pricing" />
-            <NavItem to="/construction/admin/sticks-bricks" icon={Hammer} label="Sticks & Bricks" />
-            <NavItem to="/construction/admin/upgrades" icon={ArrowUpCircle} label="Upgrades" />
-            <NavItem to="/construction/admin/schedule-templates" icon={CalendarDays} label="Schedule Templates" />
-            <NavItem to="/construction/admin/workflow-templates" icon={GitBranch} label="Workflows" />
-            <NavItem to="/construction/admin/municipalities" icon={Building2} label="Municipality Fees" />
-            <NavItem to="/construction/admin/soft-costs" icon={Receipt} label="Soft Costs" />
-            <NavItem to="/construction/admin/lot-prep" icon={Shovel} label="Lot Prep" />
-          </SidebarSection>
-        </div>
 
       </nav>
     </div>
