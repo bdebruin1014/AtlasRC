@@ -366,7 +366,9 @@ const EOSL10Meeting = ({ program }) => {
                 <div className="space-y-2">
                   {todos.map((todo) => (
                     <div key={todo.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <input type="checkbox" checked={todo.done} className="w-5 h-5" onChange={() => {}} />
+                      <input type="checkbox" checked={todo.done} className="w-5 h-5" onChange={() => {
+                        setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, done: !t.done } : t));
+                      }} />
                       <div className="flex-1">
                         <p className={cn(todo.done && "line-through text-gray-400")}>{todo.task}</p>
                         <p className="text-xs text-gray-500">{todo.owner}</p>

@@ -23,6 +23,7 @@ import ChartOfAccountsPage from '@/pages/accounting/ChartOfAccountsPage';
 import EntitySettingsPage from '@/pages/accounting/EntitySettingsPage';
 import EntityCapitalPage from '@/pages/accounting/EntityCapitalPage';
 import RecordTasksPanel from '@/components/RecordTasksPanel';
+import BillDetailDrawer from '@/components/accounting/BillDetailDrawer';
 
 const TABS = [
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, path: 'dashboard' },
@@ -45,6 +46,7 @@ const AccountingPage = () => {
   const [activeTab, setActiveTab] = useState(tab || 'dashboard');
   const [counts, setCounts] = useState({ bills: 0, payments: 0 });
   const [error, setError] = useState(null);
+  const [selectedBill, setSelectedBill] = useState(null);
 
   // Sync tab state with URL param
   useEffect(() => {
@@ -126,21 +128,21 @@ const AccountingPage = () => {
       case 'bills': return (
           <div className="p-6 bg-gray-50 min-h-full">
             <div className="max-w-[1600px] mx-auto">
-              <BillsList entityId={entityId} onSelectBill={() => {}} onNewBill={() => {}} />
+              <BillsList entityId={entityId} onSelectBill={(bill) => setSelectedBill(bill)} onNewBill={() => {}} />
             </div>
           </div>
         );
       case 'payments': return (
           <div className="p-6 bg-gray-50 min-h-full">
             <div className="max-w-[1600px] mx-auto">
-              <PaymentsList entityId={entityId} onSelectPayment={() => {}} onNewPayment={() => {}} />
+              <PaymentsList entityId={entityId} onSelectPayment={(payment) => console.log('Selected payment:', payment)} onNewPayment={() => {}} />
             </div>
           </div>
         );
       case 'journal-entries': return (
           <div className="p-6 bg-gray-50 min-h-full">
             <div className="max-w-[1600px] mx-auto">
-              <JournalEntriesList entityId={entityId} onSelectEntry={() => {}} onNewEntry={() => {}} />
+              <JournalEntriesList entityId={entityId} onSelectEntry={(entry) => console.log('Selected entry:', entry)} onNewEntry={() => {}} />
             </div>
           </div>
         );
@@ -265,6 +267,16 @@ const AccountingPage = () => {
           {renderContent()}
         </div>
       </div>
+
+      {/* Bill Detail Drawer */}
+      <BillDetailDrawer
+        isOpen={!!selectedBill}
+        onClose={() => setSelectedBill(null)}
+        bill={selectedBill}
+        onEdit={() => {}}
+        onPay={() => {}}
+        onDelete={() => {}}
+      />
     </>
   );
 };
