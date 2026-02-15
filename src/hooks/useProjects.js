@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isDemoMode } from '@/lib/supabase';
 import { projectService } from '@/services/projectService';
+import { activityService } from '@/services/activityService';
 
 // Status configuration matching database constraints
 export const PROJECT_STATUSES = [
@@ -157,7 +158,16 @@ export function useProjectActions() {
   const createProject = useCallback(async (data) => {
     setIsLoading(true);
     try {
-      return await projectService.create(data);
+      const result = await projectService.create(data);
+      // Log activity
+      activityService.log({
+        entityType: 'project',
+        entityId: result.id,
+        action: 'created',
+        newValue: data.name,
+        metadata: { project_type: data.project_type },
+      }).catch(() => {}); // fire-and-forget
+      return result;
     } catch (err) {
       console.error('Create project failed:', err);
       if (isDemoMode) return { ...data, id: `demo-${Date.now()}` };
@@ -170,7 +180,8 @@ export function useProjectActions() {
   const updateProject = useCallback(async (id, data) => {
     setIsLoading(true);
     try {
-      return await projectService.update(id, data);
+      const result = await projectService.update(id, data);
+      return result;
     } catch (err) {
       console.error('Update project failed:', err);
       if (isDemoMode) return { id, ...data };
@@ -183,7 +194,13 @@ export function useProjectActions() {
   const deleteProject = useCallback(async (id) => {
     setIsLoading(true);
     try {
-      return await projectService.delete(id);
+      const result = await projectService.delete(id);
+      activityService.log({
+        entityType: 'project',
+        entityId: id,
+        action: 'deleted',
+      }).catch(() => {});
+      return result;
     } catch (err) {
       console.error('Delete project failed:', err);
       if (isDemoMode) return true;
@@ -193,8 +210,17 @@ export function useProjectActions() {
     }
   }, []);
 
-  const updateStatus = useCallback(async (id, status) => {
-    return updateProject(id, { status });
+  const updateStatus = useCallback(async (id, status, oldStatus) => {
+    const result = await updateProject(id, { status });
+    activityService.log({
+      entityType: 'project',
+      entityId: id,
+      action: 'status_changed',
+      fieldChanged: 'status',
+      oldValue: oldStatus,
+      newValue: status,
+    }).catch(() => {});
+    return result;
   }, [updateProject]);
 
   return {

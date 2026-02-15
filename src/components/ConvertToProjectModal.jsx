@@ -16,6 +16,8 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { activityService } from '@/services/activityService';
+import { notificationTriggers } from '@/services/notificationTriggers';
 
 const PROJECT_TYPES = [
   { id: 'scattered-lot', name: 'Scattered Lot', description: 'Buy a lot, build a spec home, sell it' },
@@ -198,6 +200,21 @@ export default function ConvertToProjectModal({
           created_at: new Date().toISOString(),
         };
       }
+
+      // Log activity and fire notification (fire-and-forget)
+      activityService.log({
+        entityType: 'opportunity',
+        entityId: opportunity.id,
+        action: 'converted',
+        newValue: newProject.id,
+        metadata: { projectName, projectType },
+      }).catch(() => {});
+
+      notificationTriggers.opportunityConverted({
+        opportunityId: opportunity.id,
+        projectId: newProject.id,
+        projectName,
+      }).catch(() => {});
 
       toast({
         title: 'Project Created',

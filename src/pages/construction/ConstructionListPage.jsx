@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Plus, Search, ChevronRight, Home, Filter,
+  Plus, Search, ChevronRight, Home, Filter, Building2, Map, Hammer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import LoadingState from '@/components/LoadingState';
 import {
   getHouses, getMilestoneSummary, MILESTONES, getMilestoneLabel,
 } from '@/services/constructionService';
+import { PROJECT_TYPES } from '@/hooks/useProjects';
 
 const MILESTONE_COLORS = {
   pre_contract: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300', dot: 'bg-gray-400' },
@@ -40,6 +41,7 @@ const ConstructionListPage = () => {
   const navigate = useNavigate();
   const [milestoneFilter, setMilestoneFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [projectTypeFilter, setProjectTypeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const filters = {};
@@ -59,14 +61,19 @@ const ConstructionListPage = () => {
   const houses = housesResult?.data || [];
   const summary = summaryResult?.data || {};
 
-  const filteredHouses = searchQuery
-    ? houses.filter(h =>
-        h.house_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        h.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        h.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        h.plan_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : houses;
+  const filteredHouses = houses.filter(h => {
+    if (projectTypeFilter !== 'all' && h.project?.project_type !== projectTypeFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (
+        !h.house_name?.toLowerCase().includes(q) &&
+        !h.address?.toLowerCase().includes(q) &&
+        !h.buyer_name?.toLowerCase().includes(q) &&
+        !h.plan_name?.toLowerCase().includes(q)
+      ) return false;
+    }
+    return true;
+  });
 
   if (isLoading) {
     return <LoadingState type="table" message="Loading houses..." />;
@@ -126,6 +133,16 @@ const ConstructionListPage = () => {
           />
         </div>
         <select
+          value={projectTypeFilter}
+          onChange={(e) => setProjectTypeFilter(e.target.value)}
+          className="border rounded-md px-3 py-2 text-sm"
+        >
+          <option value="all">All Project Types</option>
+          {PROJECT_TYPES.map(t => (
+            <option key={t.key} value={t.key}>{t.label}</option>
+          ))}
+        </select>
+        <select
           value={milestoneFilter}
           onChange={(e) => setMilestoneFilter(e.target.value)}
           className="border rounded-md px-3 py-2 text-sm"
@@ -155,6 +172,7 @@ const ConstructionListPage = () => {
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Lot</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Project</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Plan</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Elevation</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pkg</th>
@@ -192,6 +210,13 @@ const ConstructionListPage = () => {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{house.project?.name || '—'}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {house.project?.project_type ? (
+                      <span className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">
+                        {PROJECT_TYPES.find(t => t.key === house.project.project_type)?.label || house.project.project_type}
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="px-4 py-3 text-sm font-medium">{house.plan_name || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{house.elevation || '—'}</td>
                   <td className="px-4 py-3 text-xs">

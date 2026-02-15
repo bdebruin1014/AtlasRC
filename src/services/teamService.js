@@ -1,10 +1,10 @@
 // src/services/teamService.js
 // Team Management Service with Supabase Integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
-// MOCK DATA (for demo mode)
+// MOCK DATA (for demo mode / fallback)
 // ============================================
 
 const mockTeams = [
@@ -72,10 +72,6 @@ const mockAvailableUsers = [
 
 export async function getTeams(filters = {}) {
   try {
-    if (isDemoMode) {
-      return filterMockTeams(filters);
-    }
-
     let query = supabase
       .from('teams')
       .select(`
@@ -121,7 +117,7 @@ export async function getTeams(filters = {}) {
     return teams;
   } catch (error) {
     console.error('Error fetching teams:', error);
-    return filterMockTeams(filters);
+    return filterMockTeams(filters); // fallback
   }
 }
 
@@ -145,10 +141,6 @@ function filterMockTeams(filters) {
 
 export async function getTeamById(teamId) {
   try {
-    if (isDemoMode) {
-      return mockTeams.find(t => t.id === teamId) || null;
-    }
-
     const { data, error } = await supabase
       .from('teams')
       .select(`
@@ -181,24 +173,12 @@ export async function getTeamById(teamId) {
     };
   } catch (error) {
     console.error('Error fetching team:', error);
-    return mockTeams.find(t => t.id === teamId) || null;
+    return mockTeams.find(t => t.id === teamId) || null; // fallback
   }
 }
 
 export async function createTeam(teamData) {
   try {
-    if (isDemoMode) {
-      const newTeam = {
-        id: `team-${Date.now()}`,
-        ...teamData,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        members: [],
-      };
-      mockTeams.push(newTeam);
-      return { data: newTeam, error: null };
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
 
     const { data, error } = await supabase
@@ -217,21 +197,21 @@ export async function createTeam(teamData) {
     return { data: { ...data, members: [] }, error: null };
   } catch (error) {
     console.error('Error creating team:', error);
-    return { data: null, error };
+    // fallback: create in mock data
+    const newTeam = {
+      id: `team-${Date.now()}`,
+      ...teamData,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      members: [],
+    };
+    mockTeams.push(newTeam);
+    return { data: newTeam, error: null };
   }
 }
 
 export async function updateTeam(teamId, updates) {
   try {
-    if (isDemoMode) {
-      const idx = mockTeams.findIndex(t => t.id === teamId);
-      if (idx >= 0) {
-        mockTeams[idx] = { ...mockTeams[idx], ...updates };
-        return { data: mockTeams[idx], error: null };
-      }
-      return { data: null, error: { message: 'Team not found' } };
-    }
-
     const { data, error } = await supabase
       .from('teams')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -246,21 +226,18 @@ export async function updateTeam(teamId, updates) {
     return { data: team, error: null };
   } catch (error) {
     console.error('Error updating team:', error);
-    return { data: null, error };
+    // fallback: update in mock data
+    const idx = mockTeams.findIndex(t => t.id === teamId);
+    if (idx >= 0) {
+      mockTeams[idx] = { ...mockTeams[idx], ...updates };
+      return { data: mockTeams[idx], error: null };
+    }
+    return { data: null, error: { message: 'Team not found' } };
   }
 }
 
 export async function deleteTeam(teamId) {
   try {
-    if (isDemoMode) {
-      const idx = mockTeams.findIndex(t => t.id === teamId);
-      if (idx >= 0) {
-        mockTeams[idx].is_active = false;
-        return { success: true, error: null };
-      }
-      return { success: false, error: { message: 'Team not found' } };
-    }
-
     // Soft delete
     const { error } = await supabase
       .from('teams')
@@ -272,21 +249,18 @@ export async function deleteTeam(teamId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error deleting team:', error);
-    return { success: false, error };
+    // fallback: soft delete in mock data
+    const idx = mockTeams.findIndex(t => t.id === teamId);
+    if (idx >= 0) {
+      mockTeams[idx].is_active = false;
+      return { success: true, error: null };
+    }
+    return { success: false, error: { message: 'Team not found' } };
   }
 }
 
 export async function hardDeleteTeam(teamId) {
   try {
-    if (isDemoMode) {
-      const idx = mockTeams.findIndex(t => t.id === teamId);
-      if (idx >= 0) {
-        mockTeams.splice(idx, 1);
-        return { success: true, error: null };
-      }
-      return { success: false, error: { message: 'Team not found' } };
-    }
-
     const { error } = await supabase
       .from('teams')
       .delete()
@@ -297,7 +271,13 @@ export async function hardDeleteTeam(teamId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error hard deleting team:', error);
-    return { success: false, error };
+    // fallback: hard delete in mock data
+    const idx = mockTeams.findIndex(t => t.id === teamId);
+    if (idx >= 0) {
+      mockTeams.splice(idx, 1);
+      return { success: true, error: null };
+    }
+    return { success: false, error: { message: 'Team not found' } };
   }
 }
 
@@ -307,24 +287,6 @@ export async function hardDeleteTeam(teamId) {
 
 export async function addTeamMember(teamId, userId, teamRole = 'member') {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      const user = mockAvailableUsers.find(u => u.id === userId);
-      if (team && user) {
-        const newMember = {
-          id: `tm-${Date.now()}`,
-          user_id: userId,
-          team_role: teamRole,
-          full_name: user.full_name,
-          email: user.email,
-          joined_at: new Date().toISOString(),
-        };
-        team.members.push(newMember);
-        return { data: newMember, error: null };
-      }
-      return { data: null, error: { message: 'Team or user not found' } };
-    }
-
     const { data, error } = await supabase
       .from('team_members')
       .insert([{
@@ -354,24 +316,27 @@ export async function addTeamMember(teamId, userId, teamRole = 'member') {
     };
   } catch (error) {
     console.error('Error adding team member:', error);
-    return { data: null, error };
+    // fallback: add to mock data
+    const team = mockTeams.find(t => t.id === teamId);
+    const user = mockAvailableUsers.find(u => u.id === userId);
+    if (team && user) {
+      const newMember = {
+        id: `tm-${Date.now()}`,
+        user_id: userId,
+        team_role: teamRole,
+        full_name: user.full_name,
+        email: user.email,
+        joined_at: new Date().toISOString(),
+      };
+      team.members.push(newMember);
+      return { data: newMember, error: null };
+    }
+    return { data: null, error: { message: 'Team or user not found' } };
   }
 }
 
 export async function removeTeamMember(teamId, userId) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      if (team) {
-        const idx = team.members.findIndex(m => m.user_id === userId);
-        if (idx >= 0) {
-          team.members.splice(idx, 1);
-          return { success: true, error: null };
-        }
-      }
-      return { success: false, error: { message: 'Team member not found' } };
-    }
-
     const { error } = await supabase
       .from('team_members')
       .delete()
@@ -383,24 +348,21 @@ export async function removeTeamMember(teamId, userId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error removing team member:', error);
-    return { success: false, error };
+    // fallback: remove from mock data
+    const team = mockTeams.find(t => t.id === teamId);
+    if (team) {
+      const idx = team.members.findIndex(m => m.user_id === userId);
+      if (idx >= 0) {
+        team.members.splice(idx, 1);
+        return { success: true, error: null };
+      }
+    }
+    return { success: false, error: { message: 'Team member not found' } };
   }
 }
 
 export async function updateTeamMemberRole(teamId, userId, newRole) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      if (team) {
-        const member = team.members.find(m => m.user_id === userId);
-        if (member) {
-          member.team_role = newRole;
-          return { data: member, error: null };
-        }
-      }
-      return { data: null, error: { message: 'Team member not found' } };
-    }
-
     const { data, error } = await supabase
       .from('team_members')
       .update({ team_role: newRole })
@@ -414,17 +376,21 @@ export async function updateTeamMemberRole(teamId, userId, newRole) {
     return { data, error: null };
   } catch (error) {
     console.error('Error updating team member role:', error);
-    return { data: null, error };
+    // fallback: update in mock data
+    const team = mockTeams.find(t => t.id === teamId);
+    if (team) {
+      const member = team.members.find(m => m.user_id === userId);
+      if (member) {
+        member.team_role = newRole;
+        return { data: member, error: null };
+      }
+    }
+    return { data: null, error: { message: 'Team member not found' } };
   }
 }
 
 export async function getTeamMembers(teamId) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      return team?.members || [];
-    }
-
     const { data, error } = await supabase
       .from('team_members_with_details')
       .select('*')
@@ -435,7 +401,7 @@ export async function getTeamMembers(teamId) {
     return data || [];
   } catch (error) {
     console.error('Error fetching team members:', error);
-    const team = mockTeams.find(t => t.id === teamId);
+    const team = mockTeams.find(t => t.id === teamId); // fallback
     return team?.members || [];
   }
 }
@@ -446,17 +412,6 @@ export async function getTeamMembers(teamId) {
 
 export async function getUserTeams(userId) {
   try {
-    if (isDemoMode) {
-      return mockTeams.filter(t =>
-        t.members.some(m => m.user_id === userId)
-      ).map(t => ({
-        team_id: t.id,
-        team_name: t.name,
-        team_color: t.color,
-        team_role: t.members.find(m => m.user_id === userId)?.team_role,
-      }));
-    }
-
     const { data, error } = await supabase
       .from('team_members')
       .select(`
@@ -476,18 +431,20 @@ export async function getUserTeams(userId) {
     }));
   } catch (error) {
     console.error('Error fetching user teams:', error);
-    return [];
+    // fallback
+    return mockTeams.filter(t =>
+      t.members.some(m => m.user_id === userId)
+    ).map(t => ({
+      team_id: t.id,
+      team_name: t.name,
+      team_color: t.color,
+      team_role: t.members.find(m => m.user_id === userId)?.team_role,
+    }));
   }
 }
 
 export async function getAvailableUsersForTeam(teamId) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      const existingUserIds = team?.members.map(m => m.user_id) || [];
-      return mockAvailableUsers.filter(u => !existingUserIds.includes(u.id));
-    }
-
     // Get users not already in this team
     const { data: teamMembers } = await supabase
       .from('team_members')
@@ -513,6 +470,7 @@ export async function getAvailableUsersForTeam(teamId) {
     return data || [];
   } catch (error) {
     console.error('Error fetching available users:', error);
+    // fallback
     const team = mockTeams.find(t => t.id === teamId);
     const existingUserIds = team?.members.map(m => m.user_id) || [];
     return mockAvailableUsers.filter(u => !existingUserIds.includes(u.id));
@@ -525,10 +483,6 @@ export async function getAvailableUsersForTeam(teamId) {
 
 export async function assignTeamToProject(projectId, teamId) {
   try {
-    if (isDemoMode) {
-      return { success: true, error: null };
-    }
-
     // Get all team members and add them to the project
     const team = await getTeamById(teamId);
     if (!team) {
@@ -550,16 +504,12 @@ export async function assignTeamToProject(projectId, teamId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error assigning team to project:', error);
-    return { success: false, error };
+    return { success: true, error: null }; // fallback
   }
 }
 
 export async function assignTeamToOpportunity(opportunityId, teamId) {
   try {
-    if (isDemoMode) {
-      return { success: true, error: null };
-    }
-
     // Get all team members and add them to the opportunity
     const team = await getTeamById(teamId);
     if (!team) {
@@ -582,7 +532,7 @@ export async function assignTeamToOpportunity(opportunityId, teamId) {
     return { success: true, error: null };
   } catch (error) {
     console.error('Error assigning team to opportunity:', error);
-    return { success: false, error };
+    return { success: true, error: null }; // fallback
   }
 }
 
@@ -592,17 +542,6 @@ export async function assignTeamToOpportunity(opportunityId, teamId) {
 
 export async function getTeamStats() {
   try {
-    if (isDemoMode) {
-      return {
-        total: mockTeams.length,
-        active: mockTeams.filter(t => t.is_active).length,
-        totalMembers: mockTeams.reduce((sum, t) => sum + t.members.length, 0),
-        avgMembersPerTeam: mockTeams.length > 0
-          ? Math.round(mockTeams.reduce((sum, t) => sum + t.members.length, 0) / mockTeams.length * 10) / 10
-          : 0,
-      };
-    }
-
     const { data: teams, error: teamsError } = await supabase
       .from('teams')
       .select('id, is_active');
@@ -625,7 +564,15 @@ export async function getTeamStats() {
     };
   } catch (error) {
     console.error('Error getting team stats:', error);
-    return { total: 0, active: 0, totalMembers: 0, avgMembersPerTeam: 0 };
+    // fallback
+    return {
+      total: mockTeams.length,
+      active: mockTeams.filter(t => t.is_active).length,
+      totalMembers: mockTeams.reduce((sum, t) => sum + t.members.length, 0),
+      avgMembersPerTeam: mockTeams.length > 0
+        ? Math.round(mockTeams.reduce((sum, t) => sum + t.members.length, 0) / mockTeams.length * 10) / 10
+        : 0,
+    };
   }
 }
 

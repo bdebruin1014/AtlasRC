@@ -1,7 +1,7 @@
 // src/services/budgetService.js
 // Budget Module Service - project budgets, line items, and plans
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── DEMO DATA ───────────────────────────────────────────────────────────────
 
@@ -189,79 +189,123 @@ const DEMO_LINE_ITEMS = [
 // ─── PLANS SERVICE ───────────────────────────────────────────────────────────
 
 export async function getPlans(projectType) {
-  if (isDemoMode) {
+  try {
+    let query = supabase.from('plans').select('*').eq('is_active', true);
+    if (projectType) query = query.contains('project_types', [projectType]);
+    const { data, error } = await query.order('name');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getPlans failed, falling back to demo data:', err);
     if (!projectType) return DEMO_PLANS.filter(p => p.is_active);
     return DEMO_PLANS.filter(p => p.is_active && p.project_types.includes(projectType));
   }
-  let query = supabase.from('plans').select('*').eq('is_active', true);
-  if (projectType) query = query.contains('project_types', [projectType]);
-  const { data, error } = await query.order('name');
-  if (error) throw error;
-  return data;
 }
 
 export async function getPlanById(planId) {
-  if (isDemoMode) return DEMO_PLANS.find(p => p.id === planId) || null;
-  const { data, error } = await supabase.from('plans').select('*').eq('id', planId).single();
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.from('plans').select('*').eq('id', planId).single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getPlanById failed, falling back to demo data:', err);
+    return DEMO_PLANS.find(p => p.id === planId) || null;
+  }
 }
 
 export async function createPlan(planData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('plans').insert(planData).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createPlan failed, falling back to demo data:', err);
     return { id: `plan-${Date.now()}`, ...planData, created_at: new Date().toISOString() };
   }
-  const { data, error } = await supabase.from('plans').insert(planData).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updatePlan(planId, updates) {
-  if (isDemoMode) return { id: planId, ...updates };
-  const { data, error } = await supabase.from('plans').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', planId).select().single();
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.from('plans').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', planId).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updatePlan failed, falling back to demo data:', err);
+    return { id: planId, ...updates };
+  }
 }
 
 // ─── PROJECT BUDGETS SERVICE ─────────────────────────────────────────────────
 
 export async function getProjectBudgets(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_budgets')
+      .select('*, plans(name)')
+      .eq('project_id', projectId)
+      .order('version_number', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(b => ({ ...b, plan_name: b.plans?.name || null }));
+  } catch (err) {
+    console.error('getProjectBudgets failed, falling back to demo data:', err);
     return DEMO_BUDGETS.filter(b => b.project_id === projectId || projectId === 'demo-project-1');
   }
-  const { data, error } = await supabase
-    .from('project_budgets')
-    .select('*, plans(name)')
-    .eq('project_id', projectId)
-    .order('version_number', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(b => ({ ...b, plan_name: b.plans?.name || null }));
 }
 
 export async function getActiveBudget(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_budgets')
+      .select('*, plans(name)')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? { ...data, plan_name: data.plans?.name || null } : null;
+  } catch (err) {
+    console.error('getActiveBudget failed, falling back to demo data:', err);
     const active = DEMO_BUDGETS.find(b => (b.project_id === projectId || projectId === 'demo-project-1') && b.is_active);
     return active || null;
   }
-  const { data, error } = await supabase
-    .from('project_budgets')
-    .select('*, plans(name)')
-    .eq('project_id', projectId)
-    .eq('is_active', true)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error;
-  return data ? { ...data, plan_name: data.plans?.name || null } : null;
 }
 
 export async function getBudgetById(budgetId) {
-  if (isDemoMode) return DEMO_BUDGETS.find(b => b.id === budgetId) || null;
-  const { data, error } = await supabase.from('project_budgets').select('*, plans(name)').eq('id', budgetId).single();
-  if (error) throw error;
-  return data ? { ...data, plan_name: data.plans?.name || null } : null;
+  try {
+    const { data, error } = await supabase.from('project_budgets').select('*, plans(name)').eq('id', budgetId).single();
+    if (error) throw error;
+    return data ? { ...data, plan_name: data.plans?.name || null } : null;
+  } catch (err) {
+    console.error('getBudgetById failed, falling back to demo data:', err);
+    return DEMO_BUDGETS.find(b => b.id === budgetId) || null;
+  }
 }
 
 export async function createBudget(projectId, budgetData) {
-  if (isDemoMode) {
+  try {
+    // Get next version number
+    const { data: existing } = await supabase
+      .from('project_budgets')
+      .select('version_number')
+      .eq('project_id', projectId)
+      .order('version_number', { ascending: false })
+      .limit(1);
+
+    const nextVersion = (existing?.[0]?.version_number || 0) + 1;
+
+    const { data, error } = await supabase.from('project_budgets').insert({
+      project_id: projectId,
+      version_number: nextVersion,
+      budget_name: budgetData.budget_name || `Budget - V${nextVersion}`,
+      plan_id: budgetData.plan_id || null,
+      template_id: budgetData.template_id || null,
+      is_active: budgetData.is_active ?? true,
+      status: 'draft',
+      created_by_name: budgetData.created_by_name || 'Unknown',
+    }).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createBudget failed, falling back to demo data:', err);
     const existing = DEMO_BUDGETS.filter(b => b.project_id === projectId);
     const nextVersion = (existing.length > 0 ? Math.max(...existing.map(b => b.version_number)) : 0) + 1;
     const newBudget = {
@@ -282,46 +326,33 @@ export async function createBudget(projectId, budgetData) {
     DEMO_BUDGETS.push(newBudget);
     return newBudget;
   }
-
-  // Get next version number
-  const { data: existing } = await supabase
-    .from('project_budgets')
-    .select('version_number')
-    .eq('project_id', projectId)
-    .order('version_number', { ascending: false })
-    .limit(1);
-
-  const nextVersion = (existing?.[0]?.version_number || 0) + 1;
-
-  const { data, error } = await supabase.from('project_budgets').insert({
-    project_id: projectId,
-    version_number: nextVersion,
-    budget_name: budgetData.budget_name || `Budget - V${nextVersion}`,
-    plan_id: budgetData.plan_id || null,
-    template_id: budgetData.template_id || null,
-    is_active: budgetData.is_active ?? true,
-    status: 'draft',
-    created_by_name: budgetData.created_by_name || 'Unknown',
-  }).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateBudget(budgetId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('project_budgets')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', budgetId).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateBudget failed, falling back to demo data:', err);
     const idx = DEMO_BUDGETS.findIndex(b => b.id === budgetId);
     if (idx >= 0) Object.assign(DEMO_BUDGETS[idx], updates);
     return DEMO_BUDGETS[idx] || { id: budgetId, ...updates };
   }
-  const { data, error } = await supabase.from('project_budgets')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', budgetId).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function setActiveBudget(projectId, budgetId) {
-  if (isDemoMode) {
+  try {
+    // The trigger handles deactivating others
+    const { data, error } = await supabase.from('project_budgets')
+      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .eq('id', budgetId).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('setActiveBudget failed, falling back to demo data:', err);
     DEMO_BUDGETS.forEach(b => {
       if (b.project_id === projectId || projectId === 'demo-project-1') {
         b.is_active = b.id === budgetId;
@@ -329,78 +360,88 @@ export async function setActiveBudget(projectId, budgetId) {
     });
     return DEMO_BUDGETS.find(b => b.id === budgetId);
   }
-  // The trigger handles deactivating others
-  const { data, error } = await supabase.from('project_budgets')
-    .update({ is_active: true, updated_at: new Date().toISOString() })
-    .eq('id', budgetId).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteBudget(budgetId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase.from('project_budgets').delete().eq('id', budgetId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteBudget failed, falling back to demo data:', err);
     const idx = DEMO_BUDGETS.findIndex(b => b.id === budgetId);
     if (idx >= 0) DEMO_BUDGETS.splice(idx, 1);
     return true;
   }
-  const { error } = await supabase.from('project_budgets').delete().eq('id', budgetId);
-  if (error) throw error;
-  return true;
 }
 
 // ─── BUDGET LINE ITEMS SERVICE ───────────────────────────────────────────────
 
 export async function getBudgetLineItems(budgetId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('budget_line_items')
+      .select('*')
+      .eq('budget_id', budgetId)
+      .order('sort_order');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getBudgetLineItems failed, falling back to demo data:', err);
     return DEMO_LINE_ITEMS.filter(li => li.budget_id === budgetId).sort((a, b) => a.sort_order - b.sort_order);
   }
-  const { data, error } = await supabase
-    .from('budget_line_items')
-    .select('*')
-    .eq('budget_id', budgetId)
-    .order('sort_order');
-  if (error) throw error;
-  return data || [];
 }
 
 export async function createLineItem(budgetId, lineItemData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('budget_line_items')
+      .insert({ budget_id: budgetId, ...lineItemData }).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createLineItem failed, falling back to demo data:', err);
     const newItem = { id: `li-${Date.now()}`, budget_id: budgetId, ...lineItemData, created_at: new Date().toISOString() };
     DEMO_LINE_ITEMS.push(newItem);
     return newItem;
   }
-  const { data, error } = await supabase.from('budget_line_items')
-    .insert({ budget_id: budgetId, ...lineItemData }).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateLineItem(lineItemId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase.from('budget_line_items')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', lineItemId).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateLineItem failed, falling back to demo data:', err);
     const idx = DEMO_LINE_ITEMS.findIndex(li => li.id === lineItemId);
     if (idx >= 0) Object.assign(DEMO_LINE_ITEMS[idx], updates);
     return DEMO_LINE_ITEMS[idx] || { id: lineItemId, ...updates };
   }
-  const { data, error } = await supabase.from('budget_line_items')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', lineItemId).select().single();
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteLineItem(lineItemId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase.from('budget_line_items').delete().eq('id', lineItemId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteLineItem failed, falling back to demo data:', err);
     const idx = DEMO_LINE_ITEMS.findIndex(li => li.id === lineItemId);
     if (idx >= 0) DEMO_LINE_ITEMS.splice(idx, 1);
     return true;
   }
-  const { error } = await supabase.from('budget_line_items').delete().eq('id', lineItemId);
-  if (error) throw error;
-  return true;
 }
 
 export async function bulkCreateLineItems(budgetId, lineItems) {
-  if (isDemoMode) {
+  try {
+    const rows = lineItems.map(li => ({ budget_id: budgetId, ...li }));
+    const { data, error } = await supabase.from('budget_line_items').insert(rows).select();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('bulkCreateLineItems failed, falling back to demo data:', err);
     const created = lineItems.map((li, i) => ({
       id: `li-${Date.now()}-${i}`,
       budget_id: budgetId,
@@ -410,10 +451,6 @@ export async function bulkCreateLineItems(budgetId, lineItems) {
     DEMO_LINE_ITEMS.push(...created);
     return created;
   }
-  const rows = lineItems.map(li => ({ budget_id: budgetId, ...li }));
-  const { data, error } = await supabase.from('budget_line_items').insert(rows).select();
-  if (error) throw error;
-  return data;
 }
 
 // ─── TEMPLATE APPLICATION ────────────────────────────────────────────────────

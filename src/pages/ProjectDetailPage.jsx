@@ -4,8 +4,7 @@ import BasicInfoPage from '@/pages/projects/BasicInfoPage';
 import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import TasksPage from '@/pages/projects/TasksPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer, Home, Map, Shield, Layers, ShoppingBag } from 'lucide-react';
-import { PROJECT_TYPE_CONFIG } from '@/lib/constants';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer, Home, Map, ShoppingBag, FileBarChart, Layers, Shield } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useProject, useProjectActions, useProjectFinancials, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
+import { PROJECT_TYPE_CONFIG } from '@/lib/constants';
 
 // E-Sign and Document Components
 import ESignButton from '@/components/esign/ESignButton';
@@ -27,11 +27,47 @@ import BuildToRentBudget from '@/features/budgets/components/BuildToRentBudget';
 import BuildToSellBudget from '@/features/budgets/components/BuildToSellBudget';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
 
+// Icon map for sidebar item overrides
+const SIDEBAR_ICONS = {
+  'purchase-contract': FileCheck,
+  'due-diligence': ClipboardList,
+  'closing': Landmark,
+  'zoning': Shield,
+  'plat': Map,
+  'permits-site': FileBarChart,
+  'budget': Calculator,
+  'schedule': Calendar,
+  'draws': Receipt,
+  'change-orders': FileCheck,
+  'houses': Home,
+  'lot-inventory': Layers,
+  'lot-sales': ShoppingBag,
+  'sales-pipeline': TrendingUp,
+  'closings': Landmark,
+  'vertical-budget': Calculator,
+  'vertical-schedule': Calendar,
+  'vertical-draws': Receipt,
+};
+
+// Icon map for sidebar group headers
+const GROUP_HEADER_ICONS = {
+  overview: Home,
+  acquisition: Landmark,
+  entitlements: Shield,
+  horizontal: Layers,
+  construction: Hammer,
+  lotSales: ShoppingBag,
+  'lot-sales': ShoppingBag,
+  disposition: TrendingUp,
+  finance: DollarSign,
+  documents: FolderOpen,
+};
+
 const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('basic-info');
-  const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'finance', 'documents']);
+  const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'entitlements', 'horizontal', 'lot-sales', 'disposition', 'finance', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
 
   // Properties linked to purchase contract
@@ -88,16 +124,6 @@ const ProjectDetailPage = () => {
     }
   };
 
-  // Icon map for sidebar overrides
-  const SIDEBAR_ICONS = {
-    'purchase-contract': FileCheck, 'due-diligence': ClipboardList, 'closing': Landmark,
-    'zoning': Shield, 'plat': Map, 'permits-site': FileText,
-    'budget': Calculator, 'schedule': Calendar, 'draws': Receipt, 'change-orders': FileCheck,
-    'houses': Home, 'lot-inventory': Layers, 'lot-sales': DollarSign,
-    'sales-pipeline': ShoppingBag, 'closings': Landmark,
-    'vertical-budget': Calculator, 'vertical-schedule': Calendar, 'vertical-draws': Receipt,
-  };
-
   // Dynamically build sidebar groups based on project type
   const projectType = formData?.project_type || rawProject?.project_type || 'scattered-lot';
   const typeConfig = PROJECT_TYPE_CONFIG[projectType];
@@ -106,9 +132,10 @@ const ProjectDetailPage = () => {
   const sidebarGroups = useMemo(() => {
     const groups = [];
 
-    // Overview — always visible
+    // Overview -- always visible
     groups.push({
-      id: 'overview', label: 'Overview',
+      id: 'overview',
+      label: 'Overview',
       items: [
         { id: 'basic-info', label: 'Basic Info', icon: FileText },
         { id: 'property', label: 'Property Details', icon: MapPin },
@@ -118,28 +145,37 @@ const ProjectDetailPage = () => {
     });
 
     if (!typeConfig) {
-      // Fallback to generic sidebar
+      // Fallback to generic sidebar when no config found
       groups.push(
-        { id: 'acquisition', label: 'Acquisition', items: [
-          { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
-          { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
-          { id: 'closing', label: 'Closing', icon: Landmark },
-        ]},
-        { id: 'construction', label: 'Construction', items: [
-          { id: 'budget', label: 'Budget', icon: Calculator },
-          { id: 'schedule', label: 'Schedule', icon: Calendar },
-          { id: 'draws', label: 'Build / Draw', icon: Receipt },
-          { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
-        ]}
+        {
+          id: 'acquisition',
+          label: 'Acquisition',
+          items: [
+            { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
+            { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
+            { id: 'closing', label: 'Closing', icon: Landmark },
+          ]
+        },
+        {
+          id: 'construction',
+          label: 'Construction',
+          items: [
+            { id: 'budget', label: 'Budget', icon: Calculator },
+            { id: 'schedule', label: 'Schedule', icon: Calendar },
+            { id: 'draws', label: 'Build / Draw', icon: Receipt },
+            { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
+          ]
+        }
       );
     } else {
-      // Build from type config overrides
+      // Build from type config sections and overrides
       const overrides = typeConfig.sidebarOverrides || {};
       const sections = typeConfig.sections || {};
 
       if (sections.acquisition && overrides.acquisition) {
         groups.push({
-          id: 'acquisition', label: 'Acquisition',
+          id: 'acquisition',
+          label: 'Acquisition',
           items: overrides.acquisition.map(item => ({
             ...item, icon: SIDEBAR_ICONS[item.id] || FileText
           })),
@@ -147,7 +183,8 @@ const ProjectDetailPage = () => {
       }
       if (sections.entitlements && overrides.entitlements) {
         groups.push({
-          id: 'entitlements', label: 'Entitlements',
+          id: 'entitlements',
+          label: 'Entitlements',
           items: overrides.entitlements.map(item => ({
             ...item, icon: SIDEBAR_ICONS[item.id] || FileText
           })),
@@ -155,7 +192,8 @@ const ProjectDetailPage = () => {
       }
       if (sections.horizontal && overrides.horizontal) {
         groups.push({
-          id: 'horizontal', label: 'Site Development',
+          id: 'horizontal',
+          label: 'Horizontal',
           items: overrides.horizontal.map(item => ({
             ...item, icon: SIDEBAR_ICONS[item.id] || FileText
           })),
@@ -163,7 +201,8 @@ const ProjectDetailPage = () => {
       }
       if (sections.construction && overrides.construction) {
         groups.push({
-          id: 'construction', label: 'Construction',
+          id: 'construction',
+          label: 'Construction',
           items: overrides.construction.map(item => ({
             ...item, icon: SIDEBAR_ICONS[item.id] || FileText
           })),
@@ -171,7 +210,8 @@ const ProjectDetailPage = () => {
       }
       if (sections.lotSales && overrides.lotSales) {
         groups.push({
-          id: 'lot-sales', label: 'Lot Sales',
+          id: 'lot-sales',
+          label: 'Lot Sales',
           items: overrides.lotSales.map(item => ({
             ...item, icon: SIDEBAR_ICONS[item.id] || FileText
           })),
@@ -179,7 +219,8 @@ const ProjectDetailPage = () => {
       }
       if (sections.disposition && overrides.disposition) {
         groups.push({
-          id: 'disposition', label: 'Disposition',
+          id: 'disposition',
+          label: 'Disposition',
           items: overrides.disposition.map(item => ({
             ...item, icon: SIDEBAR_ICONS[item.id] || FileText
           })),
@@ -187,9 +228,10 @@ const ProjectDetailPage = () => {
       }
     }
 
-    // Finance — always visible
+    // Finance -- always visible
     groups.push({
-      id: 'finance', label: 'Finance',
+      id: 'finance',
+      label: 'Finance',
       items: [
         { id: 'finance-summary', label: 'Summary', icon: PieChart },
         { id: 'pro-forma', label: 'Pro Forma', icon: Calculator },
@@ -202,9 +244,10 @@ const ProjectDetailPage = () => {
       ]
     });
 
-    // Documents — always visible
+    // Documents -- always visible
     groups.push({
-      id: 'documents', label: 'Documents',
+      id: 'documents',
+      label: 'Documents',
       items: [
         { id: 'files', label: 'Files', icon: FolderOpen },
         { id: 'mailing', label: 'Mailing', icon: Mail },
@@ -1002,43 +1045,20 @@ const ProjectDetailPage = () => {
           </div>
         );
 
-      // ─── New type-specific sections ─────────────────────────────────
+      // -- New placeholder sections for Entitlements --
+
       case 'zoning':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Zoning & Entitlements</h2>
-            <div className="bg-white border rounded-lg p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Current Zoning</Label>
-                  <Input value={formData?.zoning || ''} onChange={e => setField('zoning', e.target.value)} placeholder="e.g. R-15, PD" />
-                </div>
-                <div>
-                  <Label>Required Zoning</Label>
-                  <Input value={formData?.required_zoning || ''} onChange={e => setField('required_zoning', e.target.value)} placeholder="e.g. PD-Residential" />
-                </div>
-                <div>
-                  <Label>Max Density</Label>
-                  <Input value={formData?.max_density || ''} onChange={e => setField('max_density', e.target.value)} placeholder="Units per acre" />
-                </div>
-                <div>
-                  <Label>Entitlement Status</Label>
-                  <Select value={formData?.entitlement_status || ''} onValueChange={v => setField('entitlement_status', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="not_entitled">Not Entitled</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="partially_entitled">Partially Entitled</SelectItem>
-                      <SelectItem value="fully_entitled">Fully Entitled</SelectItem>
-                      <SelectItem value="by_right">By Right</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label>Entitlement Notes</Label>
-                <Textarea value={formData?.entitlement_notes || ''} onChange={e => setField('entitlement_notes', e.target.value)} rows={4} placeholder="Rezoning hearings, conditions, variances needed..." />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Zoning & Entitlements</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Zoning research, entitlement tracking, and approval workflows will be available here.
+              </p>
             </div>
           </div>
         );
@@ -1046,30 +1066,15 @@ const ProjectDetailPage = () => {
       case 'plat':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Plat / Subdivision</h2>
-            <div className="bg-white border rounded-lg p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Preliminary Plat Date</Label>
-                  <Input type="date" value={formData?.prelim_plat_date || ''} onChange={e => setField('prelim_plat_date', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Final Plat Date</Label>
-                  <Input type="date" value={formData?.final_plat_date || ''} onChange={e => setField('final_plat_date', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Number of Lots</Label>
-                  <Input type="number" value={formData?.units_to_develop || ''} onChange={e => setField('units_to_develop', e.target.value)} />
-                </div>
-                <div>
-                  <Label>Total Acreage</Label>
-                  <Input value={formData?.lot_size || ''} onChange={e => setField('lot_size', e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label>Subdivision Notes</Label>
-                <Textarea value={formData?.plat_notes || ''} onChange={e => setField('plat_notes', e.target.value)} rows={3} placeholder="HOA, common areas, open space requirements..." />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Plat / Subdivision</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Map className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Plat maps, subdivision planning, and lot layout management will be available here.
+              </p>
             </div>
           </div>
         );
@@ -1077,75 +1082,33 @@ const ProjectDetailPage = () => {
       case 'permits-site':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Site Permits</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-4 mb-4">Track grading, stormwater, erosion control, and utility permits.</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Land Disturbance Permit</Label>
-                  <Input value={formData?.ld_permit || ''} onChange={e => setField('ld_permit', e.target.value)} placeholder="Permit # or status" />
-                </div>
-                <div>
-                  <Label>Stormwater Permit</Label>
-                  <Input value={formData?.stormwater_permit || ''} onChange={e => setField('stormwater_permit', e.target.value)} placeholder="Permit # or status" />
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Site Permits</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <FileBarChart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Site permit applications, tracking, and inspection scheduling will be available here.
+              </p>
             </div>
           </div>
         );
+
+      // -- New placeholder sections for Construction (community-development type) --
 
       case 'houses':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Houses</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <div className="text-center py-8">
-                <Home className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500">Houses linked to this project will appear here.</p>
-                <Button variant="outline" size="sm" className="mt-4" onClick={() => navigate('/construction')}>
-                  Go to Construction
-                </Button>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Houses</h2>
             </div>
-          </div>
-        );
-
-      case 'lot-inventory':
-        return (
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lot Inventory</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">Lot inventory tracking for this development will appear here.</p>
-            </div>
-          </div>
-        );
-
-      case 'lot-sales':
-        return (
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lot Sales</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">Lot sale contracts and closings will be tracked here.</p>
-            </div>
-          </div>
-        );
-
-      case 'sales-pipeline':
-        return (
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales Pipeline</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">Home sales pipeline for this community will appear here.</p>
-            </div>
-          </div>
-        );
-
-      case 'closings':
-        return (
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Closings</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">Closing schedule and settlement tracking will appear here.</p>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Home className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Individual house tracking, floor plans, and construction status will be available here.
+              </p>
             </div>
           </div>
         );
@@ -1153,9 +1116,15 @@ const ProjectDetailPage = () => {
       case 'vertical-budget':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Vertical Construction Budget</h2>
-            <div className="bg-white border rounded-lg p-6">
-              {renderBudget()}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Vertical Budget</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Vertical construction budgets for individual homes and structures will be available here.
+              </p>
             </div>
           </div>
         );
@@ -1163,9 +1132,15 @@ const ProjectDetailPage = () => {
       case 'vertical-schedule':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Build Schedule</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">Vertical construction schedule for homes will appear here.</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Build Schedule</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Vertical construction scheduling and timeline management will be available here.
+              </p>
             </div>
           </div>
         );
@@ -1173,9 +1148,83 @@ const ProjectDetailPage = () => {
       case 'vertical-draws':
         return (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Construction Draws</h2>
-            <div className="bg-white border rounded-lg p-6">
-              <p className="text-gray-500 text-center py-8">Construction draw requests for vertical builds will appear here.</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Construction Draws</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Vertical construction draw requests and disbursement tracking will be available here.
+              </p>
+            </div>
+          </div>
+        );
+
+      // -- New placeholder sections for Lot Sales --
+
+      case 'lot-inventory':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Lot Inventory</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Layers className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Lot inventory management, pricing, and availability tracking will be available here.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'lot-sales':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Lot Sales</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Lot sales tracking, contracts, and buyer management will be available here.
+              </p>
+            </div>
+          </div>
+        );
+
+      // -- New placeholder sections for Disposition --
+
+      case 'sales-pipeline':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Sales Pipeline</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Sales pipeline management, lead tracking, and conversion analytics will be available here.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'closings':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Closings</h2>
+            </div>
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <Landmark className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
+              <p className="text-sm text-gray-500">
+                Home closing management, settlement tracking, and title coordination will be available here.
+              </p>
             </div>
           </div>
         );
@@ -1209,41 +1258,44 @@ const ProjectDetailPage = () => {
               <p className="text-gray-500 text-xs">{rawProject?.entity?.name || 'No Entity'}</p>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className={cn("text-xs px-2 py-0.5 rounded",
               formData?.status === 'active' ? 'bg-emerald-500 text-white' :
               formData?.status === 'completed' ? 'bg-blue-500 text-white' :
               formData?.status === 'on-hold' ? 'bg-amber-500 text-white' :
               'bg-gray-500 text-white'
             )}>{formData?.status || 'active'}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-600 text-gray-300">{typeLabel}</span>
             {budgetTypeInfo && (
               <span className="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded">{budgetTypeInfo.name}</span>
             )}
+            <span className="text-xs bg-indigo-600 text-indigo-100 px-2 py-0.5 rounded">{typeLabel}</span>
           </div>
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto">
-          {(sidebarGroups || []).map((group) => (
-            <div key={group.id} className="mb-1">
-              <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
-                  {group.label}
-                </div>
-                <ChevronDown className={cn("w-4 h-4 transition-transform", expandedGroups.includes(group.id) ? "" : "-rotate-90")} />
-              </button>
-              {expandedGroups.includes(group.id) && (
-                <div className="ml-4 border-l border-gray-700 space-y-0.5">
-                  {(group.items || []).map((item) => (
-                    <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {(sidebarGroups || []).map((group) => {
+            const GroupHeaderIcon = GROUP_HEADER_ICONS[group.id] || Building2;
+            return (
+              <div key={group.id} className="mb-1">
+                <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
+                  <div className="flex items-center gap-2">
+                    <GroupHeaderIcon className="w-4 h-4" />
+                    {group.label}
+                  </div>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", expandedGroups.includes(group.id) ? "" : "-rotate-90")} />
+                </button>
+                {expandedGroups.includes(group.id) && (
+                  <div className="ml-4 border-l border-gray-700 space-y-0.5">
+                    {(group.items || []).map((item) => (
+                      <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </div>
 
