@@ -7,11 +7,13 @@ import {
   FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw, Hammer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/contexts/PermissionContext';
 import NotificationCenter from './NotificationCenter';
 
 const TopNavigation = () => {
   const navigate = useNavigate();
   const [openDropdown, setOpenDropdown] = useState(null);
+  const { canAccessModule, isAdmin, loading: permissionsLoading } = usePermissions();
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home },
@@ -48,6 +50,25 @@ const TopNavigation = () => {
     { label: 'Admin', path: '/admin', icon: Settings },
   ];
 
+  const visibleNavItems = permissionsLoading ? navItems : navItems.filter(item => {
+    const moduleMap = {
+      'Home': null,
+      'Opportunities': 'pipeline',
+      'Projects': 'projects',
+      'Contacts': 'contacts',
+      'Calendar': 'calendar',
+      'Construction': 'construction',
+      'Accounting': 'accounting',
+      'Operations': 'operations',
+      'Admin': 'admin',
+    };
+
+    const module = moduleMap[item.label];
+    if (module === null) return true;
+    if (module === 'admin') return isAdmin();
+    return canAccessModule(module);
+  });
+
   return (
     <header className="h-10 bg-[#1a1a1a] border-b border-gray-800 flex items-center px-4 flex-shrink-0 relative z-50">
       <div className="flex items-center gap-2 mr-6 cursor-pointer" onClick={() => navigate('/')}>
@@ -58,7 +79,7 @@ const TopNavigation = () => {
       </div>
       
       <nav className="flex items-center gap-0.5">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const IconComponent = item.icon;
           if (item.dropdown) {
             return (
