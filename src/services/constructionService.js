@@ -2,6 +2,7 @@
 // Service layer for Construction Management module with demo data
 
 import { supabase } from '@/lib/supabase';
+import { notifyMilestoneReached } from '@/services/notificationTriggerService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -569,6 +570,14 @@ export async function advanceMilestone(id, newMilestone, notes = null) {
         .limit(1);
     }
 
+    // Fire-and-forget notification for milestone advancement
+    notifyMilestoneReached(
+      id,
+      data.house_name || data.address || id,
+      newMilestone,
+      data.project_id || null,
+    ).catch(() => {});
+
     return { data, error: null };
   } catch (err) {
     console.error('advanceMilestone error:', err);
@@ -599,6 +608,14 @@ export async function advanceMilestone(id, newMilestone, notes = null) {
       milestone_date: today,
       created_at: new Date().toISOString(),
     });
+
+    // Fire-and-forget notification for milestone advancement (demo path)
+    notifyMilestoneReached(
+      id,
+      DEMO_HOUSES[idx].house_name || DEMO_HOUSES[idx].address || id,
+      newMilestone,
+      DEMO_HOUSES[idx].project_id || null,
+    ).catch(() => {});
 
     return { data: DEMO_HOUSES[idx], error: null };
   }

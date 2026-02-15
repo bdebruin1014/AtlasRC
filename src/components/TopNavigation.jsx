@@ -21,8 +21,6 @@ const TopNavigation = () => {
     { label: 'Home', path: '/', icon: Home },
     { label: 'Opportunities', path: '/opportunities', icon: FolderKanban },
     { label: 'Projects', path: '/projects', icon: Building2 },
-    { label: 'Contacts', path: '/contacts', icon: Users },
-    { label: 'Calendar', path: '/calendar', icon: Calendar },
     {
       label: 'Construction',
       icon: Hammer,
@@ -53,7 +51,8 @@ const TopNavigation = () => {
       label: 'Operations',
       icon: Cog,
       dropdown: [
-        { label: 'Dashboard', path: '/operations', icon: ClipboardList, description: 'Operations overview' },
+        { label: 'Contacts', path: '/contacts', icon: Users, description: 'People & organizations' },
+        { label: 'Calendar', path: '/calendar', icon: Calendar, description: 'Schedule & events' },
         { label: 'Teams', path: '/operations/teams', icon: Users2, description: 'Team organization' },
         { label: 'Tools', path: '', isHeader: true },
         { label: 'E-Signatures', path: '/operations/esign', icon: FileSignature, description: 'Send & track documents' },
@@ -71,8 +70,6 @@ const TopNavigation = () => {
       'Home': null,
       'Opportunities': 'pipeline',
       'Projects': 'projects',
-      'Contacts': 'contacts',
-      'Calendar': 'calendar',
       'Construction': 'construction',
       'Accounting': 'accounting',
       'Operations': 'operations',

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, isDemoMode } from '@/lib/supabase';
 import { opportunityService } from '@/services/opportunityService';
 import { activityService } from '@/services/activityService';
+import { notifyStageChange } from '@/services/notificationTriggerService';
 
 // Stage configuration matching database constraints
 export const OPPORTUNITY_STAGES = [
@@ -196,6 +197,18 @@ export function useOpportunityActions() {
       oldValue: oldStage,
       newValue: stage,
     }).catch(() => {});
+
+    // Fire-and-forget notification when stage actually changes
+    if (stage !== oldStage) {
+      notifyStageChange(
+        id,
+        result?.deal_number || result?.address || id,
+        oldStage,
+        stage,
+        'current-user',
+      ).catch(() => {});
+    }
+
     return result;
   }, [updateOpportunity]);
 

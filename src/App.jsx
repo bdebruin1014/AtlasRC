@@ -217,12 +217,6 @@ const EntityDetailPage = lazy(() => import('@/pages/Operations/EntityDetail'));
 const EntityFormPage = lazy(() => import('@/pages/Operations/EntityForm'));
 const OpportunityFormPage = lazy(() => import('@/pages/OpportunityForm'));
 
-// ============================================
-// ACQUISITION PIPELINE MODULE
-// ============================================
-const AcquisitionPage = lazy(() => import('@/pages/pipeline/AcquisitionPage'));
-const AcquisitionPropertyPage = lazy(() => import('@/pages/pipeline/AcquisitionPropertyPage'));
-const DealAnalyzerPage = lazy(() => import('@/pages/pipeline/DealAnalyzerPage'));
 
 const ReportsLayout = lazy(() => import('@/components/ReportsLayout'));
 const PresetReportsPage = lazy(() => import('@/pages/reports/PresetReportsPage'));
@@ -871,13 +865,6 @@ const AppContent = () => (
     <Route path="/operations/notifications" element={<ProtectedRoute><AppLayout><NotificationCenterPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/contract-templates" element={<ProtectedRoute><AppLayout><ContractTemplatesPage /></AppLayout></ProtectedRoute>} />
 
-    {/* ============================================ */}
-    {/* ACQUISITION PIPELINE MODULE */}
-    {/* ============================================ */}
-    {/* HIDDEN - Atlas Simplification */}
-    {/* <Route path="/acquisition" element={<ProtectedRoute><AppLayout><AcquisitionPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/acquisition/:propertyId" element={<ProtectedRoute><AppLayout><AcquisitionPropertyPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/deal-analyzer" element={<ProtectedRoute><AppLayout><DealAnalyzerPage /></AppLayout></ProtectedRoute>} /> */}
 
     {/* EOS Module */}
     <Route path="/eos" element={<ProtectedRoute><AppLayout><EOSMainPage /></AppLayout></ProtectedRoute>} />
