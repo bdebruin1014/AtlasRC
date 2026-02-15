@@ -1357,13 +1357,31 @@ const OpportunityDetailPage = () => {
         );
       
       case 'tasks':
-        return <OpportunityTasks opportunity={opportunity} />;
-      
+        return (
+          <div className="p-6 text-center py-12">
+            <ClipboardList className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="font-medium text-gray-900 mb-1">Tasks</h3>
+            <p className="text-sm text-gray-500">Task tracking for this opportunity will appear here.</p>
+          </div>
+        );
+
       case 'contacts':
-        return <OpportunityContacts opportunity={opportunity} />;
-      
+        return (
+          <div className="p-6 text-center py-12">
+            <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="font-medium text-gray-900 mb-1">Contacts</h3>
+            <p className="text-sm text-gray-500">Related contacts for this opportunity will appear here.</p>
+          </div>
+        );
+
       case 'comps':
-        return <OpportunityComparables opportunity={opportunity} />;
+        return (
+          <div className="p-6 text-center py-12">
+            <TrendingUp className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="font-medium text-gray-900 mb-1">Comparable Sales</h3>
+            <p className="text-sm text-gray-500">Comparable sales analysis will appear here.</p>
+          </div>
+        );
       
       case 'mailing':
         return (

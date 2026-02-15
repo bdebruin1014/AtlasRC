@@ -46,14 +46,6 @@ const mockTasks = [
 // ============================================
 
 export async function getTasks(projectId, filters = {}) {
-  if (isDemoMode) {
-    let tasks = projectId ? mockTasks.filter(t => t.project_id === projectId) : mockTasks;
-    if (filters.status && filters.status !== 'all') tasks = tasks.filter(t => t.status === filters.status);
-    if (filters.category && filters.category !== 'all') tasks = tasks.filter(t => t.category === filters.category);
-    if (filters.priority && filters.priority !== 'all') tasks = tasks.filter(t => t.priority === filters.priority);
-    return tasks;
-  }
-
   try {
     let query = supabase
       .from('project_tasks')
@@ -71,65 +63,76 @@ export async function getTasks(projectId, filters = {}) {
     return data || [];
   } catch (error) {
     console.error('Error fetching tasks:', error);
-    return mockTasks;
+    let tasks = projectId ? mockTasks.filter(t => t.project_id === projectId) : mockTasks;
+    if (filters.status && filters.status !== 'all') tasks = tasks.filter(t => t.status === filters.status);
+    if (filters.category && filters.category !== 'all') tasks = tasks.filter(t => t.category === filters.category);
+    if (filters.priority && filters.priority !== 'all') tasks = tasks.filter(t => t.priority === filters.priority);
+    return tasks;
   }
 }
 
 export async function getTaskById(taskId) {
-  if (isDemoMode) return mockTasks.find(t => t.id === taskId) || null;
+  try {
+    const { data, error } = await supabase
+      .from('project_tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
 
-  const { data, error } = await supabase
-    .from('project_tasks')
-    .select('*')
-    .eq('id', taskId)
-    .single();
-
-  if (error) {
+    if (error) throw error;
+    return data;
+  } catch (error) {
     console.error('Error fetching task:', error);
-    return null;
+    return mockTasks.find(t => t.id === taskId) || null;
   }
-  return data;
 }
 
 export async function createTask(taskData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_tasks')
+      .insert(taskData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating task:', error);
     return { ...taskData, id: `mock-${Date.now()}`, task_number: `TSK-${Date.now()}`, created_at: new Date().toISOString() };
   }
-
-  const { data, error } = await supabase
-    .from('project_tasks')
-    .insert(taskData)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updateTask(taskId, updates) {
-  if (isDemoMode) return { id: taskId, ...updates };
+  try {
+    const { data, error } = await supabase
+      .from('project_tasks')
+      .update(updates)
+      .eq('id', taskId)
+      .select()
+      .single();
 
-  const { data, error } = await supabase
-    .from('project_tasks')
-    .update(updates)
-    .eq('id', taskId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return { id: taskId, ...updates };
+  }
 }
 
 export async function deleteTask(taskId) {
-  if (isDemoMode) return true;
+  try {
+    const { error } = await supabase
+      .from('project_tasks')
+      .delete()
+      .eq('id', taskId);
 
-  const { error } = await supabase
-    .from('project_tasks')
-    .delete()
-    .eq('id', taskId);
-
-  if (error) throw error;
-  return true;
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    return true;
+  }
 }
 
 export async function toggleTaskStatus(taskId, currentStatus) {
