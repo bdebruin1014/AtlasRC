@@ -186,14 +186,13 @@ const HomePage = () => {
   const totalBudget = projectSummary?.totalBudget || 0;
   const activeDeals = pipelineStats?.total || 0;
 
-  // Build pipeline stages from real stats
+  // Build pipeline stages from real stats — matches OPPORTUNITY_STAGES in useOpportunities
   const pipelineStages = pipelineStats ? [
-    { id: 'lead', label: 'Lead', count: pipelineStats.byStage?.lead?.count || 0, value: pipelineStats.byStage?.lead?.value || 0, color: '#6366F1' },
-    { id: 'qualified', label: 'Qualified', count: pipelineStats.byStage?.qualified?.count || 0, value: pipelineStats.byStage?.qualified?.value || 0, color: '#8B5CF6' },
-    { id: 'analysis', label: 'Analysis', count: pipelineStats.byStage?.analysis?.count || 0, value: pipelineStats.byStage?.analysis?.value || 0, color: '#F59E0B' },
-    { id: 'contract', label: 'Under Contract', count: pipelineStats.byStage?.contract?.count || 0, value: pipelineStats.byStage?.contract?.value || 0, color: '#3B82F6' },
-    { id: 'due_diligence', label: 'Due Diligence', count: pipelineStats.byStage?.due_diligence?.count || 0, value: pipelineStats.byStage?.due_diligence?.value || 0, color: '#10B981' },
-    { id: 'closed_won', label: 'Closed', count: pipelineStats.byStage?.closed_won?.count || 0, value: pipelineStats.byStage?.closed_won?.value || 0, color: '#059669' },
+    { id: 'Prospecting', label: 'Prospecting', count: pipelineStats.byStage?.Prospecting?.count || 0, value: pipelineStats.byStage?.Prospecting?.value || 0, color: '#6366F1' },
+    { id: 'Contacted', label: 'Contacted', count: pipelineStats.byStage?.Contacted?.count || 0, value: pipelineStats.byStage?.Contacted?.value || 0, color: '#8B5CF6' },
+    { id: 'Qualified', label: 'Qualified', count: pipelineStats.byStage?.Qualified?.count || 0, value: pipelineStats.byStage?.Qualified?.value || 0, color: '#F59E0B' },
+    { id: 'Negotiating', label: 'Negotiating', count: pipelineStats.byStage?.Negotiating?.count || 0, value: pipelineStats.byStage?.Negotiating?.value || 0, color: '#3B82F6' },
+    { id: 'Under Contract', label: 'Under Contract', count: pipelineStats.byStage?.['Under Contract']?.count || 0, value: pipelineStats.byStage?.['Under Contract']?.value || 0, color: '#10B981' },
   ] : [];
 
   const maxPipelineCount = Math.max(...pipelineStages.map(s => s.count), 1);
@@ -272,9 +271,15 @@ const HomePage = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Create New</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/opportunities')} className="cursor-pointer">
-                    <FolderKanban className="w-4 h-4 mr-2 text-gray-500" /> New Opportunity
-                  </DropdownMenuItem>
+                  <DropdownMenuLabel className="text-[10px] uppercase text-gray-400">New Opportunity</DropdownMenuLabel>
+                  {PROJECT_TYPES.map(type => {
+                    const Icon = PROJECT_TYPE_ICONS[type.key] || FolderKanban;
+                    return (
+                      <DropdownMenuItem key={`opp-${type.key}`} onClick={() => navigate(`/opportunities?create=true&type=${type.key}`)} className="cursor-pointer">
+                        <Icon className="w-4 h-4 mr-2 text-gray-500" /> {type.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-[10px] uppercase text-gray-400">New Project</DropdownMenuLabel>
                   {PROJECT_TYPES.map(type => {

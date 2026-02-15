@@ -60,26 +60,31 @@ export default function ConvertToProjectModal({
       setProjectName(opportunity.deal_number || opportunity.address || 'New Project');
       setDescription(opportunity.notes || '');
 
-      // Auto-select project type based on opportunity type
-      const oppType = opportunity.property_type || opportunity.opportunity_type;
-      switch (oppType) {
-        case 'vacant-lot':
-        case 'scattered-lot':
-        case 'flip-property':
-          setProjectType('scattered-lot');
-          break;
-        case 'development-lot-sale':
-          setProjectType('lot-development');
-          break;
-        case 'development-for-sale':
-          setProjectType('lot-purchase-development');
-          break;
-        case 'development-btr':
-        case 'community':
-          setProjectType('community-development');
-          break;
-        default:
-          setProjectType('scattered-lot');
+      // Auto-select project type — opportunity types now mirror project types 1:1
+      const oppType = opportunity.opportunity_type || opportunity.property_type;
+      const canonicalTypes = ['scattered-lot', 'lot-development', 'lot-purchase-development', 'community-development'];
+      if (canonicalTypes.includes(oppType)) {
+        setProjectType(oppType);
+      } else {
+        // Legacy type mapping for older opportunities
+        switch (oppType) {
+          case 'vacant-lot':
+          case 'flip-property':
+            setProjectType('scattered-lot');
+            break;
+          case 'development-lot-sale':
+            setProjectType('lot-development');
+            break;
+          case 'development-for-sale':
+            setProjectType('lot-purchase-development');
+            break;
+          case 'development-btr':
+          case 'community':
+            setProjectType('community-development');
+            break;
+          default:
+            setProjectType('scattered-lot');
+        }
       }
     }
   }, [opportunity]);
