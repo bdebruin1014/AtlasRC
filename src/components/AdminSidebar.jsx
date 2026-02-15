@@ -1,11 +1,10 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Users, Building2, Settings, Shield, Bell, 
-  Database, Key, FileText, Layers, CheckSquare, Calendar,
-  Calculator, LineChart, DollarSign, Target, Milestone, ListChecks,
-  FolderKanban, ClipboardList, Clock, Briefcase, Home, GitBranch,
-  Package, MapPin, Building, Wrench
+import {
+  LayoutDashboard, Users, Building2, Settings, Shield,
+  Database, Key, Layers, CheckSquare, Calendar,
+  Calculator, LineChart, DollarSign, Target, Milestone,
+  FolderKanban, ClipboardList, Home, GitBranch
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -45,22 +44,21 @@ const AdminSidebar = () => {
       ]
     },
     {
-      title: 'Organization',
+      title: 'People & Access',
       items: [
-        { label: 'Organization Settings', path: '/admin/organization', icon: Building2 },
-        { label: 'Team Management', path: '/admin/team', icon: Users },
-        { label: 'Teams', path: '/admin/teams', icon: Building },
-        { label: 'Permissions Matrix', path: '/admin/permissions', icon: Shield },
-        { label: 'Companies', path: '/admin/companies', icon: Briefcase },
+        { label: 'Settings Hub', path: '/admin/settings-hub', icon: Settings, exact: true },
+        { label: 'Users', path: '/admin/settings-hub?tab=users', icon: Users },
+        { label: 'Teams', path: '/admin/settings-hub?tab=teams', icon: Building2 },
+        { label: 'Roles & Templates', path: '/admin/settings-hub?tab=roles', icon: Shield },
+        { label: 'Permissions', path: '/admin/settings-hub?tab=permissions', icon: Key },
+        { label: 'Audit Log', path: '/admin/settings-hub?tab=audit', icon: ClipboardList },
       ]
     },
     {
       title: 'Configuration',
       items: [
         { label: 'General Settings', path: '/admin/settings', icon: Settings },
-        { label: 'Notifications', path: '/admin/notifications', icon: Bell },
         { label: 'Integrations', path: '/admin/integrations', icon: Layers },
-        { label: 'API Keys', path: '/admin/api-keys', icon: Key },
       ]
     },
     {
@@ -68,7 +66,6 @@ const AdminSidebar = () => {
       items: [
         { label: 'Activity Log', path: '/admin/activity-log', icon: ClipboardList },
         { label: 'System Audit Logs', path: '/admin/audit-logs', icon: Database },
-        { label: 'Data Management', path: '/admin/data', icon: Database },
       ]
     },
   ];
@@ -88,9 +85,11 @@ const AdminSidebar = () => {
             </p>
             {section.items.map((item) => {
               const IconComponent = item.icon;
-              const isActive = item.exact 
-                ? location.pathname === item.path
-                : location.pathname.startsWith(item.path);
+              const isActive = item.path.includes('?')
+                ? location.pathname + location.search === item.path
+                : item.exact
+                  ? location.pathname === item.path
+                  : location.pathname.startsWith(item.path);
               
               return (
                 <NavLink

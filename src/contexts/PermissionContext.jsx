@@ -93,6 +93,10 @@ export const PermissionProvider = ({ children }) => {
       contacts: [PERMISSIONS.CONTACTS_VIEW],
       admin: [PERMISSIONS.ADMIN_SETTINGS],
       users: [PERMISSIONS.USERS_VIEW],
+      construction: [PERMISSIONS.CONSTRUCTION_VIEW],
+      calendar: [PERMISSIONS.CALENDAR_VIEW],
+      operations: [PERMISSIONS.OPERATIONS_VIEW],
+      reports: [PERMISSIONS.REPORTS_VIEW],
     };
 
     const required = modulePermissions[module];

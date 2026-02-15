@@ -124,6 +124,24 @@ export const PERMISSIONS = {
   TASKS_DELETE: 'tasks:delete',
   TASKS_ASSIGN: 'tasks:assign',
 
+  // Construction Management
+  CONSTRUCTION_VIEW: 'construction:view',
+  CONSTRUCTION_CREATE: 'construction:create',
+  CONSTRUCTION_EDIT: 'construction:edit',
+  CONSTRUCTION_DELETE: 'construction:delete',
+  CONSTRUCTION_ADVANCE_MILESTONE: 'construction:advance_milestone',
+  CONSTRUCTION_ADMIN: 'construction:admin',
+
+  // Operations
+  OPERATIONS_VIEW: 'operations:view',
+  OPERATIONS_MANAGE_TEMPLATES: 'operations:manage_templates',
+  OPERATIONS_MANAGE_TEAMS: 'operations:manage_teams',
+
+  // Calendar
+  CALENDAR_VIEW: 'calendar:view',
+  CALENDAR_CREATE: 'calendar:create',
+  CALENDAR_EDIT: 'calendar:edit',
+
   // Reports
   REPORTS_VIEW: 'reports:view',
   REPORTS_CREATE: 'reports:create',
@@ -196,6 +214,21 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.ADMIN_SETTINGS,
     PERMISSIONS.ADMIN_TEMPLATES,
     PERMISSIONS.ADMIN_AUDIT_LOG,
+    // Construction
+    PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.CONSTRUCTION_CREATE,
+    PERMISSIONS.CONSTRUCTION_EDIT,
+    PERMISSIONS.CONSTRUCTION_DELETE,
+    PERMISSIONS.CONSTRUCTION_ADVANCE_MILESTONE,
+    PERMISSIONS.CONSTRUCTION_ADMIN,
+    // Operations
+    PERMISSIONS.OPERATIONS_VIEW,
+    PERMISSIONS.OPERATIONS_MANAGE_TEMPLATES,
+    PERMISSIONS.OPERATIONS_MANAGE_TEAMS,
+    // Calendar
+    PERMISSIONS.CALENDAR_VIEW,
+    PERMISSIONS.CALENDAR_CREATE,
+    PERMISSIONS.CALENDAR_EDIT,
   ],
 
   [ROLES.MANAGER]: [
@@ -228,6 +261,16 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.TASKS_ASSIGN,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.REPORTS_EXPORT,
+    // Construction
+    PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.CONSTRUCTION_CREATE,
+    PERMISSIONS.CONSTRUCTION_EDIT,
+    PERMISSIONS.CONSTRUCTION_ADVANCE_MILESTONE,
+    // Operations & Calendar
+    PERMISSIONS.OPERATIONS_VIEW,
+    PERMISSIONS.CALENDAR_VIEW,
+    PERMISSIONS.CALENDAR_CREATE,
+    PERMISSIONS.CALENDAR_EDIT,
   ],
 
   [ROLES.ACCOUNTANT]: [
@@ -248,6 +291,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.REPORTS_CREATE,
     PERMISSIONS.REPORTS_EXPORT,
+    // Construction & Calendar
+    PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.CALENDAR_VIEW,
   ],
 
   [ROLES.PROJECT_MANAGER]: [
@@ -267,6 +313,12 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.TASKS_EDIT,
     PERMISSIONS.TASKS_ASSIGN,
     PERMISSIONS.REPORTS_VIEW,
+    // Construction & Calendar
+    PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.CONSTRUCTION_EDIT,
+    PERMISSIONS.CONSTRUCTION_ADVANCE_MILESTONE,
+    PERMISSIONS.CALENDAR_VIEW,
+    PERMISSIONS.CALENDAR_CREATE,
   ],
 
   [ROLES.PROPERTY_MANAGER]: [
@@ -313,6 +365,11 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.TASKS_CREATE,
     PERMISSIONS.TASKS_EDIT,
     PERMISSIONS.REPORTS_VIEW,
+    // Construction, Operations & Calendar
+    PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.OPERATIONS_VIEW,
+    PERMISSIONS.CALENDAR_VIEW,
+    PERMISSIONS.CALENDAR_CREATE,
   ],
 
   [ROLES.VIEWER]: [
@@ -327,12 +384,17 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CONTACTS_VIEW,
     PERMISSIONS.TASKS_VIEW,
     PERMISSIONS.REPORTS_VIEW,
+    // Construction, Operations & Calendar
+    PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.OPERATIONS_VIEW,
+    PERMISSIONS.CALENDAR_VIEW,
   ],
 
   [ROLES.EXTERNAL]: [
     PERMISSIONS.PROJECTS_VIEW,
     PERMISSIONS.DOCUMENTS_VIEW,
     PERMISSIONS.TASKS_VIEW,
+    PERMISSIONS.CONSTRUCTION_VIEW,
   ],
 };
 
@@ -342,80 +404,219 @@ export const ROLE_PERMISSIONS = {
 
 export const PERMISSION_GROUPS = [
   {
-    name: 'User Management',
+    name: 'Opportunities',
+    module: 'opportunities',
+    icon: 'FolderKanban',
     permissions: [
-      { id: PERMISSIONS.USERS_VIEW, label: 'View Users' },
-      { id: PERMISSIONS.USERS_CREATE, label: 'Create Users' },
-      { id: PERMISSIONS.USERS_EDIT, label: 'Edit Users' },
-      { id: PERMISSIONS.USERS_DELETE, label: 'Delete Users' },
-      { id: PERMISSIONS.USERS_MANAGE_ROLES, label: 'Manage Roles' },
+      { id: PERMISSIONS.PIPELINE_VIEW, label: 'View', description: 'See all opportunities' },
+      { id: PERMISSIONS.PIPELINE_CREATE, label: 'Create', description: 'Add new opportunities' },
+      { id: PERMISSIONS.PIPELINE_EDIT, label: 'Edit', description: 'Modify opportunity details' },
+      { id: PERMISSIONS.PIPELINE_DELETE, label: 'Delete', description: 'Remove opportunities' },
     ]
   },
   {
     name: 'Projects',
+    module: 'projects',
+    icon: 'Building2',
     permissions: [
-      { id: PERMISSIONS.PROJECTS_VIEW, label: 'View Projects' },
-      { id: PERMISSIONS.PROJECTS_CREATE, label: 'Create Projects' },
-      { id: PERMISSIONS.PROJECTS_EDIT, label: 'Edit Projects' },
-      { id: PERMISSIONS.PROJECTS_DELETE, label: 'Delete Projects' },
-      { id: PERMISSIONS.PROJECTS_MANAGE_TEAM, label: 'Manage Project Teams' },
+      { id: PERMISSIONS.PROJECTS_VIEW, label: 'View', description: 'See all projects' },
+      { id: PERMISSIONS.PROJECTS_CREATE, label: 'Create', description: 'Add new projects' },
+      { id: PERMISSIONS.PROJECTS_EDIT, label: 'Edit', description: 'Modify project details' },
+      { id: PERMISSIONS.PROJECTS_DELETE, label: 'Delete', description: 'Remove projects' },
+      { id: PERMISSIONS.PROJECTS_MANAGE_TEAM, label: 'Manage Team', description: 'Add/remove team members on projects' },
     ]
   },
   {
-    name: 'Pipeline',
+    name: 'Contacts',
+    module: 'contacts',
+    icon: 'Users',
     permissions: [
-      { id: PERMISSIONS.PIPELINE_VIEW, label: 'View Pipeline' },
-      { id: PERMISSIONS.PIPELINE_CREATE, label: 'Create Opportunities' },
-      { id: PERMISSIONS.PIPELINE_EDIT, label: 'Edit Opportunities' },
-      { id: PERMISSIONS.PIPELINE_DELETE, label: 'Delete Opportunities' },
+      { id: PERMISSIONS.CONTACTS_VIEW, label: 'View', description: 'See all contacts' },
+      { id: PERMISSIONS.CONTACTS_CREATE, label: 'Create', description: 'Add new contacts' },
+      { id: PERMISSIONS.CONTACTS_EDIT, label: 'Edit', description: 'Modify contact details' },
+      { id: PERMISSIONS.CONTACTS_DELETE, label: 'Delete', description: 'Remove contacts' },
+    ]
+  },
+  {
+    name: 'Calendar',
+    module: 'calendar',
+    icon: 'Calendar',
+    permissions: [
+      { id: PERMISSIONS.CALENDAR_VIEW, label: 'View', description: 'See all calendar events' },
+      { id: PERMISSIONS.CALENDAR_CREATE, label: 'Create', description: 'Add events' },
+      { id: PERMISSIONS.CALENDAR_EDIT, label: 'Edit', description: 'Modify events' },
+    ]
+  },
+  {
+    name: 'Construction Management',
+    module: 'construction',
+    icon: 'Hammer',
+    permissions: [
+      { id: PERMISSIONS.CONSTRUCTION_VIEW, label: 'View', description: 'See all houses and construction data' },
+      { id: PERMISSIONS.CONSTRUCTION_CREATE, label: 'Create', description: 'Add new houses' },
+      { id: PERMISSIONS.CONSTRUCTION_EDIT, label: 'Edit', description: 'Modify house details, POs, logs' },
+      { id: PERMISSIONS.CONSTRUCTION_DELETE, label: 'Delete', description: 'Remove houses' },
+      { id: PERMISSIONS.CONSTRUCTION_ADVANCE_MILESTONE, label: 'Advance Milestone', description: 'Move houses through construction stages' },
+      { id: PERMISSIONS.CONSTRUCTION_ADMIN, label: 'Construction Admin', description: 'Manage floor plans, pricing, templates' },
     ]
   },
   {
     name: 'Accounting',
+    module: 'accounting',
+    icon: 'DollarSign',
     permissions: [
-      { id: PERMISSIONS.ACCOUNTING_VIEW, label: 'View Accounting' },
-      { id: PERMISSIONS.ACCOUNTING_CREATE, label: 'Create Transactions' },
-      { id: PERMISSIONS.ACCOUNTING_EDIT, label: 'Edit Transactions' },
-      { id: PERMISSIONS.ACCOUNTING_DELETE, label: 'Delete Transactions' },
-      { id: PERMISSIONS.ACCOUNTING_APPROVE, label: 'Approve Transactions' },
-      { id: PERMISSIONS.ACCOUNTING_REPORTS, label: 'Financial Reports' },
+      { id: PERMISSIONS.ACCOUNTING_VIEW, label: 'View', description: 'See financial data' },
+      { id: PERMISSIONS.ACCOUNTING_CREATE, label: 'Create', description: 'Record transactions' },
+      { id: PERMISSIONS.ACCOUNTING_EDIT, label: 'Edit', description: 'Modify transactions' },
+      { id: PERMISSIONS.ACCOUNTING_DELETE, label: 'Delete', description: 'Remove transactions' },
+      { id: PERMISSIONS.ACCOUNTING_APPROVE, label: 'Approve', description: 'Approve journal entries and payments' },
+      { id: PERMISSIONS.ACCOUNTING_REPORTS, label: 'Reports', description: 'Run financial reports' },
     ]
   },
   {
-    name: 'Investors',
+    name: 'Operations',
+    module: 'operations',
+    icon: 'Cog',
     permissions: [
-      { id: PERMISSIONS.INVESTORS_VIEW, label: 'View Investors' },
-      { id: PERMISSIONS.INVESTORS_CREATE, label: 'Create Investors' },
-      { id: PERMISSIONS.INVESTORS_EDIT, label: 'Edit Investors' },
-      { id: PERMISSIONS.INVESTORS_DELETE, label: 'Delete Investors' },
-      { id: PERMISSIONS.INVESTORS_DISTRIBUTIONS, label: 'Manage Distributions' },
-    ]
-  },
-  {
-    name: 'Property Management',
-    permissions: [
-      { id: PERMISSIONS.PROPERTIES_VIEW, label: 'View Properties' },
-      { id: PERMISSIONS.PROPERTIES_CREATE, label: 'Create Properties' },
-      { id: PERMISSIONS.PROPERTIES_EDIT, label: 'Edit Properties' },
-      { id: PERMISSIONS.PROPERTIES_DELETE, label: 'Delete Properties' },
-      { id: PERMISSIONS.INSPECTIONS_CONDUCT, label: 'Conduct Inspections' },
+      { id: PERMISSIONS.OPERATIONS_VIEW, label: 'View', description: 'Access operations dashboard' },
+      { id: PERMISSIONS.OPERATIONS_MANAGE_TEMPLATES, label: 'Manage Templates', description: 'Create/edit workflow and document templates' },
+      { id: PERMISSIONS.OPERATIONS_MANAGE_TEAMS, label: 'Manage Teams', description: 'Create and manage team assignments' },
+      { id: PERMISSIONS.TASKS_VIEW, label: 'View Tasks', description: 'See assigned tasks' },
+      { id: PERMISSIONS.TASKS_CREATE, label: 'Create Tasks', description: 'Create new tasks' },
+      { id: PERMISSIONS.TASKS_EDIT, label: 'Edit Tasks', description: 'Modify task details' },
+      { id: PERMISSIONS.TASKS_DELETE, label: 'Delete Tasks', description: 'Remove tasks' },
+      { id: PERMISSIONS.TASKS_ASSIGN, label: 'Assign Tasks', description: 'Assign tasks to team members' },
     ]
   },
   {
     name: 'Documents',
+    module: 'documents',
+    icon: 'FileText',
     permissions: [
-      { id: PERMISSIONS.DOCUMENTS_VIEW, label: 'View Documents' },
-      { id: PERMISSIONS.DOCUMENTS_UPLOAD, label: 'Upload Documents' },
-      { id: PERMISSIONS.DOCUMENTS_DELETE, label: 'Delete Documents' },
-      { id: PERMISSIONS.DOCUMENTS_SEND_ESIGN, label: 'Send for E-Signature' },
+      { id: PERMISSIONS.DOCUMENTS_VIEW, label: 'View', description: 'See documents' },
+      { id: PERMISSIONS.DOCUMENTS_UPLOAD, label: 'Upload', description: 'Upload new documents' },
+      { id: PERMISSIONS.DOCUMENTS_DELETE, label: 'Delete', description: 'Remove documents' },
+      { id: PERMISSIONS.DOCUMENTS_SEND_ESIGN, label: 'E-Signature', description: 'Send documents for signing' },
+    ]
+  },
+  {
+    name: 'Reports',
+    module: 'reports',
+    icon: 'BarChart3',
+    permissions: [
+      { id: PERMISSIONS.REPORTS_VIEW, label: 'View', description: 'View reports' },
+      { id: PERMISSIONS.REPORTS_CREATE, label: 'Create', description: 'Build custom reports' },
+      { id: PERMISSIONS.REPORTS_EXPORT, label: 'Export', description: 'Export report data' },
     ]
   },
   {
     name: 'Administration',
+    module: 'admin',
+    icon: 'Settings',
     permissions: [
-      { id: PERMISSIONS.ADMIN_SETTINGS, label: 'System Settings' },
-      { id: PERMISSIONS.ADMIN_TEMPLATES, label: 'Manage Templates' },
-      { id: PERMISSIONS.ADMIN_AUDIT_LOG, label: 'View Audit Log' },
+      { id: PERMISSIONS.USERS_VIEW, label: 'View Users', description: 'See user list' },
+      { id: PERMISSIONS.USERS_CREATE, label: 'Create Users', description: 'Invite new users' },
+      { id: PERMISSIONS.USERS_EDIT, label: 'Edit Users', description: 'Modify user profiles' },
+      { id: PERMISSIONS.USERS_DELETE, label: 'Delete Users', description: 'Remove users' },
+      { id: PERMISSIONS.USERS_MANAGE_ROLES, label: 'Manage Roles', description: 'Assign roles and permissions' },
+      { id: PERMISSIONS.ADMIN_SETTINGS, label: 'System Settings', description: 'Modify system configuration' },
+      { id: PERMISSIONS.ADMIN_TEMPLATES, label: 'Manage Templates', description: 'Create/edit templates' },
+      { id: PERMISSIONS.ADMIN_AUDIT_LOG, label: 'Audit Log', description: 'View system audit trail' },
+    ]
+  },
+];
+
+// ============================================
+// PERMISSION TEMPLATES (pre-built custom permission sets)
+// ============================================
+
+export const PERMISSION_TEMPLATES = [
+  {
+    id: 'wholesale_acquisitions',
+    name: 'Wholesale / Acquisitions',
+    description: 'Full access to opportunities pipeline, contacts, and documents. Read-only on projects and accounting.',
+    permissions: [
+      PERMISSIONS.PIPELINE_VIEW, PERMISSIONS.PIPELINE_CREATE, PERMISSIONS.PIPELINE_EDIT, PERMISSIONS.PIPELINE_DELETE,
+      PERMISSIONS.CONTACTS_VIEW, PERMISSIONS.CONTACTS_CREATE, PERMISSIONS.CONTACTS_EDIT,
+      PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_UPLOAD, PERMISSIONS.DOCUMENTS_SEND_ESIGN,
+      PERMISSIONS.PROJECTS_VIEW,
+      PERMISSIONS.ACCOUNTING_VIEW,
+      PERMISSIONS.TASKS_VIEW, PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASKS_EDIT,
+      PERMISSIONS.CALENDAR_VIEW, PERMISSIONS.CALENDAR_CREATE, PERMISSIONS.CALENDAR_EDIT,
+      PERMISSIONS.REPORTS_VIEW,
+    ]
+  },
+  {
+    id: 'construction_superintendent',
+    name: 'Construction Superintendent',
+    description: 'Full construction management access. Can advance milestones, manage POs, and log daily activities. Read-only on finance.',
+    permissions: [
+      PERMISSIONS.CONSTRUCTION_VIEW, PERMISSIONS.CONSTRUCTION_CREATE, PERMISSIONS.CONSTRUCTION_EDIT, PERMISSIONS.CONSTRUCTION_ADVANCE_MILESTONE,
+      PERMISSIONS.PROJECTS_VIEW,
+      PERMISSIONS.CONTACTS_VIEW, PERMISSIONS.CONTACTS_CREATE,
+      PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_UPLOAD,
+      PERMISSIONS.TASKS_VIEW, PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASKS_EDIT,
+      PERMISSIONS.CALENDAR_VIEW, PERMISSIONS.CALENDAR_CREATE,
+      PERMISSIONS.ACCOUNTING_VIEW,
+    ]
+  },
+  {
+    id: 'bookkeeper',
+    name: 'Bookkeeper',
+    description: 'Full accounting access across all entities. Can create transactions, reconcile, and run reports. No project management.',
+    permissions: [
+      PERMISSIONS.ACCOUNTING_VIEW, PERMISSIONS.ACCOUNTING_CREATE, PERMISSIONS.ACCOUNTING_EDIT, PERMISSIONS.ACCOUNTING_REPORTS,
+      PERMISSIONS.CONTACTS_VIEW, PERMISSIONS.CONTACTS_CREATE, PERMISSIONS.CONTACTS_EDIT,
+      PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_UPLOAD,
+      PERMISSIONS.REPORTS_VIEW, PERMISSIONS.REPORTS_CREATE, PERMISSIONS.REPORTS_EXPORT,
+      PERMISSIONS.PROJECTS_VIEW,
+      PERMISSIONS.CALENDAR_VIEW,
+    ]
+  },
+  {
+    id: 'project_coordinator',
+    name: 'Project Coordinator',
+    description: 'Manage project details, tasks, and schedules. View-only on construction and accounting.',
+    permissions: [
+      PERMISSIONS.PROJECTS_VIEW, PERMISSIONS.PROJECTS_EDIT, PERMISSIONS.PROJECTS_MANAGE_TEAM,
+      PERMISSIONS.CONSTRUCTION_VIEW,
+      PERMISSIONS.CONTACTS_VIEW, PERMISSIONS.CONTACTS_CREATE, PERMISSIONS.CONTACTS_EDIT,
+      PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_UPLOAD, PERMISSIONS.DOCUMENTS_SEND_ESIGN,
+      PERMISSIONS.TASKS_VIEW, PERMISSIONS.TASKS_CREATE, PERMISSIONS.TASKS_EDIT, PERMISSIONS.TASKS_ASSIGN,
+      PERMISSIONS.CALENDAR_VIEW, PERMISSIONS.CALENDAR_CREATE, PERMISSIONS.CALENDAR_EDIT,
+      PERMISSIONS.ACCOUNTING_VIEW,
+      PERMISSIONS.REPORTS_VIEW,
+    ]
+  },
+  {
+    id: 'sales_agent',
+    name: 'Sales Agent',
+    description: 'Access to contacts, project sales data, and documents. Limited view of construction progress.',
+    permissions: [
+      PERMISSIONS.CONTACTS_VIEW, PERMISSIONS.CONTACTS_CREATE, PERMISSIONS.CONTACTS_EDIT,
+      PERMISSIONS.PROJECTS_VIEW,
+      PERMISSIONS.CONSTRUCTION_VIEW,
+      PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_UPLOAD, PERMISSIONS.DOCUMENTS_SEND_ESIGN,
+      PERMISSIONS.CALENDAR_VIEW, PERMISSIONS.CALENDAR_CREATE,
+      PERMISSIONS.TASKS_VIEW, PERMISSIONS.TASKS_CREATE,
+      PERMISSIONS.REPORTS_VIEW,
+    ]
+  },
+  {
+    id: 'executive_readonly',
+    name: 'Executive (Read-Only)',
+    description: 'View everything across all modules. No create/edit/delete access.',
+    permissions: [
+      PERMISSIONS.PIPELINE_VIEW,
+      PERMISSIONS.PROJECTS_VIEW,
+      PERMISSIONS.CONTACTS_VIEW,
+      PERMISSIONS.CALENDAR_VIEW,
+      PERMISSIONS.CONSTRUCTION_VIEW,
+      PERMISSIONS.ACCOUNTING_VIEW, PERMISSIONS.ACCOUNTING_REPORTS,
+      PERMISSIONS.OPERATIONS_VIEW,
+      PERMISSIONS.DOCUMENTS_VIEW,
+      PERMISSIONS.TASKS_VIEW,
+      PERMISSIONS.REPORTS_VIEW, PERMISSIONS.REPORTS_EXPORT,
     ]
   },
 ];
@@ -758,6 +959,7 @@ export default {
   PERMISSIONS,
   ROLE_PERMISSIONS,
   PERMISSION_GROUPS,
+  PERMISSION_TEMPLATES,
 
   // Permission checking
   loadUserPermissions,

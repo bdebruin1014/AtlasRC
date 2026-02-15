@@ -122,6 +122,7 @@ const IntegrationsPage = lazy(() => import('@/pages/admin/IntegrationsPage'));
 
 // New Admin Pages (TypeScript)
 const AdminSettingsPage = lazy(() => import('@/pages/Admin/Settings'));
+const SettingsHubPage = lazy(() => import('@/pages/admin/SettingsHubPage'));
 const TeamManagementPage = lazy(() => import('@/pages/Admin/TeamManagement'));
 const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
 
@@ -282,6 +283,14 @@ const DispositionPage = lazy(() => import('@/pages/projects/DispositionPage'));
 const ContractRecordPage = lazy(() => import('@/pages/projects/ContractRecordPage'));
 const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementStatementPage'));
 
+// ============================================
+// CONSTRUCTION MANAGEMENT MODULE
+// ============================================
+const ConstructionListPage = lazy(() => import('@/pages/construction/ConstructionListPage'));
+const HouseDetailPage = lazy(() => import('@/pages/construction/HouseDetailPage'));
+const ConstructionAdminPage = lazy(() => import('@/pages/construction/ConstructionAdminPage'));
+const ConstructionSidebar = lazy(() => import('@/components/ConstructionSidebar'));
+
 // New Project Pages (Phase 9)
 const BasicInfoPage = lazy(() => import('@/pages/projects/BasicInfoPage'));
 const PropertyInfoPage = lazy(() => import('@/pages/projects/PropertyInfoPage'));
@@ -323,6 +332,13 @@ const AppLayout = ({ children }) => {
 const AdminLayout = ({ children }) => (
   <div className="flex h-[calc(100vh-40px)]">
     <Suspense fallback={<LoadingState />}><AdminSidebar /></Suspense>
+    <div className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></div>
+  </div>
+);
+
+const ConstructionLayout = ({ children }) => (
+  <div className="flex h-[calc(100vh-40px)]">
+    <Suspense fallback={<LoadingState />}><ConstructionSidebar /></Suspense>
     <div className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></div>
   </div>
 );
@@ -439,10 +455,12 @@ const AppContent = () => (
 
     {/* Core Routes */}
     <Route path="/" element={<ProtectedRoute><AppLayout><HomePage /></AppLayout></ProtectedRoute>} />
-    <Route path="/executive" element={<ProtectedRoute><AppLayout><ExecutiveDashboard /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/executive" element={<ProtectedRoute><AppLayout><ExecutiveDashboard /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} /> */}
     
     {/* ============================================ */}
     {/* PROJECT DETAIL ROUTES - Streamlined */}
@@ -471,14 +489,15 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/construction/rfis" element={<ProtectedRoute><AppLayout><RFITracker /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/punch-list" element={<ProtectedRoute><AppLayout><PunchList /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/photos" element={<ProtectedRoute><AppLayout><PhotoProgressTracker /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/meetings" element={<ProtectedRoute><AppLayout><MeetingMinutes /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/project/:projectId/meetings" element={<ProtectedRoute><AppLayout><MeetingMinutes /></AppLayout></ProtectedRoute>} /> */}
 
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/summary" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/budget-vs-actual" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/revenue" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
@@ -494,7 +513,8 @@ const AppContent = () => (
     <Route path="/project/:projectId/documents/expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/audit" element={<ProtectedRoute><AppLayout><AuditTrail /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/activity" element={<ProtectedRoute><AppLayout><ProjectActivityFeed /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/health" element={<ProtectedRoute><AppLayout><ProjectHealthDashboard /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/project/:projectId/health" element={<ProtectedRoute><AppLayout><ProjectHealthDashboard /></AppLayout></ProtectedRoute>} /> */}
     
     {/* New Project Pages (Phase 9) */}
     <Route path="/project/:projectId/basic-info" element={<ProtectedRoute><AppLayout><BasicInfoPage /></AppLayout></ProtectedRoute>} />
@@ -540,12 +560,39 @@ const AppContent = () => (
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
+    {/* CONSTRUCTION MANAGEMENT MODULE */}
+    {/* ============================================ */}
+    <Route path="/construction" element={<ProtectedRoute><AppLayout><ConstructionListPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionAdminPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/floor-plans" element={<ProtectedRoute><AppLayout><ConstructionLayout><FloorPlansPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/plans" element={<ProtectedRoute><AppLayout><ConstructionLayout><PlanPricingMatrixPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/sticks-bricks" element={<ProtectedRoute><AppLayout><ConstructionLayout><BudgetTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/upgrades" element={<ProtectedRoute><AppLayout><ConstructionLayout><UpgradePricingPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/schedule-templates" element={<ProtectedRoute><AppLayout><ConstructionLayout><ScheduleTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/workflow-templates" element={<ProtectedRoute><AppLayout><ConstructionLayout><TaskWorkflowTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/municipalities" element={<ProtectedRoute><AppLayout><ConstructionLayout><MunicipalityFeesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/soft-costs" element={<ProtectedRoute><AppLayout><ConstructionLayout><SoftCostTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/admin/lot-prep" element={<ProtectedRoute><AppLayout><ConstructionLayout><LotPrepTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><PermitsPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><BidsPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/work-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><WorkOrderSystem /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/punch-list" element={<ProtectedRoute><AppLayout><ConstructionLayout><PunchList /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/photos" element={<ProtectedRoute><AppLayout><ConstructionLayout><PhotoProgressTracker /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/insurance" element={<ProtectedRoute><AppLayout><ConstructionLayout><InsurancePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/schedule" element={<ProtectedRoute><AppLayout><ConstructionLayout><SchedulePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/budget" element={<ProtectedRoute><AppLayout><ConstructionLayout><BudgetPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/inspections" element={<ProtectedRoute><AppLayout><ConstructionLayout><InsurancePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/warranty" element={<ProtectedRoute><AppLayout><ConstructionLayout><InsurancePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+
+    {/* ============================================ */}
     {/* OPPORTUNITIES MODULE */}
     {/* ============================================ */}
     <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunities/new" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
 
@@ -584,10 +631,11 @@ const AppContent = () => (
 
     {/* Global accounting tools (no entity context) */}
     <Route path="/accounting/dashboard" element={<ProtectedRoute><AppLayout><AccountingDashboardPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/chart-of-accounts" element={<ProtectedRoute><AppLayout><ChartOfAccountsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/accounting/hierarchy" element={<ProtectedRoute><AppLayout><EntityOwnershipHierarchyPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/accounting/chart-of-accounts" element={<ProtectedRoute><AppLayout><ChartOfAccountsPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} /> */}
 
     {/* ============================================ */}
     {/* ENTITY ACCOUNTING ROUTES - Canonical Pattern: /accounting/entities/:entityId/... */}
@@ -694,6 +742,7 @@ const AppContent = () => (
     <Route path="/admin/users" element={<ProtectedRoute><AppLayout><AdminLayout><UsersManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/team" element={<ProtectedRoute><AppLayout><AdminLayout><TeamManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/settings" element={<ProtectedRoute><AppLayout><AdminLayout><AdminSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/settings-hub" element={<ProtectedRoute><AppLayout><AdminLayout><SettingsHubPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/activity-log" element={<ProtectedRoute><AppLayout><AdminLayout><ActivityLogPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/audit-trail" element={<ProtectedRoute><AppLayout><AdminLayout><AuditTrail /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/plans" element={<ProtectedRoute><AppLayout><AdminLayout><FloorPlansPage /></AdminLayout></AppLayout></ProtectedRoute>} />
@@ -727,32 +776,37 @@ const AppContent = () => (
     <Route path="/operations/teams" element={<ProtectedRoute><AppLayout><TeamsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/esign" element={<ProtectedRoute><AppLayout><ESignPage /></AppLayout></ProtectedRoute>} />
     <Route path="/operations/documents" element={<ProtectedRoute><AppLayout><DocumentLibraryPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/document-expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/vendors" element={<ProtectedRoute><AppLayout><VendorPerformanceTracker /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/recurring-tasks" element={<ProtectedRoute><AppLayout><RecurringTasksManager /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/approvals" element={<ProtectedRoute><AppLayout><ApprovalWorkflow /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/operations/document-expiration" element={<ProtectedRoute><AppLayout><DocumentExpirationTracker /></AppLayout></ProtectedRoute>} /> */}
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/operations/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/vendors" element={<ProtectedRoute><AppLayout><VendorPerformanceTracker /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/recurring-tasks" element={<ProtectedRoute><AppLayout><RecurringTasksManager /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/approvals" element={<ProtectedRoute><AppLayout><ApprovalWorkflow /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/operations/templates" element={<ProtectedRoute><AppLayout><DocumentTemplates /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/emails" element={<ProtectedRoute><AppLayout><EmailDashboard /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/import-export" element={<ProtectedRoute><AppLayout><DataImportExport /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/report-scheduler" element={<ProtectedRoute><AppLayout><ReportScheduler /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/operations/emails" element={<ProtectedRoute><AppLayout><EmailDashboard /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/import-export" element={<ProtectedRoute><AppLayout><DataImportExport /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/report-scheduler" element={<ProtectedRoute><AppLayout><ReportScheduler /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/operations/reports" element={<ProtectedRoute><AppLayout><OperationsReportsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/search" element={<ProtectedRoute><AppLayout><AdvancedSearch /></AppLayout></ProtectedRoute>} />
-    <Route path="/dashboard-builder" element={<ProtectedRoute><AppLayout><DashboardBuilder /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/dashboard-builder" element={<ProtectedRoute><AppLayout><DashboardBuilder /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/settings/notifications" element={<ProtectedRoute><AppLayout><NotificationPreferences /></AppLayout></ProtectedRoute>} />
     <Route path="/admin/tags" element={<ProtectedRoute><AppLayout><AdminLayout><TagManager /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/bulk-actions" element={<ProtectedRoute><AppLayout><AdminLayout><BulkActions /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/analytics" element={<ProtectedRoute><AppLayout><AdminLayout><UserActivityAnalytics /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/custom-fields" element={<ProtectedRoute><AppLayout><AdminLayout><CustomFieldsManager /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/webhooks" element={<ProtectedRoute><AppLayout><AdminLayout><WebhookManager /></AdminLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/comments" element={<ProtectedRoute><AppLayout><CommentsNotes /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/contracts" element={<ProtectedRoute><AppLayout><ContractManagement /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/cma" element={<ProtectedRoute><AppLayout><ComparativeMarketAnalysis /></AppLayout></ProtectedRoute>} />
-    <Route path="/pipeline" element={<ProtectedRoute><AppLayout><DealPipelineKanban /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/team-workload" element={<ProtectedRoute><AppLayout><TeamWorkloadDashboard /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/property-compare" element={<ProtectedRoute><AppLayout><PropertyComparisonTool /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/saved-views" element={<ProtectedRoute><AppLayout><SavedViewsManager /></AppLayout></ProtectedRoute>} />
-    <Route path="/operations/activity-tracker" element={<ProtectedRoute><AppLayout><UserActivityTimeTracker /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/operations/comments" element={<ProtectedRoute><AppLayout><CommentsNotes /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/contracts" element={<ProtectedRoute><AppLayout><ContractManagement /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/cma" element={<ProtectedRoute><AppLayout><ComparativeMarketAnalysis /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/pipeline" element={<ProtectedRoute><AppLayout><DealPipelineKanban /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/team-workload" element={<ProtectedRoute><AppLayout><TeamWorkloadDashboard /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/property-compare" element={<ProtectedRoute><AppLayout><PropertyComparisonTool /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/saved-views" element={<ProtectedRoute><AppLayout><SavedViewsManager /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/operations/activity-tracker" element={<ProtectedRoute><AppLayout><UserActivityTimeTracker /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/operations/milestones" element={<ProtectedRoute><AppLayout><MilestoneTracker /></AppLayout></ProtectedRoute>} />
 
     {/* Task Management System (Phase 10) */}
@@ -766,9 +820,10 @@ const AppContent = () => (
     {/* ============================================ */}
     {/* ACQUISITION PIPELINE MODULE */}
     {/* ============================================ */}
-    <Route path="/acquisition" element={<ProtectedRoute><AppLayout><AcquisitionPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/acquisition/:propertyId" element={<ProtectedRoute><AppLayout><AcquisitionPropertyPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/deal-analyzer" element={<ProtectedRoute><AppLayout><DealAnalyzerPage /></AppLayout></ProtectedRoute>} />
+    {/* HIDDEN - Atlas Simplification */}
+    {/* <Route path="/acquisition" element={<ProtectedRoute><AppLayout><AcquisitionPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/acquisition/:propertyId" element={<ProtectedRoute><AppLayout><AcquisitionPropertyPage /></AppLayout></ProtectedRoute>} /> */}
+    {/* <Route path="/deal-analyzer" element={<ProtectedRoute><AppLayout><DealAnalyzerPage /></AppLayout></ProtectedRoute>} /> */}
 
     {/* EOS Module */}
     <Route path="/eos" element={<ProtectedRoute><AppLayout><EOSMainPage /></AppLayout></ProtectedRoute>} />

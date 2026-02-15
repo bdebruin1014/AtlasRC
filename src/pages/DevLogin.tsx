@@ -17,7 +17,7 @@ export default function DevLogin() {
             Skip auth for testing
           </p>
           <Button 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/')}
             className="w-full"
           >
             Enter App (Dev Mode)
