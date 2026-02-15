@@ -4,7 +4,8 @@ import {
   Home, Building2, FolderKanban, Users, Calendar, Settings, DollarSign,
   Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2,
   BarChart3, Target, TrendingUp, Clock, BookOpen, Receipt, Plus,
-  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw, Hammer
+  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw, Hammer,
+  Layout, ArrowUpCircle, CalendarDays
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/contexts/PermissionContext';
@@ -21,7 +22,19 @@ const TopNavigation = () => {
     { label: 'Projects', path: '/projects', icon: Building2 },
     { label: 'Contacts', path: '/contacts', icon: Users },
     { label: 'Calendar', path: '/calendar', icon: Calendar },
-    { label: 'Construction', path: '/construction', icon: Hammer },
+    {
+      label: 'Construction',
+      icon: Hammer,
+      dropdown: [
+        { label: 'Houses', path: '/construction', icon: Home, description: 'All houses & milestone tracker' },
+        { label: 'Admin', path: '', isHeader: true },
+        { label: 'Floor Plans', path: '/construction/admin/floor-plans', icon: Layout, description: 'Home plan library' },
+        { label: 'Plan Pricing', path: '/construction/admin/plans', icon: Calculator, description: 'Sticks & bricks cost matrix' },
+        { label: 'Upgrade Packages', path: '/construction/admin/upgrades', icon: ArrowUpCircle, description: 'Upgrade tiers & pricing' },
+        { label: 'Schedule Templates', path: '/construction/admin/schedule-templates', icon: CalendarDays, description: 'Construction schedules by plan' },
+        { label: 'Municipality Fees', path: '/construction/admin/municipalities', icon: Building2, description: 'Fee schedules by jurisdiction' },
+      ]
+    },
     {
       label: 'Accounting',
       icon: DollarSign,
