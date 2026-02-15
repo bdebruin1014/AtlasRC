@@ -496,6 +496,7 @@ const AppContent = () => (
     {/* Finance Section */}
     <Route path="/project/:projectId/finance" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/summary" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/project/:projectId/finance/budget-vs-actual" element={<ProtectedRoute><AppLayout><ActualsVsBudgetPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/revenue" element={<ProtectedRoute><AppLayout><SalesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/finance/loans" element={<ProtectedRoute><AppLayout><ProjectLoansPage /></AppLayout></ProtectedRoute>} />
