@@ -595,6 +595,11 @@ const AppContent = () => (
     <Route path="/project/:projectId/cash-flow" element={<ProtectedRoute><AppLayout><CashFlowPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
 
+
+    {/* ================================================ */}
+    {/* ACCOUNTING MODULE */}
+    {/* ================================================ */}
+            <Route path="/accounting" element={<ProtectedRoute><AppLayout><EntityAccountingLayout><AccountingEntitiesListPage /></EntityAccountingLayout>EntityAccountingLayout></AppLayout>AppLayout></ProtectedRoute>ProtectedRoute>} /></ProtectedRoute>
     {/* ============================================ */}
     {/* CONSTRUCTION MANAGEMENT MODULE */}
     {/* ============================================ */}
