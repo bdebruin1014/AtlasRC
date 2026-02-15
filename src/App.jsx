@@ -290,6 +290,9 @@ const ConstructionListPage = lazy(() => import('@/pages/construction/Constructio
 const HouseDetailPage = lazy(() => import('@/pages/construction/HouseDetailPage'));
 const ConstructionAdminPage = lazy(() => import('@/pages/construction/ConstructionAdminPage'));
 const ConstructionSidebar = lazy(() => import('@/components/ConstructionSidebar'));
+const DailyLogsPage = lazy(() => import('@/pages/projects/DailyLogsPage'));
+const InspectionsPage = lazy(() => import('@/pages/projects/InspectionsPage'));
+const WarrantyPage = lazy(() => import('@/pages/projects/WarrantyPage'));
 
 // New Project Pages (Phase 9)
 const BasicInfoPage = lazy(() => import('@/pages/projects/BasicInfoPage'));
@@ -342,6 +345,14 @@ const ConstructionLayout = ({ children }) => (
     <div className="flex-1 overflow-auto"><Suspense fallback={<LoadingState />}>{children}</Suspense></div>
   </div>
 );
+
+// Wrapper to bridge houseId → projectId for reused project pages
+const ConstructionPageWrapper = ({ Component, ...props }) => {
+  const { houseId } = useParams();
+  // Pass houseId as projectId to reused components
+  // These components will use it to scope their data
+  return <Component projectId={houseId} {...props} />;
+};
 
 const AccountingEntityLayout = ({ children }) => {
   const { entityId } = useParams();
@@ -574,16 +585,17 @@ const AppContent = () => (
     <Route path="/construction/admin/soft-costs" element={<ProtectedRoute><AppLayout><ConstructionLayout><SoftCostTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/admin/lot-prep" element={<ProtectedRoute><AppLayout><ConstructionLayout><LotPrepTemplatesPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><PermitsPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><BidsPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/work-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><WorkOrderSystem /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/punch-list" element={<ProtectedRoute><AppLayout><ConstructionLayout><PunchList /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/photos" element={<ProtectedRoute><AppLayout><ConstructionLayout><PhotoProgressTracker /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/insurance" element={<ProtectedRoute><AppLayout><ConstructionLayout><InsurancePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/schedule" element={<ProtectedRoute><AppLayout><ConstructionLayout><SchedulePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/budget" element={<ProtectedRoute><AppLayout><ConstructionLayout><BudgetPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/inspections" element={<ProtectedRoute><AppLayout><ConstructionLayout><InsurancePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/warranty" element={<ProtectedRoute><AppLayout><ConstructionLayout><InsurancePage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PermitsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={BidsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/work-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={WorkOrderSystem} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/punch-list" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PunchList} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/photos" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PhotoProgressTracker} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/insurance" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={InsurancePage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/schedule" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={SchedulePage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/budget" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={BudgetPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/daily-logs" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={DailyLogsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/inspections" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={InspectionsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/warranty" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={WarrantyPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* OPPORTUNITIES MODULE */}

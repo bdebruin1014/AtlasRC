@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown, ChevronRight, ChevronLeft,
-  LayoutDashboard, Flag, ClipboardList,
+  LayoutDashboard, ClipboardList,
   DollarSign, Calendar, FileText, Shield,
   CheckSquare, ListChecks, Camera, ShieldCheck,
   Wrench,
@@ -123,7 +123,6 @@ export default function ConstructionSidebar({ house }) {
         {/* TRACKING */}
         <SidebarSection title="Tracking" defaultOpen={true}>
           <NavItem to={basePath} icon={LayoutDashboard} label="Overview" />
-          <NavItem to={`${basePath}/milestones`} icon={Flag} label="Milestone Tracker" />
           <NavItem to={`${basePath}/daily-logs`} icon={ClipboardList} label="Daily Logs" />
         </SidebarSection>
 
