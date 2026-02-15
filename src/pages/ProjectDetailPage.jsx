@@ -33,6 +33,18 @@ import ZoningEntitlementsSection from '@/pages/projects/sections/ZoningEntitleme
 import PlatSubdivisionSection from '@/pages/projects/sections/PlatSubdivisionSection';
 import SitePermitsSection from '@/pages/projects/sections/SitePermitsSection';
 
+// Construction Section Components
+import HousesSection from '@/pages/projects/sections/HousesSection';
+import VerticalBudgetSection from '@/pages/projects/sections/VerticalBudgetSection';
+import VerticalScheduleSection from '@/pages/projects/sections/VerticalScheduleSection';
+import VerticalDrawsSection from '@/pages/projects/sections/VerticalDrawsSection';
+
+// Sales & Disposition Section Components
+import LotInventorySection from '@/pages/projects/sections/LotInventorySection';
+import LotSalesSection from '@/pages/projects/sections/LotSalesSection';
+import SalesPipelineSection from '@/pages/projects/sections/SalesPipelineSection';
+import ClosingsSection from '@/pages/projects/sections/ClosingsSection';
+
 // Icon map for sidebar item overrides
 const SIDEBAR_ICONS = {
   'purchase-contract': FileCheck,
@@ -1059,7 +1071,7 @@ const ProjectDetailPage = () => {
           </div>
         );
 
-      // -- New placeholder sections for Entitlements --
+      // -- Entitlement sections --
 
       case 'zoning':
         return <ZoningEntitlementsSection projectId={projectId} />;
@@ -1070,139 +1082,35 @@ const ProjectDetailPage = () => {
       case 'permits-site':
         return <SitePermitsSection projectId={projectId} />;
 
-      // -- New placeholder sections for Construction (community-development type) --
+      // -- Construction sections --
 
       case 'houses':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Houses</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Home className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Individual house tracking, floor plans, and construction status will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <HousesSection projectId={projectId} />;
 
       case 'vertical-budget':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Vertical Budget</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Vertical construction budgets for individual homes and structures will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <VerticalBudgetSection projectId={projectId} />;
 
       case 'vertical-schedule':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Build Schedule</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Vertical construction scheduling and timeline management will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <VerticalScheduleSection projectId={projectId} />;
 
       case 'vertical-draws':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Construction Draws</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Vertical construction draw requests and disbursement tracking will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <VerticalDrawsSection projectId={projectId} />;
 
-      // -- New placeholder sections for Lot Sales --
+      // -- Lot Sales sections --
 
       case 'lot-inventory':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Lot Inventory</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Layers className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Lot inventory management, pricing, and availability tracking will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <LotInventorySection projectId={projectId} />;
 
       case 'lot-sales':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Lot Sales</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Lot sales tracking, contracts, and buyer management will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <LotSalesSection projectId={projectId} />;
 
-      // -- New placeholder sections for Disposition --
+      // -- Disposition sections --
 
       case 'sales-pipeline':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Sales Pipeline</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Sales pipeline management, lead tracking, and conversion analytics will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <SalesPipelineSection projectId={projectId} />;
 
       case 'closings':
-        return (
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Closings</h2>
-            </div>
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Landmark className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coming Soon</h3>
-              <p className="text-sm text-gray-500">
-                Home closing management, settlement tracking, and title coordination will be available here.
-              </p>
-            </div>
-          </div>
-        );
+        return <ClosingsSection projectId={projectId} />;
 
       default:
         return (
