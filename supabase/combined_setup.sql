@@ -3,6 +3,13 @@
 -- Run this in Supabase SQL Editor to set up all core tables
 -- This script is idempotent - safe to run multiple times
 -- ============================================================================
+--
+-- NOTE: Construction Management module added in separate migration:
+--   supabase/migrations/20260215_construction_management.sql
+--   Tables: construction_houses, construction_milestone_log,
+--           construction_daily_logs, construction_purchase_orders,
+--           construction_inspections, construction_warranty_items
+--
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
