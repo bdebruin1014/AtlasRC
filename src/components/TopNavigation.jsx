@@ -33,6 +33,8 @@ const TopNavigation = () => {
         { label: 'Upgrade Packages', path: '/construction/admin/upgrades', icon: ArrowUpCircle, description: 'Upgrade tiers & pricing' },
         { label: 'Schedule Templates', path: '/construction/admin/schedule-templates', icon: CalendarDays, description: 'Construction schedules by plan' },
         { label: 'Municipality Fees', path: '/construction/admin/municipalities', icon: Building2, description: 'Fee schedules by jurisdiction' },
+        { label: 'Tools', path: '', isHeader: true },
+        { label: 'Contract Assembler', path: '/construction/contract-assembler', icon: FileSignature, description: 'Build contract packages' },
       ]
     },
     {

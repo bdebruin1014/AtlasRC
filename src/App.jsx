@@ -302,6 +302,7 @@ const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementSt
 const ConstructionListPage = lazy(() => import('@/pages/construction/ConstructionListPage'));
 const HouseDetailPage = lazy(() => import('@/pages/construction/HouseDetailPage'));
 const ConstructionAdminPage = lazy(() => import('@/pages/construction/ConstructionAdminPage'));
+const ContractAssemblerPage = lazy(() => import('@/pages/construction/ContractAssemblerPage'));
 const ConstructionSidebar = lazy(() => import('@/components/ConstructionSidebar'));
 const DailyLogsPage = lazy(() => import('@/pages/projects/DailyLogsPage'));
 const InspectionsPage = lazy(() => import('@/pages/projects/InspectionsPage'));
@@ -596,10 +597,6 @@ const AppContent = () => (
     <Route path="/project/:projectId/closing-checklist" element={<ProtectedRoute><AppLayout><ClosingChecklistPage /></AppLayout></ProtectedRoute>} />
 
 
-    {/* ================================================ */}
-    {/* ACCOUNTING MODULE */}
-    {/* ================================================ */}
-            <Route path="/accounting" element={<ProtectedRoute><AppLayout><EntityAccountingLayout><AccountingEntitiesListPage /></EntityAccountingLayout>EntityAccountingLayout></AppLayout>AppLayout></ProtectedRoute>ProtectedRoute>} /></ProtectedRoute>
     {/* ============================================ */}
     {/* CONSTRUCTION MANAGEMENT MODULE */}
     {/* ============================================ */}
@@ -610,6 +607,8 @@ const AppContent = () => (
     <Route path="/construction/admin/upgrades" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><UpgradePricingPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/admin/schedule-templates" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><ScheduleTemplatesPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/admin/municipalities" element={<ProtectedRoute><AppLayout><ConstructionAdminLayout><MunicipalityFeesPage /></ConstructionAdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/contract-assembler" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/contract-assembler/:houseId" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PermitsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={BidsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
