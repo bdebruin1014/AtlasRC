@@ -122,6 +122,7 @@ const ProjectDetailPage = () => {
       label: 'Finance',
       items: [
         { id: 'finance-summary', label: 'Summary', icon: PieChart },
+        { id: 'pro-forma', label: 'Pro Forma', icon: Calculator },
         { id: 'budget-vs-actual', label: 'Budget vs Actual', icon: TrendingUp },
         { id: 'expenses', label: 'Expenses', icon: CreditCard },
         { id: 'loans', label: 'Loans', icon: Landmark },
