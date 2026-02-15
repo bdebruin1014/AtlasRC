@@ -125,9 +125,10 @@ const ProjectDetailPage = () => {
         { id: 'pro-forma', label: 'Pro Forma', icon: Calculator },
         { id: 'budget-vs-actual', label: 'Budget vs Actual', icon: TrendingUp },
         { id: 'expenses', label: 'Expenses', icon: CreditCard },
-        { id: 'loans', label: 'Loans', icon: Landmark },
-        { id: 'draws-finance', label: 'Bank Draw', icon: Receipt },
         { id: 'revenue', label: 'Revenue & Sales', icon: DollarSign },
+        { id: 'loans', label: 'Loans', icon: Landmark },
+        { id: 'draws-finance', label: 'Draw Schedule', icon: Receipt },
+        { id: 'cash-flow', label: 'Cash Flow', icon: TrendingUp },
       ]
     },
     {
