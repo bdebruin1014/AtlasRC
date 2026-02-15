@@ -122,6 +122,7 @@ const IntegrationsPage = lazy(() => import('@/pages/admin/IntegrationsPage'));
 
 // New Admin Pages (TypeScript)
 const AdminSettingsPage = lazy(() => import('@/pages/Admin/Settings'));
+const SettingsHubPage = lazy(() => import('@/pages/admin/SettingsHubPage'));
 const TeamManagementPage = lazy(() => import('@/pages/Admin/TeamManagement'));
 const ActivityLogPage = lazy(() => import('@/pages/Admin/ActivityLog'));
 
@@ -741,6 +742,7 @@ const AppContent = () => (
     <Route path="/admin/users" element={<ProtectedRoute><AppLayout><AdminLayout><UsersManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/team" element={<ProtectedRoute><AppLayout><AdminLayout><TeamManagementPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/settings" element={<ProtectedRoute><AppLayout><AdminLayout><AdminSettingsPage /></AdminLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/admin/settings-hub" element={<ProtectedRoute><AppLayout><AdminLayout><SettingsHubPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/activity-log" element={<ProtectedRoute><AppLayout><AdminLayout><ActivityLogPage /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/audit-trail" element={<ProtectedRoute><AppLayout><AdminLayout><AuditTrail /></AdminLayout></AppLayout></ProtectedRoute>} />
     <Route path="/admin/plans" element={<ProtectedRoute><AppLayout><AdminLayout><FloorPlansPage /></AdminLayout></AppLayout></ProtectedRoute>} />
