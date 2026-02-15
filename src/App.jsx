@@ -621,6 +621,8 @@ const AppContent = () => (
     <Route path="/construction/:houseId/daily-logs" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={DailyLogsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/inspections" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={InspectionsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/warranty" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={WarrantyPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/change-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={ChangeOrdersPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/:houseId/selections" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* OPPORTUNITIES MODULE */}
