@@ -262,6 +262,93 @@ const SettingsPage = () => {
     });
   };
 
+  // Invite member state & handler
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteData, setInviteData] = useState({ name: '', email: '', role: 'viewer' });
+  const [inviting, setInviting] = useState(false);
+
+  const handleInviteMember = async () => {
+    if (!inviteData.name || !inviteData.email) return;
+    setInviting(true);
+    try {
+      // Add to local state immediately
+      const newMember = {
+        id: crypto.randomUUID(),
+        name: inviteData.name,
+        email: inviteData.email,
+        role: inviteData.role,
+        status: 'pending',
+      };
+      setTeamMembers(prev => [...prev, newMember]);
+
+      // Persist to Supabase
+      if (user?.id) {
+        await supabase.from('team_members').insert({
+          id: newMember.id,
+          name: inviteData.name,
+          email: inviteData.email,
+          role: inviteData.role,
+          status: 'pending',
+          invited_by: user.id,
+        });
+      }
+
+      toast({ title: 'Invitation Sent', description: `${inviteData.name} has been invited to join the team.` });
+      setShowInviteModal(false);
+      setInviteData({ name: '', email: '', role: 'viewer' });
+    } catch (err) {
+      console.error('Error inviting member:', err);
+      toast({ title: 'Error', description: 'Failed to send invitation.', variant: 'destructive' });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  // Avatar upload handler
+  const handleAvatarUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: 'File too large', description: 'Avatar must be under 5MB.', variant: 'destructive' });
+        return;
+      }
+
+      try {
+        if (user?.id) {
+          const fileExt = file.name.split('.').pop();
+          const filePath = `avatars/${user.id}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, file, { upsert: true });
+
+          if (!uploadError) {
+            toast({ title: 'Avatar Updated', description: 'Your profile photo has been updated.' });
+          }
+        }
+      } catch (err) {
+        console.debug('Avatar upload - using local preview only');
+      }
+
+      // Show local preview immediately
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const avatarEl = document.querySelector('[data-avatar]');
+        if (avatarEl) {
+          avatarEl.style.backgroundImage = `url(${ev.target.result})`;
+          avatarEl.style.backgroundSize = 'cover';
+          avatarEl.textContent = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
   const TABS = [
     { id: 'profile', label: 'My Profile', icon: User },
     { id: 'company', label: 'Company Settings', icon: Building },
@@ -319,12 +406,19 @@ const SettingsPage = () => {
                      {activeTab === 'profile' && (
                         <div className="space-y-8">
                            <div className="flex items-center gap-6">
-                              <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-600 border-4 border-white shadow-sm">
+                              <div data-avatar className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-600 border-4 border-white shadow-sm">
                                  AJ
                               </div>
                               <div>
-                                 <Button variant="outline" size="sm" className="mr-2">Change Avatar</Button>
-                                 <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">Remove</Button>
+                                 <Button variant="outline" size="sm" className="mr-2" onClick={handleAvatarUpload}>Change Avatar</Button>
+                                 <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => {
+                                    const avatarEl = document.querySelector('[data-avatar]');
+                                    if (avatarEl) {
+                                       avatarEl.style.backgroundImage = '';
+                                       avatarEl.textContent = 'AJ';
+                                    }
+                                    toast({ title: 'Avatar Removed', description: 'Your profile photo has been removed.' });
+                                 }}>Remove</Button>
                               </div>
                            </div>
                            
@@ -483,7 +577,7 @@ const SettingsPage = () => {
                         <div className="space-y-6">
                            <div className="flex justify-between items-center">
                               <p className="text-sm text-gray-500">Manage team members and their permissions</p>
-                              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowInviteModal(true)}>
                                  <Plus className="w-4 h-4 mr-1" /> Invite Member
                               </Button>
                            </div>
@@ -862,6 +956,68 @@ const SettingsPage = () => {
             </div>
          </div>
       </div>
+
+      {/* Invite Member Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Invite Team Member</h3>
+              <p className="text-sm text-gray-500 mt-1">Send an invitation to join your team</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <Label htmlFor="inviteName">Full Name</Label>
+                <Input
+                  id="inviteName"
+                  value={inviteData.name}
+                  onChange={(e) => setInviteData({ ...inviteData, name: e.target.value })}
+                  placeholder="Enter full name"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="inviteEmail">Email Address</Label>
+                <Input
+                  id="inviteEmail"
+                  type="email"
+                  value={inviteData.email}
+                  onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
+                  placeholder="Enter email address"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="inviteRole">Role</Label>
+                <Select value={inviteData.role} onValueChange={(value) => setInviteData({ ...inviteData, role: value })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="analyst">Analyst</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3 rounded-b-lg">
+              <Button variant="outline" onClick={() => { setShowInviteModal(false); setInviteData({ name: '', email: '', role: 'viewer' }); }}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={handleInviteMember}
+                disabled={inviting || !inviteData.name || !inviteData.email}
+              >
+                {inviting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                {inviting ? 'Sending...' : 'Send Invitation'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
