@@ -1,7 +1,7 @@
 // src/services/loanService.js
-// Loan tracking service with amortization calculations
+// Loan tracking service with Supabase-first pattern and demo fallback
 
-import { isDemoMode } from '@/lib/supabase';
+import supabase from '@/lib/supabase';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -252,19 +252,54 @@ const DEMO_PAYMENTS = [
 // ─── CRUD Operations ──────────────────────────────────────────────────────────
 
 export async function getProjectLoans(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loans')
+      .select('*')
+      .eq('project_id', projectId);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getProjectLoans: Supabase fetch failed, using demo fallback:', err);
     return DEMO_LOANS.filter(l => l.project_id === projectId);
   }
 }
 
 export async function getLoan(loanId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loans')
+      .select('*')
+      .eq('id', loanId)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getLoan: Supabase fetch failed, using demo fallback:', err);
     return DEMO_LOANS.find(l => l.id === loanId) || null;
   }
 }
 
 export async function createLoan(projectId, data) {
-  if (isDemoMode) {
+  try {
+    const payload = {
+      project_id: projectId,
+      ...data,
+      commitment_amount: parseFloat(data.commitment_amount) || 0,
+      funded_amount: 0,
+      interest_rate: parseFloat(data.interest_rate) || 0,
+      origination_fee_amount: (parseFloat(data.commitment_amount) || 0) * (parseFloat(data.origination_fee_percent) || 0),
+      status: 'proposed',
+    };
+    const { data: result, error } = await supabase
+      .from('loans')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return result;
+  } catch (err) {
+    console.error('createLoan: Supabase insert failed, using demo fallback:', err);
     const loan = {
       id: `loan-${Date.now()}`,
       project_id: projectId,
@@ -283,7 +318,17 @@ export async function createLoan(projectId, data) {
 }
 
 export async function updateLoan(loanId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loans')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', loanId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateLoan: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_LOANS.findIndex(l => l.id === loanId);
     if (idx === -1) throw new Error('Loan not found');
     DEMO_LOANS[idx] = { ...DEMO_LOANS[idx], ...updates, updated_at: new Date().toISOString() };
@@ -292,7 +337,15 @@ export async function updateLoan(loanId, updates) {
 }
 
 export async function deleteLoan(loanId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('loans')
+      .delete()
+      .eq('id', loanId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteLoan: Supabase delete failed, using demo fallback:', err);
     const idx = DEMO_LOANS.findIndex(l => l.id === loanId);
     if (idx !== -1) DEMO_LOANS.splice(idx, 1);
     return true;
@@ -302,13 +355,37 @@ export async function deleteLoan(loanId) {
 // ─── Draws ────────────────────────────────────────────────────────────────────
 
 export async function getLoanDraws(loanId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loan_draws')
+      .select('*')
+      .eq('loan_id', loanId)
+      .order('draw_number', { ascending: true });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getLoanDraws: Supabase fetch failed, using demo fallback:', err);
     return DEMO_DRAWS.filter(d => d.loan_id === loanId).sort((a, b) => a.draw_number - b.draw_number);
   }
 }
 
 export async function createDraw(loanId, data) {
-  if (isDemoMode) {
+  try {
+    const payload = {
+      loan_id: loanId,
+      ...data,
+      amount: parseFloat(data.amount) || 0,
+      status: 'requested',
+    };
+    const { data: result, error } = await supabase
+      .from('loan_draws')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return result;
+  } catch (err) {
+    console.error('createDraw: Supabase insert failed, using demo fallback:', err);
     const existing = DEMO_DRAWS.filter(d => d.loan_id === loanId);
     const draw = {
       id: `draw-${Date.now()}`,
@@ -325,7 +402,17 @@ export async function createDraw(loanId, data) {
 }
 
 export async function approveDraw(drawId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loan_draws')
+      .update({ status: 'approved' })
+      .eq('id', drawId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('approveDraw: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_DRAWS.findIndex(d => d.id === drawId);
     if (idx !== -1) DEMO_DRAWS[idx].status = 'approved';
     return DEMO_DRAWS[idx];
@@ -333,7 +420,29 @@ export async function approveDraw(drawId) {
 }
 
 export async function fundDraw(drawId) {
-  if (isDemoMode) {
+  try {
+    const { data: draw, error: drawError } = await supabase
+      .from('loan_draws')
+      .update({ status: 'funded' })
+      .eq('id', drawId)
+      .select()
+      .single();
+    if (drawError) throw drawError;
+    // Update funded amount on the loan
+    const { data: loan } = await supabase
+      .from('loans')
+      .select('funded_amount')
+      .eq('id', draw.loan_id)
+      .single();
+    if (loan) {
+      await supabase
+        .from('loans')
+        .update({ funded_amount: (loan.funded_amount || 0) + draw.amount })
+        .eq('id', draw.loan_id);
+    }
+    return draw;
+  } catch (err) {
+    console.error('fundDraw: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_DRAWS.findIndex(d => d.id === drawId);
     if (idx !== -1) {
       DEMO_DRAWS[idx].status = 'funded';
@@ -348,13 +457,32 @@ export async function fundDraw(drawId) {
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
 export async function getLoanPayments(loanId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loan_payments')
+      .select('*')
+      .eq('loan_id', loanId)
+      .order('payment_number', { ascending: true });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getLoanPayments: Supabase fetch failed, using demo fallback:', err);
     return DEMO_PAYMENTS.filter(p => p.loan_id === loanId).sort((a, b) => a.payment_number - b.payment_number);
   }
 }
 
 export async function recordPayment(paymentId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('loan_payments')
+      .update({ status: 'paid' })
+      .eq('id', paymentId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('recordPayment: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_PAYMENTS.findIndex(p => p.id === paymentId);
     if (idx !== -1) DEMO_PAYMENTS[idx].status = 'paid';
     return DEMO_PAYMENTS[idx];

@@ -73,62 +73,93 @@ const mockBalanceSheet = {
 export const reportService = {
   // Get Trial Balance
   async getTrialBalance(entityId, asOfDate = null) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase.rpc('get_trial_balance', {
+        p_entity_id: entityId,
+        p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching trial balance:', err);
       const totalDebit = mockTrialBalance.reduce((sum, row) => sum + row.debit, 0);
       const totalCredit = mockTrialBalance.reduce((sum, row) => sum + row.credit, 0);
-      return { 
-        data: { 
-          rows: mockTrialBalance, 
-          totalDebit, 
+      return {
+        data: {
+          rows: mockTrialBalance,
+          totalDebit,
           totalCredit,
           isBalanced: totalDebit === totalCredit,
-        }, 
-        error: null 
+        },
+        error: null
       };
     }
-    
-    // In production, this would be a database query or RPC call
-    const { data, error } = await supabase.rpc('get_trial_balance', {
-      p_entity_id: entityId,
-      p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
-    });
-    
-    return { data, error };
   },
-  
+
   // Get Profit & Loss Statement
   async getProfitLoss(entityId, startDate, endDate) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase.rpc('get_profit_loss', {
+        p_entity_id: entityId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching profit & loss:', err);
       return { data: mockProfitLoss, error: null };
     }
-    
-    const { data, error } = await supabase.rpc('get_profit_loss', {
-      p_entity_id: entityId,
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
-    
-    return { data, error };
   },
-  
+
   // Get Balance Sheet
   async getBalanceSheet(entityId, asOfDate = null) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase.rpc('get_balance_sheet', {
+        p_entity_id: entityId,
+        p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching balance sheet:', err);
       return { data: mockBalanceSheet, error: null };
     }
-    
-    const { data, error } = await supabase.rpc('get_balance_sheet', {
-      p_entity_id: entityId,
-      p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
-    });
-    
-    return { data, error };
   },
-  
+
   // Get General Ledger
   async getGeneralLedger(entityId, accountId = null, startDate = null, endDate = null) {
-    if (isDemoMode) {
-      return { 
+    try {
+      let query = supabase
+        .from('journal_entry_lines')
+        .select(`
+          *,
+          journal_entries!inner(date, description, entry_number)
+        `)
+        .eq('journal_entries.entity_id', entityId)
+        .order('journal_entries.date', { ascending: true });
+
+      if (accountId) {
+        query = query.eq('account_id', accountId);
+      }
+
+      if (startDate) {
+        query = query.gte('journal_entries.date', startDate);
+      }
+
+      if (endDate) {
+        query = query.lte('journal_entries.date', endDate);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching general ledger:', err);
+      return {
         data: {
           transactions: [
             { date: '2024-12-01', description: 'Opening Balance', reference: 'OB-001', debit: 250000, credit: 0, balance: 250000 },
@@ -142,37 +173,23 @@ export const reportService = {
           totalDebits: 277000,
           totalCredits: 9700,
         },
-        error: null 
+        error: null
       };
     }
-    
-    let query = supabase
-      .from('journal_entry_lines')
-      .select(`
-        *,
-        journal_entries!inner(date, description, entry_number)
-      `)
-      .eq('journal_entries.entity_id', entityId)
-      .order('journal_entries.date', { ascending: true });
-    
-    if (accountId) {
-      query = query.eq('account_id', accountId);
-    }
-    
-    if (startDate) {
-      query = query.gte('journal_entries.date', startDate);
-    }
-    
-    if (endDate) {
-      query = query.lte('journal_entries.date', endDate);
-    }
-    
-    return await query;
   },
-  
+
   // Get AP Aging Report
   async getAPAging(entityId, asOfDate = null) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase.rpc('get_ap_aging', {
+        p_entity_id: entityId,
+        p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching AP aging:', err);
       return {
         data: {
           summary: {
@@ -192,23 +209,16 @@ export const reportService = {
         error: null,
       };
     }
-    
-    const { data, error } = await supabase.rpc('get_ap_aging', {
-      p_entity_id: entityId,
-      p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
-    });
-    
-    return { data, error };
   },
-  
+
   // Export report to CSV
   exportToCSV(data, filename) {
     if (!data || data.length === 0) return;
-    
+
     const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           const value = row[header];
           // Handle strings with commas
@@ -219,7 +229,7 @@ export const reportService = {
         }).join(',')
       )
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);

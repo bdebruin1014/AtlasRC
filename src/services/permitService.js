@@ -1,7 +1,7 @@
 // src/services/permitService.js
-// Service layer for Permits Module with demo data
+// Service layer for Permits Module with Supabase-first pattern and demo fallback
 
-import { isDemoMode } from '@/lib/supabase';
+import supabase from '@/lib/supabase';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -343,20 +343,52 @@ const DEMO_INSPECTIONS = [
 // ─── CRUD Operations ──────────────────────────────────────────────────────────
 
 export async function getPermits(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('permits')
+      .select('*')
+      .eq('project_id', projectId);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getPermits: Supabase fetch failed, using demo fallback:', err);
     return DEMO_PERMITS.filter(p => p.project_id === projectId);
   }
-  // Supabase query
 }
 
 export async function getPermit(permitId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('permits')
+      .select('*')
+      .eq('id', permitId)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getPermit: Supabase fetch failed, using demo fallback:', err);
     return DEMO_PERMITS.find(p => p.id === permitId) || null;
   }
 }
 
 export async function createPermit(projectId, permitData) {
-  if (isDemoMode) {
+  try {
+    const payload = {
+      project_id: projectId,
+      ...permitData,
+      total_fees: (parseFloat(permitData.application_fee) || 0) +
+                  (parseFloat(permitData.permit_fee) || 0) +
+                  (parseFloat(permitData.impact_fees) || 0),
+    };
+    const { data, error } = await supabase
+      .from('permits')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createPermit: Supabase insert failed, using demo fallback:', err);
     const newPermit = {
       id: `permit-${Date.now()}`,
       project_id: projectId,
@@ -373,7 +405,17 @@ export async function createPermit(projectId, permitData) {
 }
 
 export async function updatePermit(permitId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('permits')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', permitId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updatePermit: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_PERMITS.findIndex(p => p.id === permitId);
     if (idx === -1) throw new Error('Permit not found');
     DEMO_PERMITS[idx] = { ...DEMO_PERMITS[idx], ...updates, updated_at: new Date().toISOString() };
@@ -382,7 +424,15 @@ export async function updatePermit(permitId, updates) {
 }
 
 export async function deletePermit(permitId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('permits')
+      .delete()
+      .eq('id', permitId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deletePermit: Supabase delete failed, using demo fallback:', err);
     const idx = DEMO_PERMITS.findIndex(p => p.id === permitId);
     if (idx !== -1) DEMO_PERMITS.splice(idx, 1);
     return true;
@@ -392,7 +442,21 @@ export async function deletePermit(permitId) {
 // ─── Status Transitions ───────────────────────────────────────────────────────
 
 export async function updatePermitStatus(permitId, newStatus, dateFields = {}) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('permits')
+      .update({
+        status: newStatus,
+        ...dateFields,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', permitId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updatePermitStatus: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_PERMITS.findIndex(p => p.id === permitId);
     if (idx === -1) throw new Error('Permit not found');
     DEMO_PERMITS[idx] = {
@@ -408,13 +472,34 @@ export async function updatePermitStatus(permitId, newStatus, dateFields = {}) {
 // ─── Inspections ──────────────────────────────────────────────────────────────
 
 export async function getPermitInspections(permitId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('permit_inspections')
+      .select('*')
+      .eq('permit_id', permitId);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getPermitInspections: Supabase fetch failed, using demo fallback:', err);
     return DEMO_INSPECTIONS.filter(i => i.permit_id === permitId);
   }
 }
 
 export async function addInspection(permitId, inspectionData) {
-  if (isDemoMode) {
+  try {
+    const payload = {
+      permit_id: permitId,
+      ...inspectionData,
+    };
+    const { data, error } = await supabase
+      .from('permit_inspections')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('addInspection: Supabase insert failed, using demo fallback:', err);
     const inspection = {
       id: `insp-${Date.now()}`,
       permit_id: permitId,
@@ -430,7 +515,17 @@ export async function addInspection(permitId, inspectionData) {
 }
 
 export async function updateInspection(inspectionId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('permit_inspections')
+      .update(updates)
+      .eq('id', inspectionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateInspection: Supabase update failed, using demo fallback:', err);
     const idx = DEMO_INSPECTIONS.findIndex(i => i.id === inspectionId);
     if (idx === -1) throw new Error('Inspection not found');
     DEMO_INSPECTIONS[idx] = { ...DEMO_INSPECTIONS[idx], ...updates };

@@ -132,7 +132,29 @@ const DEMO_PREFERENCES = {
 export async function getNotifications(options = {}) {
   const { includeRead = true, includeArchived = false, limit = 50, offset = 0 } = options;
 
-  if (isDemoMode()) {
+  try {
+    let query = supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (!includeRead) {
+      query = query.eq('is_read', false);
+    }
+    if (!includeArchived) {
+      // is_archived may not exist in some schemas; avoid filtering at query level
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('getNotifications error, using demo fallback:', err?.message || err);
     let notifications = [...DEMO_NOTIFICATIONS];
 
     if (!includeRead) {
@@ -144,56 +166,28 @@ export async function getNotifications(options = {}) {
 
     return notifications.slice(offset, offset + limit);
   }
-
-  let query = supabase
-    .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (!includeRead) {
-    query = query.eq('is_read', false);
-  }
-  if (!includeArchived) {
-    // is_archived may not exist in some schemas; avoid filtering at query level
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    // Silently handle missing table errors
-    const isTableMissing = error.code === '42P01' ||
-                           error.message?.includes('does not exist') ||
-                           error.code === 'PGRST204';
-    if (!isTableMissing && import.meta.env.DEV) {
-      console.debug('Notifications: table not available');
-    }
-    return [];
-  }
-
-  return data || [];
 }
 
 /**
  * Get unread notification count
  */
 export async function getUnreadCount() {
-  if (isDemoMode()) {
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_read', false)
+      ;
+
+    if (error) {
+      throw error;
+    }
+
+    return count || 0;
+  } catch (err) {
+    console.error('getUnreadCount error, using demo fallback:', err?.message || err);
     return DEMO_NOTIFICATIONS.filter((n) => !n.is_read && !n.is_archived).length;
   }
-
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_read', false)
-    ;
-
-  if (error) {
-    // Silently handle missing table - notifications may not be set up yet
-    return 0;
-  }
-
-  return count || 0;
 }
 
 /**
@@ -204,7 +198,18 @@ export async function markAsRead(notificationIds) {
     notificationIds = [notificationIds];
   }
 
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase.rpc('mark_notifications_read', {
+      p_notification_ids: notificationIds,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, count: data };
+  } catch (err) {
+    console.error('markAsRead error, using demo fallback:', err?.message || err);
     notificationIds.forEach((id) => {
       const notification = DEMO_NOTIFICATIONS.find((n) => n.id === id);
       if (notification) {
@@ -214,49 +219,50 @@ export async function markAsRead(notificationIds) {
     });
     return { success: true, count: notificationIds.length };
   }
-
-  const { data, error } = await supabase.rpc('mark_notifications_read', {
-    p_notification_ids: notificationIds,
-  });
-
-  if (error) {
-    // Silently handle - table may not exist
-    return { success: false, error };
-  }
-
-  return { success: true, count: data };
 }
 
 /**
  * Mark all notifications as read
  */
 export async function markAllAsRead() {
-  if (isDemoMode()) {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('is_read', false);
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('markAllAsRead error, using demo fallback:', err?.message || err);
     DEMO_NOTIFICATIONS.forEach((n) => {
       n.is_read = true;
       n.read_at = new Date().toISOString();
     });
     return { success: true };
   }
-
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
-    .eq('is_read', false);
-
-  if (error) {
-    // Silently handle - table may not exist
-    return { success: false, error };
-  }
-
-  return { success: true };
 }
 
 /**
  * Archive a notification
  */
 export async function archiveNotification(notificationId) {
-  if (isDemoMode()) {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_archived: true, archived_at: new Date().toISOString() })
+      .eq('id', notificationId);
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('archiveNotification error, using demo fallback:', err?.message || err);
     const notification = DEMO_NOTIFICATIONS.find((n) => n.id === notificationId);
     if (notification) {
       notification.is_archived = true;
@@ -264,18 +270,6 @@ export async function archiveNotification(notificationId) {
     }
     return { success: true };
   }
-
-  const { error } = await supabase
-    .from('notifications')
-    .update({ is_archived: true, archived_at: new Date().toISOString() })
-    .eq('id', notificationId);
-
-  if (error) {
-    // Silently handle - table may not exist
-    return { success: false, error };
-  }
-
-  return { success: true };
 }
 
 /**
@@ -293,7 +287,27 @@ export async function createNotification({
   actionUrl,
   metadata = {},
 }) {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase.rpc('create_notification', {
+      p_team_id: teamId,
+      p_user_id: userId,
+      p_title: title,
+      p_message: message,
+      p_type: type,
+      p_priority: priority,
+      p_entity_type: entityType,
+      p_entity_id: entityId,
+      p_action_url: actionUrl,
+      p_metadata: metadata,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, notificationId: data };
+  } catch (err) {
+    console.error('createNotification error, using demo fallback:', err?.message || err);
     const newNotification = {
       id: `notif-${Date.now()}`,
       team_id: teamId,
@@ -313,26 +327,6 @@ export async function createNotification({
     DEMO_NOTIFICATIONS.unshift(newNotification);
     return { success: true, notification: newNotification };
   }
-
-  const { data, error } = await supabase.rpc('create_notification', {
-    p_team_id: teamId,
-    p_user_id: userId,
-    p_title: title,
-    p_message: message,
-    p_type: type,
-    p_priority: priority,
-    p_entity_type: entityType,
-    p_entity_id: entityId,
-    p_action_url: actionUrl,
-    p_metadata: metadata,
-  });
-
-  if (error) {
-    // Silently handle - table may not exist
-    return { success: false, error };
-  }
-
-  return { success: true, notificationId: data };
 }
 
 // ============================================
@@ -343,47 +337,47 @@ export async function createNotification({
  * Get user notification preferences
  */
 export async function getNotificationPreferences() {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .select('*')
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return data || DEMO_PREFERENCES;
+  } catch (err) {
+    console.error('getNotificationPreferences error, using demo fallback:', err?.message || err);
     return DEMO_PREFERENCES;
   }
-
-  const { data, error } = await supabase
-    .from('notification_preferences')
-    .select('*')
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    // Silently handle - table may not exist, use defaults
-    return DEMO_PREFERENCES;
-  }
-
-  return data || DEMO_PREFERENCES;
 }
 
 /**
  * Update notification preferences
  */
 export async function updateNotificationPreferences(preferences) {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .upsert({
+        ...preferences,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, preferences: data };
+  } catch (err) {
+    console.error('updateNotificationPreferences error, using demo fallback:', err?.message || err);
     Object.assign(DEMO_PREFERENCES, preferences);
     return { success: true, preferences: DEMO_PREFERENCES };
   }
-
-  const { data, error } = await supabase
-    .from('notification_preferences')
-    .upsert({
-      ...preferences,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) {
-    // Silently handle - table may not exist
-    return { success: false, error };
-  }
-
-  return { success: true, preferences: data };
 }
 
 // ============================================
@@ -394,7 +388,20 @@ export async function updateNotificationPreferences(preferences) {
  * Get budget alert configuration for a project
  */
 export async function getBudgetAlertConfig(projectId) {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('budget_alert_configs')
+      .select('*')
+      .eq('project_id', projectId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('getBudgetAlertConfig error, using demo fallback:', err?.message || err);
     return {
       id: 'config-1',
       project_id: projectId,
@@ -407,45 +414,32 @@ export async function getBudgetAlertConfig(projectId) {
       line_item_thresholds: {},
     };
   }
-
-  const { data, error } = await supabase
-    .from('budget_alert_configs')
-    .select('*')
-    .eq('project_id', projectId)
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    // Silently handle - table may not exist
-    return null;
-  }
-
-  return data;
 }
 
 /**
  * Update budget alert configuration
  */
 export async function updateBudgetAlertConfig(projectId, config) {
-  if (isDemoMode()) {
+  try {
+    const { data, error } = await supabase
+      .from('budget_alert_configs')
+      .upsert({
+        project_id: projectId,
+        ...config,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, config: data };
+  } catch (err) {
+    console.error('updateBudgetAlertConfig error, using demo fallback:', err?.message || err);
     return { success: true, config: { ...config, project_id: projectId } };
   }
-
-  const { data, error } = await supabase
-    .from('budget_alert_configs')
-    .upsert({
-      project_id: projectId,
-      ...config,
-      updated_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) {
-    // Silently handle - table may not exist
-    return { success: false, error };
-  }
-
-  return { success: true, config: data };
 }
 
 // ============================================

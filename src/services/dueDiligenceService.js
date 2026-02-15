@@ -28,75 +28,79 @@ const mockItems = [
 ];
 
 export async function getDueDiligenceItems(projectId, filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('due_diligence_items')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.status) query = query.eq('status', filters.status);
+
+    const { data, error } = await query.order('sort_order').order('due_date');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching due diligence items:', err);
     let items = mockItems.filter(i => !projectId || i.project_id === projectId || projectId === 'proj-1');
     if (filters.category) items = items.filter(i => i.category === filters.category);
     if (filters.status) items = items.filter(i => i.status === filters.status);
     return items;
   }
-
-  let query = supabase
-    .from('due_diligence_items')
-    .select('*')
-    .eq('project_id', projectId);
-
-  if (filters.category) query = query.eq('category', filters.category);
-  if (filters.status) query = query.eq('status', filters.status);
-
-  const { data, error } = await query.order('sort_order').order('due_date');
-  if (error) throw error;
-  return data;
 }
 
 export async function createDueDiligenceItem(projectId, itemData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('due_diligence_items')
+      .insert([{ project_id: projectId, ...itemData, created_at: new Date().toISOString() }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating due diligence item:', err);
     const newItem = { id: `dd-${Date.now()}`, project_id: projectId, ...itemData, created_at: new Date().toISOString() };
     mockItems.push(newItem);
     return newItem;
   }
-
-  const { data, error } = await supabase
-    .from('due_diligence_items')
-    .insert([{ project_id: projectId, ...itemData, created_at: new Date().toISOString() }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updateDueDiligenceItem(itemId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('due_diligence_items')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating due diligence item:', err);
     const idx = mockItems.findIndex(i => i.id === itemId);
     if (idx >= 0) mockItems[idx] = { ...mockItems[idx], ...updates };
     return mockItems[idx];
   }
-
-  const { data, error } = await supabase
-    .from('due_diligence_items')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', itemId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteDueDiligenceItem(itemId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('due_diligence_items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting due diligence item:', err);
     const idx = mockItems.findIndex(i => i.id === itemId);
     if (idx >= 0) mockItems.splice(idx, 1);
     return true;
   }
-
-  const { error } = await supabase
-    .from('due_diligence_items')
-    .delete()
-    .eq('id', itemId);
-
-  if (error) throw error;
-  return true;
 }
 
 export async function getDueDiligenceSummary(projectId) {

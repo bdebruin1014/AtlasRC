@@ -93,7 +93,31 @@ function normalizeAccountName(name) {
 export const duplicateDetectionService = {
   // Get all duplicate alerts
   async getAll(options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('coa_duplicate_alerts')
+        .select(`
+          *,
+          account:accounts!coa_duplicate_alerts_account_id_fkey(id, account_number, account_name),
+          duplicate_account:accounts!coa_duplicate_alerts_duplicate_account_id_fkey(id, account_number, account_name),
+          entity:entities!coa_duplicate_alerts_entity_id_fkey(id, name),
+          duplicate_entity:entities!coa_duplicate_alerts_duplicate_entity_id_fkey(id, name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (options.entityId) {
+        query = query.or(`entity_id.eq.${options.entityId},duplicate_entity_id.eq.${options.entityId}`);
+      }
+
+      if (options.status) {
+        query = query.eq('status', options.status);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return { data: data || [], error: null };
+    } catch (err) {
+      console.error('Error fetching duplicate alerts:', err);
       let alerts = [...mockDuplicateAlerts];
 
       if (options.entityId) {
@@ -107,47 +131,30 @@ export const duplicateDetectionService = {
 
       return { data: alerts, error: null };
     }
-
-    let query = supabase
-      .from('coa_duplicate_alerts')
-      .select(`
-        *,
-        account:accounts!coa_duplicate_alerts_account_id_fkey(id, account_number, account_name),
-        duplicate_account:accounts!coa_duplicate_alerts_duplicate_account_id_fkey(id, account_number, account_name),
-        entity:entities!coa_duplicate_alerts_entity_id_fkey(id, name),
-        duplicate_entity:entities!coa_duplicate_alerts_duplicate_entity_id_fkey(id, name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (options.entityId) {
-      query = query.or(`entity_id.eq.${options.entityId},duplicate_entity_id.eq.${options.entityId}`);
-    }
-
-    if (options.status) {
-      query = query.eq('status', options.status);
-    }
-
-    return await query;
   },
 
   // Get alert by ID
   async getById(id) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('coa_duplicate_alerts')
+        .select(`
+          *,
+          account:accounts!coa_duplicate_alerts_account_id_fkey(*),
+          duplicate_account:accounts!coa_duplicate_alerts_duplicate_account_id_fkey(*),
+          entity:entities!coa_duplicate_alerts_entity_id_fkey(id, name),
+          duplicate_entity:entities!coa_duplicate_alerts_duplicate_entity_id_fkey(id, name)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching duplicate alert by ID:', err);
       const alert = mockDuplicateAlerts.find(a => a.id === id);
       return { data: alert || null, error: alert ? null : 'Not found' };
     }
-
-    return await supabase
-      .from('coa_duplicate_alerts')
-      .select(`
-        *,
-        account:accounts!coa_duplicate_alerts_account_id_fkey(*),
-        duplicate_account:accounts!coa_duplicate_alerts_duplicate_account_id_fkey(*),
-        entity:entities!coa_duplicate_alerts_entity_id_fkey(id, name),
-        duplicate_entity:entities!coa_duplicate_alerts_duplicate_entity_id_fkey(id, name)
-      `)
-      .eq('id', id)
-      .single();
   },
 
   // Detect duplicates between two entities
@@ -157,17 +164,7 @@ export const duplicateDetectionService = {
     // Get accounts for both entities
     let accounts1, accounts2;
 
-    if (isDemoMode) {
-      // In demo mode, use mock data
-      accounts1 = [
-        { id: 'acc-101', entity_id: entity1Id, account_number: '1110', account_name: 'Operating Cash' },
-        { id: 'acc-102', entity_id: entity1Id, account_number: '2110', account_name: 'Trade Payables' },
-      ];
-      accounts2 = [
-        { id: 'acc-201', entity_id: entity2Id, account_number: '1110', account_name: 'Operating Cash' },
-        { id: 'acc-202', entity_id: entity2Id, account_number: '2100', account_name: 'Accounts Payable - Trade' },
-      ];
-    } else {
+    try {
       const { data: a1 } = await supabase
         .from('accounts')
         .select('*')
@@ -182,6 +179,17 @@ export const duplicateDetectionService = {
 
       accounts1 = a1 || [];
       accounts2 = a2 || [];
+    } catch (err) {
+      console.error('Error fetching accounts for duplicate detection:', err);
+      // Fallback to demo data
+      accounts1 = [
+        { id: 'acc-101', entity_id: entity1Id, account_number: '1110', account_name: 'Operating Cash' },
+        { id: 'acc-102', entity_id: entity1Id, account_number: '2110', account_name: 'Trade Payables' },
+      ];
+      accounts2 = [
+        { id: 'acc-201', entity_id: entity2Id, account_number: '1110', account_name: 'Operating Cash' },
+        { id: 'acc-202', entity_id: entity2Id, account_number: '2100', account_name: 'Accounts Payable - Trade' },
+      ];
     }
 
     const duplicates = [];
@@ -221,26 +229,16 @@ export const duplicateDetectionService = {
         }
 
         if (matchType && confidence >= threshold) {
-          // Check if alert already exists
-          const existingAlert = isDemoMode
-            ? mockDuplicateAlerts.find(a =>
-                (a.account_id === acc1.id && a.duplicate_account_id === acc2.id) ||
-                (a.account_id === acc2.id && a.duplicate_account_id === acc1.id)
-              )
-            : null;
-
-          if (!existingAlert) {
-            duplicates.push({
-              entity_id: entity1Id,
-              account_id: acc1.id,
-              account: acc1,
-              duplicate_entity_id: entity2Id,
-              duplicate_account_id: acc2.id,
-              duplicate_account: acc2,
-              match_type: matchType,
-              confidence_score: confidence,
-            });
-          }
+          duplicates.push({
+            entity_id: entity1Id,
+            account_id: acc1.id,
+            account: acc1,
+            duplicate_entity_id: entity2Id,
+            duplicate_account_id: acc2.id,
+            duplicate_account: acc2,
+            match_type: matchType,
+            confidence_score: confidence,
+          });
         }
       }
     }
@@ -253,9 +251,7 @@ export const duplicateDetectionService = {
     // Get related entities through ownership
     let relatedEntityIds = [];
 
-    if (isDemoMode) {
-      relatedEntityIds = ['entity-2', 'entity-3'].filter(id => id !== entityId);
-    } else {
+    try {
       const { data: relationships } = await supabase
         .from('entity_relationships')
         .select('parent_entity_id, child_entity_id')
@@ -268,6 +264,9 @@ export const duplicateDetectionService = {
           )
         ].filter(id => id !== entityId);
       }
+    } catch (err) {
+      console.error('Error fetching related entities for scan:', err);
+      relatedEntityIds = ['entity-2', 'entity-3'].filter(id => id !== entityId);
     }
 
     const allDuplicates = [];
@@ -284,7 +283,37 @@ export const duplicateDetectionService = {
 
   // Create alert from detection
   async createAlert(detection) {
-    if (isDemoMode) {
+    try {
+      // Check if alert already exists
+      const { data: existing } = await supabase
+        .from('coa_duplicate_alerts')
+        .select('id')
+        .eq('account_id', detection.account_id)
+        .eq('duplicate_account_id', detection.duplicate_account_id)
+        .single();
+
+      if (existing) {
+        return { data: null, error: 'Alert already exists' };
+      }
+
+      const { data, error } = await supabase
+        .from('coa_duplicate_alerts')
+        .insert({
+          entity_id: detection.entity_id,
+          account_id: detection.account_id,
+          duplicate_entity_id: detection.duplicate_entity_id,
+          duplicate_account_id: detection.duplicate_account_id,
+          match_type: detection.match_type,
+          confidence_score: detection.confidence_score,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error creating duplicate alert:', err);
       const newAlert = {
         ...detection,
         id: `alert-${Date.now()}`,
@@ -294,32 +323,6 @@ export const duplicateDetectionService = {
       mockDuplicateAlerts.push(newAlert);
       return { data: newAlert, error: null };
     }
-
-    // Check if alert already exists
-    const { data: existing } = await supabase
-      .from('coa_duplicate_alerts')
-      .select('id')
-      .eq('account_id', detection.account_id)
-      .eq('duplicate_account_id', detection.duplicate_account_id)
-      .single();
-
-    if (existing) {
-      return { data: null, error: 'Alert already exists' };
-    }
-
-    return await supabase
-      .from('coa_duplicate_alerts')
-      .insert({
-        entity_id: detection.entity_id,
-        account_id: detection.account_id,
-        duplicate_entity_id: detection.duplicate_entity_id,
-        duplicate_account_id: detection.duplicate_account_id,
-        match_type: detection.match_type,
-        confidence_score: detection.confidence_score,
-        status: 'pending',
-      })
-      .select()
-      .single();
   },
 
   // Update alert status
@@ -331,7 +334,18 @@ export const duplicateDetectionService = {
       reviewed_by: userId,
     };
 
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('coa_duplicate_alerts')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error updating duplicate alert status:', err);
       const index = mockDuplicateAlerts.findIndex(a => a.id === id);
       if (index !== -1) {
         mockDuplicateAlerts[index] = { ...mockDuplicateAlerts[index], ...updates };
@@ -339,13 +353,6 @@ export const duplicateDetectionService = {
       }
       return { data: null, error: 'Not found' };
     }
-
-    return await supabase
-      .from('coa_duplicate_alerts')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
 
   // Dismiss an alert

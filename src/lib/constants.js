@@ -43,6 +43,14 @@ export const PRIORITY_LEVELS = [
   { value: 'cold', label: 'Cold' },
 ];
 
+// Opportunity Types — canonical definitions (mirror project types for clean conversion)
+export const OPPORTUNITY_TYPES = [
+  { value: 'scattered-lot', label: 'Scattered Lot', description: 'Individual lot acquisition for spec home build' },
+  { value: 'lot-development', label: 'Lot Development', description: 'Raw land to develop into finished lots for sale' },
+  { value: 'lot-purchase-development', label: 'Lot Purchase Development', description: 'Buy finished lots, build homes for sale' },
+  { value: 'community-development', label: 'Community Development', description: 'Full subdivision from raw land to sold homes' },
+];
+
 // Project Types — canonical definitions used across the app
 export const PROJECT_TYPES = [
   { value: 'scattered-lot', label: 'Scattered Lot' },

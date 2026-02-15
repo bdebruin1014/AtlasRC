@@ -350,46 +350,59 @@ const DEMO_CO_DOCUMENTS = [
 // ─── CRUD OPERATIONS ──────────────────────────────────────────────────────────
 
 export async function getChangeOrders(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('change_orders')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('co_number');
+    if (!error && data && data.length) return data;
+    const { changeOrders } = cloneChangeOrderDataForProject(projectId);
+    return changeOrders;
+  } catch (err) {
+    console.error('getChangeOrders error:', err);
     return DEMO_CHANGE_ORDERS
       .filter(co => co.project_id === projectId || projectId === 'demo-project-1')
       .sort((a, b) => a.co_number - b.co_number);
   }
-  const { data, error } = await supabase
-    .from('change_orders')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('co_number');
-  if (!error && data && data.length) return data;
-  const { changeOrders } = cloneChangeOrderDataForProject(projectId);
-  return changeOrders;
 }
 
 export async function getChangeOrder(coId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('change_orders')
+      .select('*')
+      .eq('id', coId)
+      .single();
+    if (!error && data) return data;
+
+    const { baseId, projectId } = parseCloneMeta(coId);
+    const demoMatch = DEMO_CHANGE_ORDERS.find(co => co.id === baseId);
+    if (!demoMatch) return null;
+
+    if (projectId) {
+      return { ...demoMatch, id: coId, project_id: projectId };
+    }
+
+    const { changeOrders } = cloneChangeOrderDataForProject('demo-project-1');
+    return changeOrders.find(co => co.id === coId) || demoMatch;
+  } catch (err) {
+    console.error('getChangeOrder error:', err);
     return DEMO_CHANGE_ORDERS.find(co => co.id === coId) || null;
   }
-  const { data, error } = await supabase
-    .from('change_orders')
-    .select('*')
-    .eq('id', coId)
-    .single();
-  if (!error && data) return data;
-
-  const { baseId, projectId } = parseCloneMeta(coId);
-  const demoMatch = DEMO_CHANGE_ORDERS.find(co => co.id === baseId);
-  if (!demoMatch) return null;
-
-  if (projectId) {
-    return { ...demoMatch, id: coId, project_id: projectId };
-  }
-
-  const { changeOrders } = cloneChangeOrderDataForProject('demo-project-1');
-  return changeOrders.find(co => co.id === coId) || demoMatch;
 }
 
 export async function createChangeOrder(projectId, coData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('change_orders')
+      .insert({ project_id: projectId, ...coData })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('createChangeOrder error:', err);
     const newCO = {
       id: `co-${Date.now()}`,
       project_id: projectId,
@@ -402,17 +415,20 @@ export async function createChangeOrder(projectId, coData) {
     DEMO_CHANGE_ORDERS.push(newCO);
     return newCO;
   }
-  const { data, error } = await supabase
-    .from('change_orders')
-    .insert({ project_id: projectId, ...coData })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateChangeOrder(coId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('change_orders')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', coId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateChangeOrder error:', err);
     const idx = DEMO_CHANGE_ORDERS.findIndex(co => co.id === coId);
     if (idx >= 0) {
       Object.assign(DEMO_CHANGE_ORDERS[idx], updates, { updated_at: new Date().toISOString() });
@@ -420,25 +436,19 @@ export async function updateChangeOrder(coId, updates) {
     }
     return { id: coId, ...updates };
   }
-  const { data, error } = await supabase
-    .from('change_orders')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', coId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteChangeOrder(coId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase.from('change_orders').delete().eq('id', coId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteChangeOrder error:', err);
     const idx = DEMO_CHANGE_ORDERS.findIndex(co => co.id === coId);
     if (idx >= 0) DEMO_CHANGE_ORDERS.splice(idx, 1);
     return true;
   }
-  const { error } = await supabase.from('change_orders').delete().eq('id', coId);
-  if (error) throw error;
-  return true;
 }
 
 // ─── APPROVAL WORKFLOW ────────────────────────────────────────────────────────
@@ -471,27 +481,38 @@ export async function markCOPaid(coId, paidAmount, paidDate) {
 // ─── DOCUMENTS ────────────────────────────────────────────────────────────────
 
 export async function getCODocuments(changeOrderId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('change_order_documents')
+      .select('*')
+      .eq('change_order_id', changeOrderId)
+      .order('uploaded_at', { ascending: false });
+    if (!error && data && data.length) return data;
+
+    const { baseId, projectId } = parseCloneMeta(changeOrderId);
+    if (!projectId) {
+      return DEMO_CO_DOCUMENTS.filter(d => d.change_order_id === baseId);
+    }
+
+    const { documents } = cloneChangeOrderDataForProject(projectId);
+    return documents.filter(d => d.change_order_id === changeOrderId || d.change_order_id === baseId);
+  } catch (err) {
+    console.error('getCODocuments error:', err);
     return DEMO_CO_DOCUMENTS.filter(d => d.change_order_id === changeOrderId);
   }
-  const { data, error } = await supabase
-    .from('change_order_documents')
-    .select('*')
-    .eq('change_order_id', changeOrderId)
-    .order('uploaded_at', { ascending: false });
-  if (!error && data && data.length) return data;
-
-  const { baseId, projectId } = parseCloneMeta(changeOrderId);
-  if (!projectId) {
-    return DEMO_CO_DOCUMENTS.filter(d => d.change_order_id === baseId);
-  }
-
-  const { documents } = cloneChangeOrderDataForProject(projectId);
-  return documents.filter(d => d.change_order_id === changeOrderId || d.change_order_id === baseId);
 }
 
 export async function addCODocument(changeOrderId, docData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('change_order_documents')
+      .insert({ change_order_id: changeOrderId, ...docData })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('addCODocument error:', err);
     const newDoc = {
       id: `cod-${Date.now()}`,
       change_order_id: changeOrderId,
@@ -501,13 +522,6 @@ export async function addCODocument(changeOrderId, docData) {
     DEMO_CO_DOCUMENTS.push(newDoc);
     return newDoc;
   }
-  const { data, error } = await supabase
-    .from('change_order_documents')
-    .insert({ change_order_id: changeOrderId, ...docData })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

@@ -75,7 +75,35 @@ let mockData = [...demoWorkOrders];
 export const workOrderService = {
   // Get all work orders for a project
   async getAll(projectId, options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('work_orders')
+        .select(`
+          *,
+          vendor:vendors(id, name, contact_name, phone, email),
+          assigned_user:profiles(id, full_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
+
+      if (options.status && options.status !== 'all') {
+        query = query.eq('status', options.status);
+      }
+
+      if (options.priority) {
+        query = query.eq('priority', options.priority);
+      }
+
+      if (options.vendorId) {
+        query = query.eq('vendor_id', options.vendorId);
+      }
+
+      return await query;
+    } catch (err) {
+      console.error('workOrderService.getAll error:', err);
       let filtered = mockData.filter(wo => !projectId || wo.project_id === projectId);
 
       if (options.status && options.status !== 'all') {
@@ -92,57 +120,46 @@ export const workOrderService = {
 
       return { data: filtered, error: null };
     }
-
-    let query = supabase
-      .from('work_orders')
-      .select(`
-        *,
-        vendor:vendors(id, name, contact_name, phone, email),
-        assigned_user:profiles(id, full_name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (projectId) {
-      query = query.eq('project_id', projectId);
-    }
-
-    if (options.status && options.status !== 'all') {
-      query = query.eq('status', options.status);
-    }
-
-    if (options.priority) {
-      query = query.eq('priority', options.priority);
-    }
-
-    if (options.vendorId) {
-      query = query.eq('vendor_id', options.vendorId);
-    }
-
-    return await query;
   },
 
   // Get single work order by ID
   async getById(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('work_orders')
+        .select(`
+          *,
+          vendor:vendors(id, name, contact_name, phone, email),
+          assigned_user:profiles(id, full_name),
+          activities:work_order_activity(*)
+        `)
+        .eq('id', id)
+        .single();
+    } catch (err) {
+      console.error('workOrderService.getById error:', err);
       const wo = mockData.find(w => w.id === id);
       return { data: wo || null, error: wo ? null : 'Not found' };
     }
-
-    return await supabase
-      .from('work_orders')
-      .select(`
-        *,
-        vendor:vendors(id, name, contact_name, phone, email),
-        assigned_user:profiles(id, full_name),
-        activities:work_order_activity(*)
-      `)
-      .eq('id', id)
-      .single();
   },
 
   // Create a new work order
   async create(workOrder) {
-    if (isDemoMode) {
+    try {
+      // Generate work order number
+      const { data: woNumber } = await supabase.rpc('generate_work_order_number', {
+        p_project_id: workOrder.project_id,
+      });
+
+      return await supabase
+        .from('work_orders')
+        .insert({
+          ...workOrder,
+          work_order_number: woNumber || workOrder.work_order_number,
+        })
+        .select()
+        .single();
+    } catch (err) {
+      console.error('workOrderService.create error:', err);
       const newWO = {
         ...workOrder,
         id: `wo-${Date.now()}`,
@@ -153,25 +170,19 @@ export const workOrderService = {
       mockData.push(newWO);
       return { data: newWO, error: null };
     }
-
-    // Generate work order number
-    const { data: woNumber } = await supabase.rpc('generate_work_order_number', {
-      p_project_id: workOrder.project_id,
-    });
-
-    return await supabase
-      .from('work_orders')
-      .insert({
-        ...workOrder,
-        work_order_number: woNumber || workOrder.work_order_number,
-      })
-      .select()
-      .single();
   },
 
   // Update a work order
   async update(id, updates) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('work_orders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('workOrderService.update error:', err);
       const index = mockData.findIndex(wo => wo.id === id);
       if (index !== -1) {
         mockData[index] = { ...mockData[index], ...updates };
@@ -179,18 +190,17 @@ export const workOrderService = {
       }
       return { data: null, error: 'Not found' };
     }
-
-    return await supabase
-      .from('work_orders')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
 
   // Delete a work order
   async delete(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('work_orders')
+        .delete()
+        .eq('id', id);
+    } catch (err) {
+      console.error('workOrderService.delete error:', err);
       const index = mockData.findIndex(wo => wo.id === id);
       if (index !== -1) {
         mockData.splice(index, 1);
@@ -198,11 +208,6 @@ export const workOrderService = {
       }
       return { error: 'Not found' };
     }
-
-    return await supabase
-      .from('work_orders')
-      .delete()
-      .eq('id', id);
   },
 
   // Update work order status
@@ -210,12 +215,16 @@ export const workOrderService = {
     const updates = { status };
 
     // Add activity log
-    if (!isDemoMode && notes) {
-      await supabase.from('work_order_activity').insert({
-        work_order_id: id,
-        activity_type: 'status_change',
-        description: `Status changed to ${status}${notes ? `: ${notes}` : ''}`,
-      });
+    if (notes) {
+      try {
+        await supabase.from('work_order_activity').insert({
+          work_order_id: id,
+          activity_type: 'status_change',
+          description: `Status changed to ${status}${notes ? `: ${notes}` : ''}`,
+        });
+      } catch (err) {
+        console.error('workOrderService.updateStatus activity log error:', err);
+      }
     }
 
     return this.update(id, updates);
@@ -238,41 +247,64 @@ export const workOrderService = {
 
   // Add activity/comment to work order
   async addActivity(workOrderId, activityType, description, data = {}) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('work_order_activity')
+        .insert({
+          work_order_id: workOrderId,
+          activity_type: activityType,
+          description,
+          activity_data: data,
+        })
+        .select()
+        .single();
+    } catch (err) {
+      console.error('workOrderService.addActivity error:', err);
       return { data: { id: Date.now(), work_order_id: workOrderId, activity_type: activityType, description }, error: null };
     }
-
-    return await supabase
-      .from('work_order_activity')
-      .insert({
-        work_order_id: workOrderId,
-        activity_type: activityType,
-        description,
-        activity_data: data,
-      })
-      .select()
-      .single();
   },
 
   // Get activities for a work order
   async getActivities(workOrderId) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('work_order_activity')
+        .select(`
+          *,
+          user:profiles(id, full_name, avatar_url)
+        `)
+        .eq('work_order_id', workOrderId)
+        .order('created_at', { ascending: false });
+    } catch (err) {
+      console.error('workOrderService.getActivities error:', err);
       return { data: [], error: null };
     }
-
-    return await supabase
-      .from('work_order_activity')
-      .select(`
-        *,
-        user:profiles(id, full_name, avatar_url)
-      `)
-      .eq('work_order_id', workOrderId)
-      .order('created_at', { ascending: false });
   },
 
   // Get work order summary/stats
   async getSummary(projectId) {
-    if (isDemoMode) {
+    try {
+      const { data: workOrders, error } = await this.getAll(projectId);
+
+      if (error) return { data: null, error };
+
+      const today = new Date();
+
+      return {
+        data: {
+          total: workOrders.length,
+          open: workOrders.filter(wo => wo.status === 'open').length,
+          inProgress: workOrders.filter(wo => wo.status === 'in_progress').length,
+          completed: workOrders.filter(wo => wo.status === 'completed').length,
+          overdue: workOrders.filter(wo => wo.due_date && new Date(wo.due_date) < today && !['completed', 'closed', 'cancelled'].includes(wo.status)).length,
+          urgent: workOrders.filter(wo => wo.priority === 'urgent' && !['completed', 'closed', 'cancelled'].includes(wo.status)).length,
+          estimatedCost: workOrders.reduce((sum, wo) => sum + (parseFloat(wo.estimated_cost) || 0), 0),
+          actualCost: workOrders.reduce((sum, wo) => sum + (parseFloat(wo.actual_cost) || 0), 0),
+        },
+        error: null,
+      };
+    } catch (err) {
+      console.error('workOrderService.getSummary error:', err);
       const filtered = mockData.filter(wo => !projectId || wo.project_id === projectId);
       return {
         data: {
@@ -288,26 +320,6 @@ export const workOrderService = {
         error: null,
       };
     }
-
-    const { data: workOrders, error } = await this.getAll(projectId);
-
-    if (error) return { data: null, error };
-
-    const today = new Date();
-
-    return {
-      data: {
-        total: workOrders.length,
-        open: workOrders.filter(wo => wo.status === 'open').length,
-        inProgress: workOrders.filter(wo => wo.status === 'in_progress').length,
-        completed: workOrders.filter(wo => wo.status === 'completed').length,
-        overdue: workOrders.filter(wo => wo.due_date && new Date(wo.due_date) < today && !['completed', 'closed', 'cancelled'].includes(wo.status)).length,
-        urgent: workOrders.filter(wo => wo.priority === 'urgent' && !['completed', 'closed', 'cancelled'].includes(wo.status)).length,
-        estimatedCost: workOrders.reduce((sum, wo) => sum + (parseFloat(wo.estimated_cost) || 0), 0),
-        actualCost: workOrders.reduce((sum, wo) => sum + (parseFloat(wo.actual_cost) || 0), 0),
-      },
-      error: null,
-    };
   },
 };
 

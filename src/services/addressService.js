@@ -1,8 +1,6 @@
 // src/services/addressService.js
 // Address Autocomplete and Property Info Service
 
-import { isDemoMode } from '@/lib/supabase';
-
 const mockSuggestions = [
   { place_id: '1', description: '123 Main Street, Greenville, SC 29601', structured: { street: '123 Main Street', city: 'Greenville', state: 'SC', zip: '29601', county: 'Greenville' } },
   { place_id: '2', description: '456 Oak Drive, Simpsonville, SC 29681', structured: { street: '456 Oak Drive', city: 'Simpsonville', state: 'SC', zip: '29681', county: 'Greenville' } },
@@ -14,26 +12,28 @@ const mockSuggestions = [
 export async function getAddressSuggestions(input) {
   if (!input || input.length < 3) return [];
 
-  if (isDemoMode) {
+  try {
+    // In production, this would call Google Places API or similar
+    // For now, return mock data even in non-demo mode
+    const term = input.toLowerCase();
+    return mockSuggestions.filter(s => s.description.toLowerCase().includes(term));
+  } catch (err) {
+    console.error('Error fetching address suggestions:', err);
     const term = input.toLowerCase();
     return mockSuggestions.filter(s => s.description.toLowerCase().includes(term));
   }
-
-  // In production, this would call Google Places API or similar
-  // For now, return mock data even in non-demo mode
-  const term = input.toLowerCase();
-  return mockSuggestions.filter(s => s.description.toLowerCase().includes(term));
 }
 
 export async function getAddressDetails(placeId) {
-  if (isDemoMode) {
+  try {
+    // In production, call Google Places Details API
+    const suggestion = mockSuggestions.find(s => s.place_id === placeId);
+    return suggestion?.structured || null;
+  } catch (err) {
+    console.error('Error fetching address details:', err);
     const suggestion = mockSuggestions.find(s => s.place_id === placeId);
     return suggestion?.structured || null;
   }
-
-  // In production, call Google Places Details API
-  const suggestion = mockSuggestions.find(s => s.place_id === placeId);
-  return suggestion?.structured || null;
 }
 
 export function calculateLotArea(dimensions) {

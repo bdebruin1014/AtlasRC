@@ -106,57 +106,66 @@ let mockVendorsData = [...mockVendors];
 export const vendorService = {
   // Get all vendors for an entity
   async getAll(entityId, options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('vendors')
+        .select('*')
+        .eq('entity_id', entityId)
+        .order('name', { ascending: true });
+
+      if (options.status) {
+        query = query.eq('status', options.status);
+      }
+
+      if (options.type) {
+        query = query.eq('vendor_type', options.type);
+      }
+
+      return await query;
+    } catch (err) {
+      console.error('vendorService.getAll error:', err);
       let filtered = [...mockVendorsData];
-      
+
       if (options.status) {
         filtered = filtered.filter(v => v.status === options.status);
       }
-      
+
       if (options.type) {
         filtered = filtered.filter(v => v.vendor_type === options.type);
       }
-      
+
       // Sort by name
       filtered.sort((a, b) => a.name.localeCompare(b.name));
-      
+
       return { data: filtered, error: null };
     }
-    
-    let query = supabase
-      .from('vendors')
-      .select('*')
-      .eq('entity_id', entityId)
-      .order('name', { ascending: true });
-    
-    if (options.status) {
-      query = query.eq('status', options.status);
-    }
-    
-    if (options.type) {
-      query = query.eq('vendor_type', options.type);
-    }
-    
-    return await query;
   },
-  
+
   // Get a single vendor by ID
   async getById(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('vendors')
+        .select('*')
+        .eq('id', id)
+        .single();
+    } catch (err) {
+      console.error('vendorService.getById error:', err);
       const vendor = mockVendorsData.find(v => v.id === id);
       return { data: vendor || null, error: vendor ? null : 'Not found' };
     }
-    
-    return await supabase
-      .from('vendors')
-      .select('*')
-      .eq('id', id)
-      .single();
   },
-  
+
   // Create a new vendor
   async create(vendor) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('vendors')
+        .insert(vendor)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('vendorService.create error:', err);
       const newVendor = {
         ...vendor,
         id: Date.now(),
@@ -166,17 +175,19 @@ export const vendorService = {
       mockVendorsData.push(newVendor);
       return { data: newVendor, error: null };
     }
-    
-    return await supabase
-      .from('vendors')
-      .insert(vendor)
-      .select()
-      .single();
   },
-  
+
   // Update a vendor
   async update(id, updates) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('vendors')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('vendorService.update error:', err);
       const index = mockVendorsData.findIndex(v => v.id === id);
       if (index !== -1) {
         mockVendorsData[index] = { ...mockVendorsData[index], ...updates };
@@ -184,18 +195,14 @@ export const vendorService = {
       }
       return { data: null, error: 'Not found' };
     }
-    
-    return await supabase
-      .from('vendors')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
-  
+
   // Delete a vendor
   async delete(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase.from('vendors').delete().eq('id', id);
+    } catch (err) {
+      console.error('vendorService.delete error:', err);
       const index = mockVendorsData.findIndex(v => v.id === id);
       if (index !== -1) {
         mockVendorsData.splice(index, 1);
@@ -203,44 +210,52 @@ export const vendorService = {
       }
       return { error: 'Not found' };
     }
-    
-    return await supabase.from('vendors').delete().eq('id', id);
   },
-  
+
   // Get vendor bills
   async getBills(vendorId) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('bills')
+        .select('*')
+        .eq('vendor_id', vendorId)
+        .order('bill_date', { ascending: false });
+    } catch (err) {
+      console.error('vendorService.getBills error:', err);
       // Would need to integrate with billService
       return { data: [], error: null };
     }
-    
-    return await supabase
-      .from('bills')
-      .select('*')
-      .eq('vendor_id', vendorId)
-      .order('bill_date', { ascending: false });
   },
-  
+
   // Get vendors with outstanding balances
   async getWithBalances(entityId) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('vendors')
+        .select('*')
+        .eq('entity_id', entityId)
+        .gt('balance', 0)
+        .order('balance', { ascending: false });
+    } catch (err) {
+      console.error('vendorService.getWithBalances error:', err);
       return {
         data: mockVendorsData.filter(v => v.balance > 0),
         error: null,
       };
     }
-    
-    return await supabase
-      .from('vendors')
-      .select('*')
-      .eq('entity_id', entityId)
-      .gt('balance', 0)
-      .order('balance', { ascending: false });
   },
-  
+
   // Search vendors
   async search(entityId, query) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('vendors')
+        .select('*')
+        .eq('entity_id', entityId)
+        .or(`name.ilike.%${query}%,contact_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .order('name', { ascending: true });
+    } catch (err) {
+      console.error('vendorService.search error:', err);
       const lowerQuery = query.toLowerCase();
       return {
         data: mockVendorsData.filter(v =>
@@ -251,13 +266,6 @@ export const vendorService = {
         error: null,
       };
     }
-    
-    return await supabase
-      .from('vendors')
-      .select('*')
-      .eq('entity_id', entityId)
-      .or(`name.ilike.%${query}%,contact_name.ilike.%${query}%,email.ilike.%${query}%`)
-      .order('name', { ascending: true });
   },
 };
 

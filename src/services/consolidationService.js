@@ -1,4 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { entityRelationshipService } from './entityRelationshipService';
 import { accountService } from './accountService';
 
@@ -98,7 +98,47 @@ export const consolidationService = {
   async detectIntercompanyTransactions(entityIds, options = {}) {
     const { startDate, endDate } = options;
 
-    if (isDemoMode) {
+    try {
+      // Get journal entries between related entities
+      let query = supabase
+        .from('journal_entries')
+        .select(`
+          *,
+          entity:entities(id, name),
+          lines:journal_entry_lines(
+            *,
+            account:accounts(id, account_number, account_name, entity_id)
+          )
+        `)
+        .in('entity_id', entityIds)
+        .eq('is_intercompany', true);
+
+      if (startDate) {
+        query = query.gte('entry_date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('entry_date', endDate);
+      }
+
+      const { data: entries, error } = await query;
+      if (error) throw error;
+
+      // Transform into intercompany transaction format
+      const transactions = entries.map(entry => ({
+        id: entry.id,
+        from_entity_id: entry.entity_id,
+        from_entity_name: entry.entity?.name,
+        to_entity_id: entry.counterparty_entity_id,
+        amount: entry.lines?.reduce((sum, line) => sum + Math.abs(line.debit_amount || 0), 0) || 0,
+        description: entry.description,
+        transaction_date: entry.entry_date,
+        status: entry.elimination_status || 'pending_elimination',
+        journal_entry_id: entry.id,
+      }));
+
+      return { data: transactions, error: null };
+    } catch (err) {
+      console.error('Error detecting intercompany transactions:', err);
       let transactions = [...mockConsolidatedData.intercompanyTransactions];
 
       if (startDate) {
@@ -110,67 +150,42 @@ export const consolidationService = {
 
       return { data: transactions, error: null };
     }
-
-    // Get journal entries between related entities
-    let query = supabase
-      .from('journal_entries')
-      .select(`
-        *,
-        entity:entities(id, name),
-        lines:journal_entry_lines(
-          *,
-          account:accounts(id, account_number, account_name, entity_id)
-        )
-      `)
-      .in('entity_id', entityIds)
-      .eq('is_intercompany', true);
-
-    if (startDate) {
-      query = query.gte('entry_date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('entry_date', endDate);
-    }
-
-    const { data: entries, error } = await query;
-    if (error) return { data: null, error };
-
-    // Transform into intercompany transaction format
-    const transactions = entries.map(entry => ({
-      id: entry.id,
-      from_entity_id: entry.entity_id,
-      from_entity_name: entry.entity?.name,
-      to_entity_id: entry.counterparty_entity_id,
-      amount: entry.lines?.reduce((sum, line) => sum + Math.abs(line.debit_amount || 0), 0) || 0,
-      description: entry.description,
-      transaction_date: entry.entry_date,
-      status: entry.elimination_status || 'pending_elimination',
-      journal_entry_id: entry.id,
-    }));
-
-    return { data: transactions, error: null };
   },
 
   // Flag a journal entry as intercompany
   async flagAsIntercompany(journalEntryId, counterpartyEntityId) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .update({
+          is_intercompany: true,
+          counterparty_entity_id: counterpartyEntityId,
+        })
+        .eq('id', journalEntryId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error flagging as intercompany:', err);
       return { data: { id: journalEntryId, is_intercompany: true, counterparty_entity_id: counterpartyEntityId }, error: null };
     }
-
-    return await supabase
-      .from('journal_entries')
-      .update({
-        is_intercompany: true,
-        counterparty_entity_id: counterpartyEntityId,
-      })
-      .eq('id', journalEntryId)
-      .select()
-      .single();
   },
 
   // Mark intercompany transactions as eliminated for consolidation
   async markEliminated(transactionIds) {
-    if (isDemoMode) {
+    try {
+      const { error } = await supabase
+        .from('journal_entries')
+        .update({ elimination_status: 'eliminated' })
+        .in('id', transactionIds);
+
+      if (error) throw error;
+
+      return { data: { eliminated: transactionIds.length }, error: null };
+    } catch (err) {
+      console.error('Error marking eliminated:', err);
       mockConsolidatedData.intercompanyTransactions =
         mockConsolidatedData.intercompanyTransactions.map(t =>
           transactionIds.includes(t.id)
@@ -179,15 +194,6 @@ export const consolidationService = {
         );
       return { data: { eliminated: transactionIds.length }, error: null };
     }
-
-    const { error } = await supabase
-      .from('journal_entries')
-      .update({ elimination_status: 'eliminated' })
-      .in('id', transactionIds);
-
-    if (error) return { data: null, error };
-
-    return { data: { eliminated: transactionIds.length }, error: null };
   },
 
   // Get consolidated trial balance for a group of entities
@@ -343,59 +349,60 @@ export const consolidationService = {
 
   // Auto-detect potential intercompany transactions
   async autoDetectIntercompany(entityIds) {
-    if (isDemoMode) {
+    try {
+      // Find journal entries where accounts reference multiple entities
+      const { data: entries, error } = await supabase
+        .from('journal_entries')
+        .select(`
+          *,
+          entity:entities(id, name),
+          lines:journal_entry_lines(
+            *,
+            account:accounts(id, account_number, account_name, entity_id)
+          )
+        `)
+        .in('entity_id', entityIds)
+        .eq('is_intercompany', false); // Only look at non-flagged entries
+
+      if (error) throw error;
+
+      // Filter for entries that might be intercompany based on description patterns
+      const intercompanyPatterns = [
+        /transfer/i,
+        /intercompany/i,
+        /inter-company/i,
+        /ic\s/i,
+        /management fee/i,
+        /allocation/i,
+        /due to/i,
+        /due from/i,
+        /loan to/i,
+        /loan from/i,
+        /receivable from/i,
+        /payable to/i,
+      ];
+
+      const potentialIntercompany = entries.filter(entry => {
+        const description = entry.description || '';
+        return intercompanyPatterns.some(pattern => pattern.test(description));
+      });
+
+      return {
+        data: potentialIntercompany.map(entry => ({
+          id: entry.id,
+          entity_id: entry.entity_id,
+          entity_name: entry.entity?.name,
+          description: entry.description,
+          entry_date: entry.entry_date,
+          amount: entry.lines?.reduce((sum, line) => sum + Math.abs(line.debit_amount || 0), 0) || 0,
+          suggested: true,
+        })),
+        error: null,
+      };
+    } catch (err) {
+      console.error('Error auto-detecting intercompany transactions:', err);
       return { data: mockConsolidatedData.intercompanyTransactions, error: null };
     }
-
-    // Find journal entries where accounts reference multiple entities
-    const { data: entries, error } = await supabase
-      .from('journal_entries')
-      .select(`
-        *,
-        entity:entities(id, name),
-        lines:journal_entry_lines(
-          *,
-          account:accounts(id, account_number, account_name, entity_id)
-        )
-      `)
-      .in('entity_id', entityIds)
-      .eq('is_intercompany', false); // Only look at non-flagged entries
-
-    if (error) return { data: null, error };
-
-    // Filter for entries that might be intercompany based on description patterns
-    const intercompanyPatterns = [
-      /transfer/i,
-      /intercompany/i,
-      /inter-company/i,
-      /ic\s/i,
-      /management fee/i,
-      /allocation/i,
-      /due to/i,
-      /due from/i,
-      /loan to/i,
-      /loan from/i,
-      /receivable from/i,
-      /payable to/i,
-    ];
-
-    const potentialIntercompany = entries.filter(entry => {
-      const description = entry.description || '';
-      return intercompanyPatterns.some(pattern => pattern.test(description));
-    });
-
-    return {
-      data: potentialIntercompany.map(entry => ({
-        id: entry.id,
-        entity_id: entry.entity_id,
-        entity_name: entry.entity?.name,
-        description: entry.description,
-        entry_date: entry.entry_date,
-        amount: entry.lines?.reduce((sum, line) => sum + Math.abs(line.debit_amount || 0), 0) || 0,
-        suggested: true,
-      })),
-      error: null,
-    };
   },
 
   // Get elimination entries needed for consolidation

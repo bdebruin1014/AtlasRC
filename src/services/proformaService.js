@@ -2473,25 +2473,17 @@ function cloneDemoProformas(projectId) {
 }
 
 export async function getProformas(projectId) {
-  if (isDemoMode) {
-    return cloneDemoProformas(projectId);
-  }
-
   try {
     const { data, error } = await supabase.from('proformas').select('*').eq('project_id', projectId).order('version');
     if (error) throw error;
     if (data && data.length) return data;
   } catch (err) {
-    console.warn('Falling back to demo proformas:', err?.message || err);
+    console.error('getProformas error, using demo fallback:', err?.message || err);
   }
   return cloneDemoProformas(projectId);
 }
 
 export async function getActiveProforma(projectId) {
-  if (isDemoMode) {
-    return cloneDemoProformas(projectId).find(p => p.is_active) || null;
-  }
-
   try {
     const { data, error } = await supabase
       .from('proformas')
@@ -2502,28 +2494,41 @@ export async function getActiveProforma(projectId) {
     if (error) throw error;
     if (data) return data;
   } catch (err) {
-    console.warn('Falling back to demo active proforma:', err?.message || err);
+    console.error('getActiveProforma error, using demo fallback:', err?.message || err);
   }
   return cloneDemoProformas(projectId).find(p => p.is_active) || null;
 }
 
 export async function getProforma(proformaId) {
-  if (isDemoMode) {
-    return DEMO_PROFORMAS.find(p => p.id === proformaId) || null;
-  }
-
   try {
     const { data, error } = await supabase.from('proformas').select('*').eq('id', proformaId).single();
     if (error) throw error;
     return data;
   } catch (err) {
-    console.warn('Falling back to demo proforma:', err?.message || err);
+    console.error('getProforma error, using demo fallback:', err?.message || err);
     return DEMO_PROFORMAS.find(p => p.id === proformaId) || null;
   }
 }
 
 export async function createProforma(projectId, data) {
-  if (isDemoMode) {
+  try {
+    const { data: created, error } = await supabase
+      .from('proformas')
+      .insert({
+        project_id: projectId,
+        status: 'draft',
+        ...data,
+        results: {},
+        cash_flows: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return created;
+  } catch (err) {
+    console.error('createProforma error, using demo fallback:', err?.message || err);
     const existing = DEMO_PROFORMAS.filter(p => p.project_id === projectId);
     const proforma = {
       id: `pf-${Date.now()}`,
@@ -2543,7 +2548,17 @@ export async function createProforma(projectId, data) {
 }
 
 export async function updateProforma(proformaId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('proformas')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', proformaId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('updateProforma error, using demo fallback:', err?.message || err);
     const idx = DEMO_PROFORMAS.findIndex(p => p.id === proformaId);
     if (idx === -1) throw new Error('Pro forma not found');
     DEMO_PROFORMAS[idx] = { ...DEMO_PROFORMAS[idx], ...updates, updated_at: new Date().toISOString() };
@@ -2552,7 +2567,25 @@ export async function updateProforma(proformaId, updates) {
 }
 
 export async function setActiveProforma(projectId, proformaId) {
-  if (isDemoMode) {
+  try {
+    // Deactivate all proformas for this project
+    const { error: deactivateError } = await supabase
+      .from('proformas')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('project_id', projectId);
+    if (deactivateError) throw deactivateError;
+
+    // Activate the selected proforma
+    const { data, error } = await supabase
+      .from('proformas')
+      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .eq('id', proformaId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('setActiveProforma error, using demo fallback:', err?.message || err);
     DEMO_PROFORMAS.forEach(p => {
       if (p.project_id === projectId) p.is_active = (p.id === proformaId);
     });
@@ -2561,7 +2594,15 @@ export async function setActiveProforma(projectId, proformaId) {
 }
 
 export async function deleteProforma(proformaId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('proformas')
+      .delete()
+      .eq('id', proformaId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteProforma error, using demo fallback:', err?.message || err);
     const idx = DEMO_PROFORMAS.findIndex(p => p.id === proformaId);
     if (idx !== -1) DEMO_PROFORMAS.splice(idx, 1);
     return true;

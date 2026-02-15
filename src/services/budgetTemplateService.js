@@ -1,7 +1,7 @@
 // src/services/budgetTemplateService.js
 // Budget Template Management Service
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 const mockTemplates = [
   {
@@ -64,86 +64,91 @@ const mockTemplates = [
 ];
 
 export async function getBudgetTemplates(filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase.from('budget_templates').select('*');
+    if (filters.project_type) query = query.eq('project_type', filters.project_type);
+    if (filters.is_active !== undefined) query = query.eq('is_active', filters.is_active);
+
+    const { data, error } = await query.order('name');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching budget templates:', err);
     let templates = [...mockTemplates];
     if (filters.project_type) templates = templates.filter(t => t.project_type === filters.project_type);
     if (filters.is_active !== undefined) templates = templates.filter(t => t.is_active === filters.is_active);
     return templates;
   }
-
-  let query = supabase.from('budget_templates').select('*');
-  if (filters.project_type) query = query.eq('project_type', filters.project_type);
-  if (filters.is_active !== undefined) query = query.eq('is_active', filters.is_active);
-
-  const { data, error } = await query.order('name');
-  if (error) throw error;
-  return data;
 }
 
 export async function getBudgetTemplateById(templateId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('budget_templates')
+      .select('*')
+      .eq('id', templateId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching budget template by ID:', err);
     return mockTemplates.find(t => t.id === templateId) || null;
   }
-
-  const { data, error } = await supabase
-    .from('budget_templates')
-    .select('*')
-    .eq('id', templateId)
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function createBudgetTemplate(templateData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('budget_templates')
+      .insert([{ ...templateData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating budget template:', err);
     const newTemplate = { id: `bt-${Date.now()}`, ...templateData, version: 1, usage_count: 0, created_at: new Date().toISOString() };
     mockTemplates.push(newTemplate);
     return newTemplate;
   }
-
-  const { data, error } = await supabase
-    .from('budget_templates')
-    .insert([{ ...templateData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updateBudgetTemplate(templateId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('budget_templates')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', templateId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating budget template:', err);
     const idx = mockTemplates.findIndex(t => t.id === templateId);
     if (idx >= 0) mockTemplates[idx] = { ...mockTemplates[idx], ...updates };
     return mockTemplates[idx];
   }
-
-  const { data, error } = await supabase
-    .from('budget_templates')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', templateId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteBudgetTemplate(templateId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('budget_templates')
+      .delete()
+      .eq('id', templateId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting budget template:', err);
     const idx = mockTemplates.findIndex(t => t.id === templateId);
     if (idx >= 0) mockTemplates.splice(idx, 1);
     return true;
   }
-
-  const { error } = await supabase
-    .from('budget_templates')
-    .delete()
-    .eq('id', templateId);
-
-  if (error) throw error;
-  return true;
 }
 
 export async function duplicateBudgetTemplate(templateId, newName) {

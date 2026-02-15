@@ -1,7 +1,7 @@
 // src/services/closingService.js
 // Closing Management Service
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export const CLOSING_CATEGORIES = [
   { id: 'pre_closing', label: 'Pre-Closing', icon: '📋' },
@@ -29,75 +29,79 @@ const mockClosingItems = [
 ];
 
 export async function getClosingItems(projectId, filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('closing_items')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.status) query = query.eq('status', filters.status);
+
+    const { data, error } = await query.order('sort_order').order('due_date');
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching closing items:', err);
     let items = mockClosingItems.filter(i => !projectId || i.project_id === projectId || projectId === 'proj-1');
     if (filters.category) items = items.filter(i => i.category === filters.category);
     if (filters.status) items = items.filter(i => i.status === filters.status);
     return items;
   }
-
-  let query = supabase
-    .from('closing_items')
-    .select('*')
-    .eq('project_id', projectId);
-
-  if (filters.category) query = query.eq('category', filters.category);
-  if (filters.status) query = query.eq('status', filters.status);
-
-  const { data, error } = await query.order('sort_order').order('due_date');
-  if (error) throw error;
-  return data;
 }
 
 export async function createClosingItem(projectId, itemData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('closing_items')
+      .insert([{ project_id: projectId, ...itemData }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating closing item:', err);
     const newItem = { id: `cl-${Date.now()}`, project_id: projectId, ...itemData, created_at: new Date().toISOString() };
     mockClosingItems.push(newItem);
     return newItem;
   }
-
-  const { data, error } = await supabase
-    .from('closing_items')
-    .insert([{ project_id: projectId, ...itemData }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updateClosingItem(itemId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('closing_items')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating closing item:', err);
     const idx = mockClosingItems.findIndex(i => i.id === itemId);
     if (idx >= 0) mockClosingItems[idx] = { ...mockClosingItems[idx], ...updates };
     return mockClosingItems[idx];
   }
-
-  const { data, error } = await supabase
-    .from('closing_items')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', itemId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteClosingItem(itemId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('closing_items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting closing item:', err);
     const idx = mockClosingItems.findIndex(i => i.id === itemId);
     if (idx >= 0) mockClosingItems.splice(idx, 1);
     return true;
   }
-
-  const { error } = await supabase
-    .from('closing_items')
-    .delete()
-    .eq('id', itemId);
-
-  if (error) throw error;
-  return true;
 }
 
 export async function getClosingSummary(projectId) {

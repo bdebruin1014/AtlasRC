@@ -29,15 +29,7 @@ import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
 import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
 import ConvertToProjectModal from '@/components/ConvertToProjectModal';
-
-const OPPORTUNITY_TYPES = [
-  { value: 'vacant-lot', label: 'Vacant Lot' },
-  { value: 'flip-property', label: 'Flip Property' },
-  { value: 'development-lot-sale', label: 'Development Lot Sale' },
-  { value: 'development-for-sale', label: 'Development For Sale' },
-  { value: 'development-btr', label: 'Development BTR' },
-  { value: 'scattered-lot', label: 'Scattered Lot' },
-];
+import { OPPORTUNITY_TYPES } from '@/lib/constants';
 
 const OpportunityDetailPage = () => {
   const { toast } = useToast();
@@ -71,23 +63,12 @@ const OpportunityDetailPage = () => {
     1500
   );
 
-  // Document management state
-  const [mailingRecords, setMailingRecords] = useState([
-    { id: '1', type: 'Letter', template: 'Initial Contact Letter', sentDate: '2024-12-15', status: 'delivered', trackingId: 'USPS-123456789' },
-    { id: '2', type: 'Postcard', template: 'Follow-up Postcard', sentDate: '2024-12-28', status: 'in-transit', trackingId: 'USPS-987654321' },
-    { id: '3', type: 'Letter', template: 'Offer Letter', sentDate: '2025-01-05', status: 'pending', trackingId: null },
-  ]);
+  // Document management state — starts empty, populated from database
+  const [mailingRecords, setMailingRecords] = useState([]);
 
-  const [communications, setCommunications] = useState([
-    { id: '1', type: 'phone', direction: 'outbound', date: '2025-01-08 10:30 AM', contact: 'James Wilson', summary: 'Initial call to discuss property. Seller interested in offer.', duration: '12 min' },
-    { id: '2', type: 'email', direction: 'inbound', date: '2025-01-09 2:15 PM', contact: 'James Wilson', summary: 'Seller sent property documents including survey and deed.', attachments: 2 },
-    { id: '3', type: 'phone', direction: 'outbound', date: '2025-01-10 9:00 AM', contact: 'James Wilson', summary: 'Discussed offer terms. Seller agreed to $2M purchase price.', duration: '18 min' },
-  ]);
+  const [communications, setCommunications] = useState([]);
 
-  const [esignedDocs, setEsignedDocs] = useState([
-    { id: '1', name: 'Purchase Agreement - 600 Heritage Way', status: 'completed', sentDate: '2025-01-10', completedDate: '2025-01-11', signers: [{ name: 'James Wilson', status: 'signed' }, { name: 'VanRock Holdings', status: 'signed' }] },
-    { id: '2', name: 'Due Diligence Extension', status: 'pending', sentDate: '2025-01-12', completedDate: null, signers: [{ name: 'James Wilson', status: 'pending' }, { name: 'VanRock Holdings', status: 'signed' }] },
-  ]);
+  const [esignedDocs, setEsignedDocs] = useState([]);
 
   const [showMailingDialog, setShowMailingDialog] = useState(false);
   const [showCommDialog, setShowCommDialog] = useState(false);

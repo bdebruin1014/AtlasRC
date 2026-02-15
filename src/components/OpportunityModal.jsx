@@ -5,17 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { OPPORTUNITY_TYPES } from '@/lib/constants';
 
 const STAGES = ['Prospecting', 'Contacted', 'Qualified', 'Negotiating', 'Under Contract'];
-const OPPORTUNITY_TYPES = [
-  { value: 'development-lot-sale', label: 'Development Lot Sale' },
-  { value: 'development-for-sale', label: 'Development For Sale' },
-  { value: 'development-btr', label: 'Development BTR' },
-  { value: 'scattered-lot', label: 'Scattered Lot' },
-  { value: 'brrr', label: 'BRRR' },
-];
 
-const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => {
+const OpportunityModal = ({ open, onClose, opportunity, preselectedType, onSave, isLoading }) => {
   const [formData, setFormData] = useState({
     deal_number: '',
     address: '',
@@ -23,7 +17,7 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
     state: 'SC',
     zip_code: '',
     stage: 'Prospecting',
-    opportunity_type: 'development-lot-sale',
+    opportunity_type: 'scattered-lot',
     estimated_value: '',
     asking_price: '',
     assignment_fee: '',
@@ -42,7 +36,7 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
         state: opportunity.state || 'SC',
         zip_code: opportunity.zip_code || '',
         stage: opportunity.stage || 'Prospecting',
-        opportunity_type: opportunity.opportunity_type || 'development-lot-sale',
+        opportunity_type: opportunity.opportunity_type || preselectedType || 'scattered-lot',
         estimated_value: opportunity.estimated_value || '',
         asking_price: opportunity.asking_price || '',
         assignment_fee: opportunity.assignment_fee || '',
@@ -56,11 +50,10 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
       setFormData(prev => ({
         ...prev,
         deal_number: year + '-001',
+        opportunity_type: preselectedType || 'scattered-lot',
       }));
     }
-  }, [opportunity, 
-    
-    open]);
+  }, [opportunity, preselectedType, open]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -82,7 +75,7 @@ const OpportunityModal = ({ open, onClose, opportunity, onSave, isLoading }) => 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {opportunity ? 'Edit Opportunity' : 'New Opportunity'}
+            {opportunity ? 'Edit Opportunity' : `New ${OPPORTUNITY_TYPES.find(t => t.value === formData.opportunity_type)?.label || 'Opportunity'} Opportunity`}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
