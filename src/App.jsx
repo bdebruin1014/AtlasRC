@@ -163,7 +163,7 @@ const RecurringJournalEntriesPage = lazy(() => import('@/pages/accounting/Recurr
 // OPERATIONS ENHANCEMENTS
 // ============================================
 const DocumentExpirationTracker = lazy(() => import('@/components/DocumentExpirationTracker'));
-const WorkOrderSystem = lazy(() => import('@/components/WorkOrderSystem'));
+// WorkOrderSystem removed — property management, not development/construction
 const GanttChart = lazy(() => import('@/components/GanttChart'));
 const AuditTrail = lazy(() => import('@/components/AuditTrail'));
 const ProjectActivityFeed = lazy(() => import('@/components/ProjectActivityFeed'));
@@ -518,7 +518,7 @@ const AppContent = () => (
     <Route path="/project/:projectId/construction/change-orders" element={<ProtectedRoute><AppLayout><ChangeOrdersPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/permits" element={<ProtectedRoute><AppLayout><PermitsPage /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/bids" element={<ProtectedRoute><AppLayout><BidsPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/project/:projectId/construction/work-orders" element={<ProtectedRoute><AppLayout><WorkOrderSystem /></AppLayout></ProtectedRoute>} />
+    {/* WorkOrderSystem removed — property management, not development/construction */}
     <Route path="/project/:projectId/construction/gantt" element={<ProtectedRoute><AppLayout><GanttChart /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/punch-list" element={<ProtectedRoute><AppLayout><PunchList /></AppLayout></ProtectedRoute>} />
     <Route path="/project/:projectId/construction/photos" element={<ProtectedRoute><AppLayout><PhotoProgressTracker /></AppLayout></ProtectedRoute>} />
@@ -606,7 +606,7 @@ const AppContent = () => (
     <Route path="/construction/:houseId" element={<ProtectedRoute><AppLayout><ConstructionLayout><HouseDetailPage /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/permits" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PermitsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/purchase-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={BidsPage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/:houseId/work-orders" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={WorkOrderSystem} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
+    {/* WorkOrderSystem removed — property management, not development/construction */}
     <Route path="/construction/:houseId/punch-list" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PunchList} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/photos" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={PhotoProgressTracker} /></ConstructionLayout></AppLayout></ProtectedRoute>} />
     <Route path="/construction/:houseId/insurance" element={<ProtectedRoute><AppLayout><ConstructionLayout><ConstructionPageWrapper Component={InsurancePage} /></ConstructionLayout></AppLayout></ProtectedRoute>} />

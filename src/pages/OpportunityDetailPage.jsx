@@ -30,6 +30,9 @@ import { getComparables as getOppComparables, createComparable as createOppCompa
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
 
+// Record Tasks Panel (workflow-based tasks with template support)
+import RecordTasksPanel from '@/components/RecordTasksPanel';
+
 // E-Sign and Document Components
 import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
@@ -1540,201 +1543,16 @@ const OpportunityDetailPage = () => {
           </div>
         );
       
-      case 'tasks': {
-        const filteredTasks = oppTaskFilter === 'all'
-          ? oppTasks
-          : oppTasks.filter(t => t.status === oppTaskFilter);
-        const taskCounts = {
-          all: oppTasks.length,
-          todo: oppTasks.filter(t => t.status === 'todo').length,
-          'in-progress': oppTasks.filter(t => t.status === 'in-progress').length,
-          completed: oppTasks.filter(t => t.status === 'completed').length,
-        };
+      case 'tasks':
         return (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Tasks</h2>
-                <p className="text-sm text-gray-500">{oppTasks.length} task{oppTasks.length !== 1 ? 's' : ''} for this opportunity</p>
-              </div>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowAddTask(true)}>
-                <Plus className="w-4 h-4 mr-1" /> Add Task
-              </Button>
-            </div>
-
-            {/* Status Filter Tabs */}
-            <div className="flex gap-2">
-              {[{ id: 'all', label: 'All' }, ...OPP_TASK_STATUSES].map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setOppTaskFilter(s.id)}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-full transition-colors",
-                    oppTaskFilter === s.id
-                      ? "bg-[#047857] text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  )}
-                >
-                  {s.label} ({taskCounts[s.id] || 0})
-                </button>
-              ))}
-            </div>
-
-            {/* Add Task Form */}
-            {showAddTask && (
-              <div className="bg-white border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium text-gray-900">New Task</h3>
-                  <button onClick={() => setShowAddTask(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label className="text-xs text-gray-500">Title *</Label>
-                    <Input
-                      value={newTask.title}
-                      onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
-                      className="mt-1"
-                      placeholder="Task title"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Category</Label>
-                    <Select value={newTask.category} onValueChange={(v) => setNewTask(prev => ({ ...prev, category: v }))}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {OPP_TASK_CATEGORIES.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Priority</Label>
-                    <Select value={newTask.priority} onValueChange={(v) => setNewTask(prev => ({ ...prev, priority: v }))}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {OPP_TASK_PRIORITIES.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Due Date</Label>
-                    <Input
-                      type="date"
-                      value={newTask.due_date}
-                      onChange={(e) => setNewTask(prev => ({ ...prev, due_date: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Assigned To</Label>
-                    <Input
-                      value={newTask.assigned_to}
-                      onChange={(e) => setNewTask(prev => ({ ...prev, assigned_to: e.target.value }))}
-                      className="mt-1"
-                      placeholder="Name"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-gray-500">Description</Label>
-                    <Textarea
-                      value={newTask.description}
-                      onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
-                      className="mt-1"
-                      rows={2}
-                      placeholder="Task details..."
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setShowAddTask(false)}>Cancel</Button>
-                  <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleAddOppTask}>Create Task</Button>
-                </div>
-              </div>
-            )}
-
-            {/* Task List */}
-            {oppTasksLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-[#047857]" />
-                <span className="ml-2 text-gray-500">Loading tasks...</span>
-              </div>
-            ) : filteredTasks.length === 0 ? (
-              <div className="bg-white border rounded-lg p-12 text-center">
-                <ClipboardList className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">{oppTaskFilter === 'all' ? 'No tasks yet. Add your first task above.' : `No ${oppTaskFilter} tasks.`}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredTasks.map(task => {
-                  const priorityMeta = OPP_TASK_PRIORITIES.find(p => p.id === task.priority);
-                  const categoryMeta = OPP_TASK_CATEGORIES.find(c => c.id === task.category);
-                  const isOverdue = task.status !== 'completed' && task.due_date && new Date(task.due_date) < new Date();
-                  return (
-                    <div key={task.id} className={cn("bg-white border rounded-lg p-4 flex items-start gap-3 hover:shadow-sm transition-shadow", isOverdue && "border-red-200")}>
-                      <button
-                        onClick={() => handleToggleOppTask(task.id, task.status)}
-                        className={cn(
-                          "w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors",
-                          task.status === 'completed'
-                            ? "bg-[#047857] border-[#047857] text-white"
-                            : "border-gray-300 hover:border-[#047857]"
-                        )}
-                      >
-                        {task.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={cn("font-medium text-sm", task.status === 'completed' && "line-through text-gray-400")}>
-                            {task.title}
-                          </span>
-                          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", priorityMeta?.bgColor || 'bg-gray-100 text-gray-700')}>
-                            {priorityMeta?.label || task.priority}
-                          </span>
-                          {task.status === 'in-progress' && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">In Progress</span>
-                          )}
-                          {categoryMeta && (
-                            <span className="text-[10px] text-gray-400">{categoryMeta.label}</span>
-                          )}
-                        </div>
-                        {task.description && (
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-1">{task.description}</p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                          {task.due_date && (
-                            <span className={cn("flex items-center gap-1", isOverdue && "text-red-500 font-medium")}>
-                              <Calendar className="w-3 h-3" />
-                              {new Date(task.due_date).toLocaleDateString()}
-                              {isOverdue && ' (overdue)'}
-                            </span>
-                          )}
-                          {task.assigned_to && (
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              {task.assigned_to}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteOppTask(task.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div className="p-6">
+            <RecordTasksPanel
+              module="opportunities"
+              recordId={opportunityId}
+              recordName={formData?.address || formData?.property_address || 'Opportunity'}
+            />
           </div>
         );
-      }
 
       case 'contacts': {
         return (

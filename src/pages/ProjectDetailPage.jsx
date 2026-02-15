@@ -3,6 +3,7 @@ import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import BasicInfoPage from '@/pages/projects/BasicInfoPage';
 import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import TasksPage from '@/pages/projects/TasksPage';
+import RecordTasksPanel from '@/components/RecordTasksPanel';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer, Home, Map, ShoppingBag, FileBarChart, Layers, Shield } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -775,7 +776,15 @@ const ProjectDetailPage = () => {
         return <ProjectContactsSection projectId={projectId} />;
 
       case 'tasks':
-        return <TasksPage projectId={projectId} />;
+        return (
+          <div className="p-6">
+            <RecordTasksPanel
+              module="projects"
+              recordId={projectId}
+              recordName={formData?.name || 'Project'}
+            />
+          </div>
+        );
 
       case 'files':
         return (

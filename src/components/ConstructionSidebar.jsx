@@ -159,6 +159,7 @@ export default function ConstructionSidebar({ house: houseProp }) {
         <SidebarSection title="Compliance">
           <NavItem to={`${basePath}/permits`} icon={Shield} label="Permits" />
           <NavItem to={`${basePath}/inspections`} icon={CheckSquare} label="Inspections" />
+          <NavItem to={`${basePath}/insurance`} icon={ShieldCheck} label="Insurance & Risk" />
         </SidebarSection>
 
         {/* CLOSEOUT */}
