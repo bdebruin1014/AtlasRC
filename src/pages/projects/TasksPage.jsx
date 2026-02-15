@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Plus, Search, Eye, Edit2, X, CheckCircle, Circle, Clock, Calendar, User, Flag, Tag, Filter, MoreVertical, ChevronDown, ChevronRight, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Eye, Edit2, X, CheckCircle, Circle, Calendar, User, ChevronDown, ChevronRight, ArrowUp, ArrowRight, ArrowDown, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { getTasks, createTask, deleteTask, toggleTaskStatus as toggleTaskStatusService, getTaskStats, TASK_CATEGORIES } from '@/services/taskService';
 
 const TasksPage = ({ projectId }) => {
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -10,41 +11,41 @@ const TasksPage = ({ projectId }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterAssignee, setFilterAssignee] = useState('all');
-  const [viewMode, setViewMode] = useState('list'); // 'list', 'board'
-  const [expandedCategories, setExpandedCategories] = useState(['construction', 'sales', 'admin']);
+  const [expandedCategories, setExpandedCategories] = useState(['construction', 'sales', 'admin', 'finance', 'legal', 'other']);
 
-  const [tasks, setTasks] = useState([
-    // Construction Tasks
-    { id: 'TSK-001', title: 'Schedule Unit 5 framing inspection', category: 'construction', status: 'in-progress', priority: 'high', assignee: 'Mike Johnson', dueDate: '2024-12-30', createdDate: '2024-12-27', description: 'Framing is complete on Unit 5. Need to schedule inspection with city.', tags: ['inspection', 'framing'], checklist: [{ text: 'Verify framing complete', done: true }, { text: 'Call building dept', done: true }, { text: 'Confirm date/time', done: false }] },
-    { id: 'TSK-002', title: 'Coordinate HVAC rough-in for Unit 4', category: 'construction', status: 'todo', priority: 'high', assignee: 'Dave Brown', dueDate: '2024-12-31', createdDate: '2024-12-26', description: 'HVAC contractor ready to start rough-in on Unit 4.', tags: ['hvac'], checklist: [] },
-    { id: 'TSK-003', title: 'Order appliances for Units 2-4', category: 'construction', status: 'todo', priority: 'medium', assignee: 'Sarah Mitchell', dueDate: '2025-01-05', createdDate: '2024-12-20', description: 'Need to finalize appliance selections and place order. Lead time is 3-4 weeks.', tags: ['appliances', 'ordering'], checklist: [{ text: 'Confirm selections with buyer', done: false }, { text: 'Get final pricing', done: false }, { text: 'Place order', done: false }] },
-    { id: 'TSK-004', title: 'Review electrical change order for Unit 4', category: 'construction', status: 'in-progress', priority: 'medium', assignee: 'Bryan VanRock', dueDate: '2024-12-29', createdDate: '2024-12-24', description: 'Sparks Electric submitted CO for additional circuits. Review and approve/reject.', tags: ['electrical', 'change-order'], checklist: [] },
-    { id: 'TSK-005', title: 'Schedule bank inspection for Draw #13', category: 'construction', status: 'todo', priority: 'high', assignee: 'Bryan VanRock', dueDate: '2025-01-02', createdDate: '2024-12-28', description: 'Need to schedule bank inspection for next draw request.', tags: ['draw', 'inspection'], checklist: [] },
-    
-    // Sales Tasks
-    { id: 'TSK-006', title: 'Follow up with Jennifer Martinez', category: 'sales', status: 'in-progress', priority: 'high', assignee: 'Sarah Agent', dueDate: '2024-12-29', createdDate: '2024-12-27', description: 'Hot lead interested in Unit 3. Showing scheduled for 12/29. Follow up after.', tags: ['lead', 'unit-3'], checklist: [{ text: 'Confirm showing time', done: true }, { text: 'Prepare unit for showing', done: false }, { text: 'Follow up call', done: false }] },
-    { id: 'TSK-007', title: 'Update MLS listings with new photos', category: 'sales', status: 'todo', priority: 'low', assignee: 'Sarah Agent', dueDate: '2025-01-03', createdDate: '2024-12-20', description: 'Add December progress photos to all active listings.', tags: ['marketing', 'photos'], checklist: [] },
-    { id: 'TSK-008', title: 'Schedule closing for Unit 2', category: 'sales', status: 'in-progress', priority: 'high', assignee: 'Sarah Agent', dueDate: '2025-01-25', createdDate: '2024-12-18', description: 'Unit 2 under contract. Coordinate closing with title company.', tags: ['closing', 'unit-2'], checklist: [{ text: 'Send docs to title', done: true }, { text: 'Confirm closing date', done: true }, { text: 'Schedule walkthrough', done: false }, { text: 'Prepare closing docs', done: false }] },
-    
-    // Admin Tasks
-    { id: 'TSK-009', title: 'Prepare Q4 investor report', category: 'admin', status: 'completed', priority: 'high', assignee: 'Bryan VanRock', dueDate: '2024-12-28', completedDate: '2024-12-28', createdDate: '2024-12-15', description: 'Quarterly report for LP investors with progress update and financials.', tags: ['investor', 'report'], checklist: [{ text: 'Gather financials', done: true }, { text: 'Write narrative', done: true }, { text: 'Add photos', done: true }, { text: 'Review and send', done: true }] },
-    { id: 'TSK-010', title: 'Process January distribution', category: 'admin', status: 'todo', priority: 'high', assignee: 'Bryan VanRock', dueDate: '2025-01-15', createdDate: '2024-12-22', description: 'Process distribution of Unit 1 closing proceeds to investors.', tags: ['distribution', 'investor'], checklist: [{ text: 'Calculate allocations', done: false }, { text: 'Prepare statements', done: false }, { text: 'Process payments', done: false }] },
-    { id: 'TSK-011', title: 'Renew builder insurance policy', category: 'admin', status: 'todo', priority: 'medium', assignee: 'Sarah Mitchell', dueDate: '2025-01-15', createdDate: '2024-12-20', description: 'Current policy expires 1/31. Get renewal quote and process.', tags: ['insurance'], checklist: [] },
-    { id: 'TSK-012', title: 'Update COI for Premium Cabinets', category: 'admin', status: 'todo', priority: 'medium', assignee: 'Sarah Mitchell', dueDate: '2025-01-10', createdDate: '2024-12-26', description: 'Request updated certificate of insurance from vendor.', tags: ['vendor', 'insurance'], checklist: [] },
-    
-    // Completed
-    { id: 'TSK-013', title: 'Close Unit 1 sale', category: 'sales', status: 'completed', priority: 'high', assignee: 'Sarah Agent', dueDate: '2024-12-20', completedDate: '2024-12-20', createdDate: '2024-11-15', description: 'First unit closing!', tags: ['closing', 'unit-1'], checklist: [] },
-    { id: 'TSK-014', title: 'Submit Draw #12 request', category: 'construction', status: 'completed', priority: 'high', assignee: 'Bryan VanRock', dueDate: '2024-12-10', completedDate: '2024-12-08', createdDate: '2024-12-01', description: 'Monthly draw request submitted and approved.', tags: ['draw'], checklist: [] },
-  ]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, todo: 0, inProgress: 0, completed: 0, overdue: 0 });
+
+  useEffect(() => {
+    loadTasks();
+  }, [projectId]);
+
+  const loadTasks = async () => {
+    setLoading(true);
+    try {
+      const [tasksData, statsData] = await Promise.all([
+        getTasks(projectId),
+        getTaskStats(projectId),
+      ]);
+      setTasks(tasksData);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
+    setLoading(false);
+  };
 
   const categories = [
     { id: 'construction', name: 'Construction', color: 'bg-orange-500' },
     { id: 'sales', name: 'Sales & Marketing', color: 'bg-pink-500' },
     { id: 'admin', name: 'Administrative', color: 'bg-purple-500' },
     { id: 'finance', name: 'Finance', color: 'bg-green-500' },
+    { id: 'legal', name: 'Legal', color: 'bg-blue-500' },
+    { id: 'other', name: 'Other', color: 'bg-gray-500' },
   ];
 
-  const assignees = ['Bryan VanRock', 'Sarah Mitchell', 'Mike Johnson', 'Sarah Agent', 'Dave Brown'];
+  const assignees = ['Bryan De Bruin', 'Mike Williams', 'Sarah Mitchell', 'Sarah Agent', 'Dave Brown'];
 
   const [newTask, setNewTask] = useState({
     title: '',
@@ -68,6 +69,7 @@ const TasksPage = ({ projectId }) => {
 
   const getPriorityIcon = (priority) => {
     switch (priority) {
+      case 'urgent': return <ArrowUp className="w-4 h-4 text-red-600" />;
       case 'high': return <ArrowUp className="w-4 h-4 text-red-500" />;
       case 'medium': return <ArrowRight className="w-4 h-4 text-amber-500" />;
       case 'low': return <ArrowDown className="w-4 h-4 text-gray-400" />;
@@ -81,54 +83,83 @@ const TasksPage = ({ projectId }) => {
     );
   };
 
-  const toggleTaskStatus = (taskId) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id === taskId) {
-        const newStatus = t.status === 'completed' ? 'todo' : 'completed';
-        return { ...t, status: newStatus, completedDate: newStatus === 'completed' ? new Date().toISOString().split('T')[0] : null };
+  const handleToggleTaskStatus = async (taskId, currentStatus) => {
+    try {
+      await toggleTaskStatusService(taskId, currentStatus);
+      await loadTasks();
+      // Update selectedTask if it's the one being toggled
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask(prev => ({
+          ...prev,
+          status: currentStatus === 'completed' ? 'todo' : 'completed',
+          completed_date: currentStatus === 'completed' ? null : new Date().toISOString().split('T')[0],
+        }));
       }
-      return t;
-    }));
+    } catch (error) {
+      console.error('Error toggling task status:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await deleteTask(taskId);
+      setSelectedTask(null);
+      await loadTasks();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
   };
 
   const filteredTasks = tasks.filter(task => {
     const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-    const matchesAssignee = filterAssignee === 'all' || task.assignee === filterAssignee;
+    const matchesAssignee = filterAssignee === 'all' || task.assigned_to_name === filterAssignee;
     return matchesStatus && matchesPriority && matchesAssignee;
   });
 
-  const todoCount = tasks.filter(t => t.status === 'todo').length;
-  const inProgressCount = tasks.filter(t => t.status === 'in-progress').length;
-  const completedCount = tasks.filter(t => t.status === 'completed').length;
-  const overdueCount = tasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < new Date()).length;
-
   const isOverdue = (dueDate, status) => {
-    if (status === 'completed') return false;
+    if (status === 'completed' || !dueDate) return false;
     return new Date(dueDate) < new Date();
   };
 
   const isDueSoon = (dueDate, status) => {
-    if (status === 'completed') return false;
+    if (status === 'completed' || !dueDate) return false;
     const due = new Date(dueDate);
     const today = new Date();
     const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
     return diff <= 3 && diff >= 0;
   };
 
-  const handleSaveTask = () => {
-    const task = {
-      id: `TSK-${String(tasks.length + 1).padStart(3, '0')}`,
-      ...newTask,
-      status: 'todo',
-      createdDate: new Date().toISOString().split('T')[0],
-      tags: newTask.tags.split(',').map(t => t.trim()).filter(t => t),
-      checklist: [],
-    };
-    setTasks(prev => [...prev, task]);
-    setShowTaskModal(false);
-    setNewTask({ title: '', category: 'construction', priority: 'medium', assignee: '', dueDate: '', description: '', tags: '' });
+  const handleCreateTask = async () => {
+    try {
+      await createTask({
+        project_id: projectId,
+        title: newTask.title,
+        category: newTask.category,
+        priority: newTask.priority,
+        assigned_to_name: newTask.assignee,
+        due_date: newTask.dueDate || null,
+        description: newTask.description,
+        tags: newTask.tags ? newTask.tags.split(',').map(t => t.trim()) : [],
+      });
+      setShowTaskModal(false);
+      setNewTask({ title: '', category: 'construction', priority: 'medium', assignee: '', dueDate: '', description: '', tags: '' });
+      await loadTasks();
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-48"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-full">
@@ -136,7 +167,7 @@ const TasksPage = ({ projectId }) => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold">Tasks</h1>
-          <p className="text-sm text-gray-500">{tasks.length} tasks • {overdueCount > 0 && <span className="text-red-500">{overdueCount} overdue</span>}</p>
+          <p className="text-sm text-gray-500">{stats.total} tasks • {stats.overdue > 0 && <span className="text-red-500">{stats.overdue} overdue</span>}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1" />Export</Button>
@@ -150,23 +181,23 @@ const TasksPage = ({ projectId }) => {
       <div className="grid grid-cols-5 gap-4 mb-6">
         <div className="bg-white border rounded-lg p-4">
           <p className="text-xs text-gray-500">Total Tasks</p>
-          <p className="text-2xl font-semibold">{tasks.length}</p>
+          <p className="text-2xl font-semibold">{stats.total}</p>
         </div>
         <div className="bg-white border rounded-lg p-4 border-l-4 border-l-gray-400">
           <p className="text-xs text-gray-500">To Do</p>
-          <p className="text-2xl font-semibold">{todoCount}</p>
+          <p className="text-2xl font-semibold">{stats.todo}</p>
         </div>
         <div className="bg-white border rounded-lg p-4 border-l-4 border-l-blue-500">
           <p className="text-xs text-gray-500">In Progress</p>
-          <p className="text-2xl font-semibold text-blue-600">{inProgressCount}</p>
+          <p className="text-2xl font-semibold text-blue-600">{stats.inProgress}</p>
         </div>
         <div className="bg-white border rounded-lg p-4 border-l-4 border-l-green-500">
           <p className="text-xs text-gray-500">Completed</p>
-          <p className="text-2xl font-semibold text-green-600">{completedCount}</p>
+          <p className="text-2xl font-semibold text-green-600">{stats.completed}</p>
         </div>
         <div className="bg-white border rounded-lg p-4 border-l-4 border-l-red-500">
           <p className="text-xs text-gray-500">Overdue</p>
-          <p className="text-2xl font-semibold text-red-600">{overdueCount}</p>
+          <p className="text-2xl font-semibold text-red-600">{stats.overdue}</p>
         </div>
       </div>
 
@@ -182,9 +213,11 @@ const TasksPage = ({ projectId }) => {
             <option value="todo">To Do</option>
             <option value="in-progress">In Progress</option>
             <option value="completed">Completed</option>
+            <option value="blocked">Blocked</option>
           </select>
           <select className="border rounded-md px-3 py-2 text-sm" value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
             <option value="all">All Priority</option>
+            <option value="urgent">Urgent</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
@@ -204,9 +237,11 @@ const TasksPage = ({ projectId }) => {
           const categoryTasks = filteredTasks.filter(t => t.category === category.id);
           const isExpanded = expandedCategories.includes(category.id);
 
+          if (categoryTasks.length === 0 && !isExpanded) return null;
+
           return (
             <div key={category.id} className="bg-white border rounded-lg overflow-hidden">
-              <div 
+              <div
                 className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer hover:bg-gray-100"
                 onClick={() => toggleCategory(category.id)}
               >
@@ -228,7 +263,7 @@ const TasksPage = ({ projectId }) => {
                   ) : (
                     categoryTasks.map(task => (
                       <div key={task.id} className={cn("flex items-center gap-4 p-4 hover:bg-gray-50", task.status === 'completed' && "opacity-60")}>
-                        <button onClick={() => toggleTaskStatus(task.id)}>
+                        <button onClick={() => handleToggleTaskStatus(task.id, task.status)}>
                           {task.status === 'completed' ? (
                             <CheckCircle className="w-5 h-5 text-green-500" />
                           ) : (
@@ -239,17 +274,17 @@ const TasksPage = ({ projectId }) => {
                           <div className="flex items-center gap-2">
                             <p className={cn("font-medium", task.status === 'completed' && "line-through text-gray-500")}>{task.title}</p>
                             {getPriorityIcon(task.priority)}
-                            {isOverdue(task.dueDate, task.status) && (
+                            {isOverdue(task.due_date, task.status) && (
                               <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">Overdue</span>
                             )}
-                            {isDueSoon(task.dueDate, task.status) && !isOverdue(task.dueDate, task.status) && (
+                            {isDueSoon(task.due_date, task.status) && !isOverdue(task.due_date, task.status) && (
                               <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">Due Soon</span>
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                            <span className="flex items-center gap-1"><User className="w-3 h-3" />{task.assignee}</span>
-                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{task.dueDate}</span>
-                            {task.checklist.length > 0 && (
+                            {task.assigned_to_name && <span className="flex items-center gap-1"><User className="w-3 h-3" />{task.assigned_to_name}</span>}
+                            {task.due_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{task.due_date}</span>}
+                            {task.checklist && task.checklist.length > 0 && (
                               <span className="flex items-center gap-1">
                                 <CheckCircle className="w-3 h-3" />
                                 {task.checklist.filter(c => c.done).length}/{task.checklist.length}
@@ -298,6 +333,7 @@ const TasksPage = ({ projectId }) => {
                 <div>
                   <label className="text-sm font-medium block mb-1">Priority</label>
                   <select className="w-full border rounded-md px-3 py-2" value={newTask.priority} onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value }))}>
+                    <option value="urgent">Urgent</option>
                     <option value="high">High</option>
                     <option value="medium">Medium</option>
                     <option value="low">Low</option>
@@ -330,7 +366,7 @@ const TasksPage = ({ projectId }) => {
             </div>
             <div className="flex justify-end gap-2 p-4 border-t bg-gray-50 sticky bottom-0">
               <Button variant="outline" onClick={() => setShowTaskModal(false)}>Cancel</Button>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleSaveTask}>Add Task</Button>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleCreateTask} disabled={!newTask.title.trim()}>Add Task</Button>
             </div>
           </div>
         </div>
@@ -342,14 +378,14 @@ const TasksPage = ({ projectId }) => {
           <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">{selectedTask.id}</span>
+                <span className="text-sm text-gray-500">{selectedTask.task_number || selectedTask.id}</span>
                 {getPriorityIcon(selectedTask.priority)}
               </div>
               <button onClick={() => setSelectedTask(null)}><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
-                <button onClick={() => toggleTaskStatus(selectedTask.id)}>
+                <button onClick={() => handleToggleTaskStatus(selectedTask.id, selectedTask.status)}>
                   {selectedTask.status === 'completed' ? (
                     <CheckCircle className="w-6 h-6 text-green-500" />
                   ) : (
@@ -366,7 +402,7 @@ const TasksPage = ({ projectId }) => {
                   {selectedTask.status.replace('-', ' ')}
                 </span>
                 <span className="px-2 py-1 rounded text-xs bg-gray-100 capitalize">{selectedTask.priority} priority</span>
-                {isOverdue(selectedTask.dueDate, selectedTask.status) && (
+                {isOverdue(selectedTask.due_date, selectedTask.status) && (
                   <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">Overdue</span>
                 )}
               </div>
@@ -374,20 +410,20 @@ const TasksPage = ({ projectId }) => {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Assignee</p>
-                  <p className="font-medium">{selectedTask.assignee}</p>
+                  <p className="font-medium">{selectedTask.assigned_to_name || 'Unassigned'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Due Date</p>
-                  <p className="font-medium">{selectedTask.dueDate}</p>
+                  <p className="font-medium">{selectedTask.due_date || 'No date'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Created</p>
-                  <p className="font-medium">{selectedTask.createdDate}</p>
+                  <p className="font-medium">{selectedTask.created_at ? new Date(selectedTask.created_at).toLocaleDateString() : '-'}</p>
                 </div>
-                {selectedTask.completedDate && (
+                {selectedTask.completed_date && (
                   <div>
                     <p className="text-gray-500">Completed</p>
-                    <p className="font-medium">{selectedTask.completedDate}</p>
+                    <p className="font-medium">{selectedTask.completed_date}</p>
                   </div>
                 )}
               </div>
@@ -399,7 +435,7 @@ const TasksPage = ({ projectId }) => {
                 </div>
               )}
 
-              {selectedTask.checklist.length > 0 && (
+              {selectedTask.checklist && selectedTask.checklist.length > 0 && (
                 <div>
                   <p className="text-sm text-gray-500 mb-2">Checklist ({selectedTask.checklist.filter(c => c.done).length}/{selectedTask.checklist.length})</p>
                   <div className="space-y-2">
@@ -417,7 +453,7 @@ const TasksPage = ({ projectId }) => {
                 </div>
               )}
 
-              {selectedTask.tags.length > 0 && (
+              {selectedTask.tags && selectedTask.tags.length > 0 && (
                 <div className="flex gap-1 flex-wrap">
                   {selectedTask.tags.map((tag, idx) => (
                     <span key={idx} className="px-2 py-1 bg-gray-100 rounded text-xs">#{tag}</span>
@@ -426,7 +462,7 @@ const TasksPage = ({ projectId }) => {
               )}
             </div>
             <div className="flex justify-between items-center p-4 border-t bg-gray-50">
-              <Button variant="outline" size="sm" className="text-red-600">
+              <Button variant="outline" size="sm" className="text-red-600" onClick={() => handleDeleteTask(selectedTask.id)}>
                 <Trash2 className="w-4 h-4 mr-1" />Delete
               </Button>
               <div className="flex gap-2">

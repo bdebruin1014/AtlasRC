@@ -153,12 +153,15 @@ const ConstructionListPage = () => {
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">House</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Lot</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Project</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Plan</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Elevation</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pkg</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SqFt</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Milestone</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Contract Price</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Buyer</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Budget</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">% Spent</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -167,6 +170,10 @@ const ConstructionListPage = () => {
             {filteredHouses.map(house => {
               const mColors = MILESTONE_COLORS[house.current_milestone] || MILESTONE_COLORS.pre_contract;
               const sColors = STATUS_LABELS[house.status] || STATUS_LABELS.active;
+              const budget = house.total_budget || 0;
+              const actual = house.actual_cost || 0;
+              const pctSpent = budget > 0 ? Math.min((actual / budget) * 100, 100) : 0;
+              const pkgAbbrev = { Standard: 'Std', Classic: 'Cls', Elegance: 'Elg' }[house.upgrade_package] || house.upgrade_package || '—';
               return (
                 <tr
                   key={house.id}
@@ -175,16 +182,21 @@ const ConstructionListPage = () => {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                        <Home className="w-5 h-5 text-emerald-600" />
+                      <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Home className="w-4 h-4 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="font-medium">{house.house_name}</p>
-                        <p className="text-xs text-gray-500">{house.address}, {house.city}</p>
+                        <p className="font-medium text-sm">{house.house_name}</p>
+                        <p className="text-xs text-gray-500 truncate max-w-[160px]">{house.address}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm">{house.plan_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{house.project?.name || '—'}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{house.plan_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{house.elevation || '—'}</td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">{pkgAbbrev}</span>
+                  </td>
                   <td className="px-4 py-3 text-sm text-right">{house.plan_sqft?.toLocaleString() || '—'}</td>
                   <td className="px-4 py-3">
                     <span className={cn('px-2 py-1 rounded text-xs font-medium', mColors.bg, mColors.text)}>
@@ -192,10 +204,21 @@ const ConstructionListPage = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-right font-medium">
-                    {formatCurrency(house.contract_price)}
+                    {formatCurrency(budget)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {house.buyer_name || <span className="text-gray-400 italic">No buyer</span>}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 justify-end">
+                      <div className="w-16 bg-gray-100 rounded-full h-1.5">
+                        <div
+                          className={cn(
+                            'h-1.5 rounded-full',
+                            pctSpent > 90 ? 'bg-red-500' : pctSpent > 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                          )}
+                          style={{ width: `${pctSpent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 w-8 text-right">{pctSpent.toFixed(0)}%</span>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn('px-2 py-1 rounded text-xs font-medium', sColors.bg, sColors.text)}>
