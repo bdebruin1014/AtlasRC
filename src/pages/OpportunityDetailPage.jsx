@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
@@ -17,6 +17,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { useOpportunity, useOpportunityActions, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
+
+// Stage task service
+import { getStageTasks, toggleTask, getStageProgress } from '@/services/stageTaskService';
 
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
@@ -44,6 +47,8 @@ const OpportunityDetailPage = () => {
   const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [stageTasks, setStageTasks] = useState({});
+  const [stageProgress, setStageProgress] = useState({});
 
   // Fetch opportunity from database
   const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
@@ -102,6 +107,42 @@ const OpportunityDetailPage = () => {
     { id: 'Negotiating', label: 'Negotiating', color: '#8B5CF6' },
     { id: 'Under Contract', label: 'Under Contract', color: '#10B981' },
   ];
+
+  // Load stage tasks when a stage section is viewed
+  useEffect(() => {
+    if (activeSection.startsWith('stage-') && opportunityId) {
+      const stageId = activeSection.replace('stage-', '');
+      const stageMap = {
+        'prospecting': 'Prospecting',
+        'contacted': 'Contacted',
+        'qualified': 'Qualified',
+        'negotiating': 'Negotiating',
+        'under-contract': 'Under Contract'
+      };
+      const stage = stageMap[stageId];
+      if (stage) loadStageTasks(stage);
+    }
+  }, [activeSection, opportunityId]);
+
+  const loadStageTasks = async (stage) => {
+    try {
+      const tasks = await getStageTasks(opportunityId, stage);
+      const progress = await getStageProgress(opportunityId, stage);
+      setStageTasks(prev => ({ ...prev, [stage]: tasks }));
+      setStageProgress(prev => ({ ...prev, [stage]: progress }));
+    } catch (err) {
+      console.error('Failed to load stage tasks:', err);
+    }
+  };
+
+  const handleToggleTask = async (taskId, currentState, stage) => {
+    try {
+      await toggleTask(taskId, !currentState);
+      loadStageTasks(stage);
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -1102,24 +1143,48 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Prospecting Stage</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Contacted')}>
+              <Button
+                className="bg-[#047857] hover:bg-[#065f46]"
+                onClick={() => {
+                  const progress = stageProgress['Prospecting'];
+                  if (progress?.requiredCompleted < progress?.requiredTotal) {
+                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
+                  }
+                  setField('stage', 'Contacted');
+                }}
+              >
                 Move to Contacted
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Prospecting Checklist</h3>
-                <div className="space-y-3">
-                  {[
-                    'Property details verified',
-                    'Ownership confirmed',
-                    'Initial property research complete',
-                    'Comparable sales reviewed',
-                    'Potential value estimated',
-                  ].map((item, idx) => (
-                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
-                      <input type="checkbox" className="rounded border-gray-300" />
-                      <span className="text-sm">{item}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full transition-all"
+                        style={{ width: `${stageProgress['Prospecting']?.pct || 0}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {stageProgress['Prospecting']?.completed || 0}/{stageProgress['Prospecting']?.total || 0}
+                    </span>
+                  </div>
+                  {(stageTasks['Prospecting'] || []).map((task) => (
+                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={task.is_complete}
+                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Prospecting')}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
+                        {task.task_text}
+                      </span>
+                      {task.is_required && (
+                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -1150,24 +1215,48 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Contacted Stage</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Qualified')}>
+              <Button
+                className="bg-[#047857] hover:bg-[#065f46]"
+                onClick={() => {
+                  const progress = stageProgress['Contacted'];
+                  if (progress?.requiredCompleted < progress?.requiredTotal) {
+                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
+                  }
+                  setField('stage', 'Qualified');
+                }}
+              >
                 Move to Qualified
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Contact Checklist</h3>
-                <div className="space-y-3">
-                  {[
-                    'Initial contact made',
-                    'Seller motivation discussed',
-                    'Property condition reviewed',
-                    'Timeline established',
-                    'Follow-up scheduled',
-                  ].map((item, idx) => (
-                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
-                      <input type="checkbox" className="rounded border-gray-300" />
-                      <span className="text-sm">{item}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full transition-all"
+                        style={{ width: `${stageProgress['Contacted']?.pct || 0}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {stageProgress['Contacted']?.completed || 0}/{stageProgress['Contacted']?.total || 0}
+                    </span>
+                  </div>
+                  {(stageTasks['Contacted'] || []).map((task) => (
+                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={task.is_complete}
+                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Contacted')}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
+                        {task.task_text}
+                      </span>
+                      {task.is_required && (
+                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -1199,25 +1288,48 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Qualified Stage</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Negotiating')}>
+              <Button
+                className="bg-[#047857] hover:bg-[#065f46]"
+                onClick={() => {
+                  const progress = stageProgress['Qualified'];
+                  if (progress?.requiredCompleted < progress?.requiredTotal) {
+                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
+                  }
+                  setField('stage', 'Negotiating');
+                }}
+              >
                 Move to Negotiating
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Qualification Checklist</h3>
-                <div className="space-y-3">
-                  {[
-                    'Seller is motivated',
-                    'Price expectations are reasonable',
-                    'Property meets investment criteria',
-                    'Clear title (preliminary)',
-                    'No major property issues',
-                    'Financing path identified',
-                  ].map((item, idx) => (
-                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
-                      <input type="checkbox" className="rounded border-gray-300" />
-                      <span className="text-sm">{item}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full transition-all"
+                        style={{ width: `${stageProgress['Qualified']?.pct || 0}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {stageProgress['Qualified']?.completed || 0}/{stageProgress['Qualified']?.total || 0}
+                    </span>
+                  </div>
+                  {(stageTasks['Qualified'] || []).map((task) => (
+                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={task.is_complete}
+                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Qualified')}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
+                        {task.task_text}
+                      </span>
+                      {task.is_required && (
+                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -1248,11 +1360,52 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Negotiating Stage</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Under Contract')}>
+              <Button
+                className="bg-[#047857] hover:bg-[#065f46]"
+                onClick={() => {
+                  const progress = stageProgress['Negotiating'];
+                  if (progress?.requiredCompleted < progress?.requiredTotal) {
+                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
+                  }
+                  setField('stage', 'Under Contract');
+                }}
+              >
                 Move to Under Contract
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Negotiation Checklist</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full transition-all"
+                        style={{ width: `${stageProgress['Negotiating']?.pct || 0}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {stageProgress['Negotiating']?.completed || 0}/{stageProgress['Negotiating']?.total || 0}
+                    </span>
+                  </div>
+                  {(stageTasks['Negotiating'] || []).map((task) => (
+                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={task.is_complete}
+                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Negotiating')}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
+                        {task.task_text}
+                      </span>
+                      {task.is_required && (
+                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Negotiation Tracker</h3>
                 <div className="space-y-4">
@@ -1286,16 +1439,17 @@ const OpportunityDetailPage = () => {
                       placeholder="Agreed price"
                     />
                   </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Negotiation Notes</Label>
+                    <Textarea
+                      value={formData?.negotiation_notes || ''}
+                      onChange={(e) => setField('negotiation_notes', e.target.value)}
+                      className="mt-1"
+                      rows={4}
+                      placeholder="Track negotiation details, seller concerns, terms discussed..."
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Negotiation Notes</h3>
-                <Textarea
-                  value={formData?.negotiation_notes || ''}
-                  onChange={(e) => setField('negotiation_notes', e.target.value)}
-                  rows={8}
-                  placeholder="Track negotiation details, seller concerns, terms discussed..."
-                />
               </div>
             </div>
           </div>
@@ -1306,11 +1460,52 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Under Contract</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]">
+              <Button
+                className="bg-[#047857] hover:bg-[#065f46]"
+                onClick={() => {
+                  const progress = stageProgress['Under Contract'];
+                  if (progress?.requiredCompleted < progress?.requiredTotal) {
+                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Convert anyway?`)) return;
+                  }
+                  handleConvertToProject();
+                }}
+              >
                 Convert to Project
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Under Contract Checklist</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full transition-all"
+                        style={{ width: `${stageProgress['Under Contract']?.pct || 0}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {stageProgress['Under Contract']?.completed || 0}/{stageProgress['Under Contract']?.total || 0}
+                    </span>
+                  </div>
+                  {(stageTasks['Under Contract'] || []).map((task) => (
+                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={task.is_complete}
+                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Under Contract')}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
+                        {task.task_text}
+                      </span>
+                      {task.is_required && (
+                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Contract Details</h3>
                 <div className="space-y-4">
@@ -1350,25 +1545,6 @@ const OpportunityDetailPage = () => {
                       className="mt-1"
                     />
                   </div>
-                </div>
-              </div>
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Closing Checklist</h3>
-                <div className="space-y-3">
-                  {[
-                    'Title search ordered',
-                    'Survey completed',
-                    'Inspections done',
-                    'Financing approved',
-                    'Insurance obtained',
-                    'Closing scheduled',
-                    'Funds wired',
-                  ].map((item, idx) => (
-                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
-                      <input type="checkbox" className="rounded border-gray-300" />
-                      <span className="text-sm">{item}</span>
-                    </label>
-                  ))}
                 </div>
               </div>
             </div>
