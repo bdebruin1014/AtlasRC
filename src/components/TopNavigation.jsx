@@ -4,7 +4,7 @@ import {
   Home, Building2, FolderKanban, Users, Calendar, Settings, DollarSign,
   Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2,
   BarChart3, Target, TrendingUp, Clock, BookOpen, Receipt, Plus,
-  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw
+  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw, Hammer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import NotificationCenter from './NotificationCenter';
@@ -15,77 +15,36 @@ const TopNavigation = () => {
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home },
-    { label: 'Executive', path: '/executive', icon: BarChart3 },
-    // Projects Dropdown
-    {
-      label: 'Projects',
-      icon: Building2,
-      dropdown: [
-        { label: 'All Projects', path: '/projects', icon: Building2, description: 'View all projects' },
-        { label: 'KPI Dashboard', path: '/projects/kpi', icon: BarChart3, description: 'Project performance metrics' },
-        { label: 'Resource Allocation', path: '/projects/resources', icon: Users2, description: 'Team utilization & capacity' },
-      ]
-    },
-    
-    // Pipeline/Acquisition Dropdown
-    {
-      label: 'Pipeline',
-      icon: FolderKanban,
-      dropdown: [
-        { label: 'Opportunities', path: '/opportunities', icon: FolderKanban, description: 'All pipeline opportunities' },
-        { label: 'Pipeline Analytics', path: '/opportunities/analytics', icon: BarChart3, description: 'Pipeline performance metrics' },
-        { label: 'Compare Opportunities', path: '/opportunities/compare', icon: Layers, description: 'Side-by-side comparison' },
-        { label: 'Pipeline Dashboard', path: '/acquisition', icon: TrendingUp, description: 'Acquisition pipeline analytics' },
-        { label: 'Deal Analyzer', path: '/deal-analyzer', icon: Calculator, description: 'Quick property analysis tool' },
-      ]
-    },
-    
-    { label: 'Contacts', path: '/contacts/list', icon: Users },
+    { label: 'Opportunities', path: '/opportunities', icon: FolderKanban },
+    { label: 'Projects', path: '/projects', icon: Building2 },
+    { label: 'Contacts', path: '/contacts', icon: Users },
     { label: 'Calendar', path: '/calendar', icon: Calendar },
-    
-    // Accounting Dropdown with main sections
+    { label: 'Construction', path: '/construction', icon: Hammer },
     {
       label: 'Accounting',
       icon: DollarSign,
       dropdown: [
-        { label: 'Entities', path: '/accounting/entities', icon: Building2, description: 'Manage entities & accounting' },
-        { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview' },
-        { label: 'Chart of Accounts', path: '/accounting/chart-of-accounts', icon: BookOpen, description: 'Account structure' },
-        { label: 'Transactions', path: '', isHeader: true },
-        { label: 'All Transactions', path: '/accounting/transactions', icon: Receipt, description: 'View all transactions' },
-        { label: 'New Transaction', path: '/accounting/transactions/new', icon: Plus, description: 'Record a transaction' },
-        { label: 'Planning & Investors', path: '', isHeader: true },
-        { label: 'Financial Forecasting', path: '/accounting/forecasting', icon: TrendingUp, description: 'Cash flow projections' },
-        { label: 'Investor Portal', path: '/accounting/investor-portal', icon: Users, description: 'Investor management' },
+        { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview by entity' },
+        { label: 'Entities', path: '/accounting/entities', icon: Building2, description: 'Entity-level accounting' },
       ]
     },
-
-    // Operations Dropdown (Streamlined)
     {
       label: 'Operations',
       icon: Cog,
       dropdown: [
         { label: 'Dashboard', path: '/operations', icon: ClipboardList, description: 'Operations overview' },
         { label: 'Notification Center', path: '/operations/notifications', icon: Clock, description: 'All notifications' },
-        { label: 'EOS', path: '/eos', icon: Target, description: 'Entrepreneurial Operating System' },
-        { label: 'Team Cadence', path: '/eos/cadence', icon: RefreshCw, description: 'Routine team meetings' },
-        { label: 'Tasks', path: '/operations/tasks', icon: CheckSquare, description: 'Team task management' },
-        { label: 'Workflow Templates', path: '/operations/tasks/templates', icon: GitBranch, description: 'Task workflow templates' },
-        { label: 'Milestones', path: '/operations/milestones', icon: Flag, description: 'Global milestone tracking' },
         { label: 'Teams', path: '/operations/teams', icon: Users2, description: 'Team organization' },
+        { label: 'Workflow Templates', path: '/operations/tasks/templates', icon: GitBranch, description: 'Task workflow templates' },
+        { label: 'Milestone Templates', path: '/operations/milestones', icon: Flag, description: 'Global milestone tracking' },
         { label: 'Tools', path: '', isHeader: true },
         { label: 'E-Signatures', path: '/operations/esign', icon: FileSignature, description: 'Send & track documents' },
         { label: 'Document Library', path: '/operations/documents', icon: FolderOpen, description: 'Templates & files' },
         { label: 'Contract Templates', path: '/operations/contract-templates', icon: FileText, description: 'Contract template library' },
         { label: 'Reports', path: '', isHeader: true },
-        { label: 'Preset Reports', path: '/reports/preset', icon: BarChart3, description: 'Standard report templates' },
-        { label: 'Custom Reports', path: '/reports/custom', icon: FileText, description: 'Build custom reports' },
-        { label: 'Subscribed', path: '/reports/subscribed', icon: Clock, description: 'Scheduled reports' },
-        { label: 'Report Packages', path: '/reports/packages', icon: Layers, description: 'Report bundles' },
-        { label: 'Trends', path: '/reports/trends', icon: TrendingUp, description: 'Analytics & trends' },
+        { label: 'Reports', path: '/reports', icon: BarChart3, description: 'All reports' },
       ]
     },
-
     { label: 'Admin', path: '/admin', icon: Settings },
   ];
 
