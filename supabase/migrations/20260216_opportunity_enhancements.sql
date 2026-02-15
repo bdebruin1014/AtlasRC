@@ -60,6 +60,9 @@ ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'warm';
 ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS tax_assessed_value DECIMAL(12,2);
 ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS annual_taxes DECIMAL(8,2);
 
+-- Deal analysis snapshot (saved from Sources & Uses pro forma)
+ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS deal_analysis JSONB;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_opp_county ON opportunities(county);
 CREATE INDEX IF NOT EXISTS idx_opp_municipality ON opportunities(municipality);

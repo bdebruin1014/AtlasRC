@@ -3,20 +3,21 @@
 
 import React, { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 
 const PLANS = {
-  cherry:    { label: 'Cherry 1,350sf',    sqft: 1350, baseCost: 222750 },
-  magnolia:  { label: 'Magnolia 1,800sf',  sqft: 1800, baseCost: 315000 },
-  atlas:     { label: 'Atlas 2,500sf',     sqft: 2500, baseCost: 462500 },
-  dogwood:   { label: 'Dogwood 1,800sf',   sqft: 1800, baseCost: 306000 },
-  palmetto:  { label: 'Palmetto 2,100sf',  sqft: 2100, baseCost: 378000 },
-  juniper:   { label: 'Juniper 2,200sf',   sqft: 2200, baseCost: 400400 },
+  cherry:   { name: 'Cherry',    sqft: 1350, baseCost: 180000 },
+  magnolia: { name: 'Magnolia',  sqft: 1800, baseCost: 215000 },
+  atlas:    { name: 'Atlas',     sqft: 2500, baseCost: 285000 },
+  dogwood:  { name: 'Dogwood',   sqft: 1800, baseCost: 198000 },
+  palmetto: { name: 'Palmetto',  sqft: 2100, baseCost: 220000 },
+  juniper:  { name: 'Juniper',   sqft: 2200, baseCost: 225000 },
 };
 
 const UPGRADE_PACKAGES = {
-  standard:  { label: 'Standard',  cost: 0 },
-  classic:   { label: 'Classic',   cost: 12000 },
-  elegance:  { label: 'Elegance',  cost: 24000 },
+  standard: { label: 'Standard',  cost: 0 },
+  classic:  { label: 'Classic',   cost: 12000 },
+  elegance: { label: 'Elegance',  cost: 24000 },
 };
 
 const MUNICIPALITIES = [
@@ -28,7 +29,7 @@ const MUNICIPALITIES = [
 const fmt = (v) => v == null || isNaN(v) ? '$0' : `$${Math.round(v).toLocaleString()}`;
 const fmtPct = (v) => `${(v || 0).toFixed(1)}%`;
 
-// --- Reusable input components ---
+// --- Reusable components ---
 const Field = ({ label, children }) => (
   <div className="mb-3">
     <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
@@ -36,12 +37,12 @@ const Field = ({ label, children }) => (
   </div>
 );
 
-const NumInput = ({ value, onChange, prefix, suffix, placeholder, step }) => (
+const NumInput = ({ value, onChange, prefix, suffix, placeholder }) => (
   <div className="relative">
     {prefix && <span className="absolute left-3 top-2 text-gray-500 text-sm">{prefix}</span>}
     <input
       type="number"
-      step={step || 'any'}
+      step="any"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -73,6 +74,9 @@ const Row = ({ label, value, bold, accent, border }) => (
 // --- Main Component ---
 export default function DealAnalyzerPage() {
   const [searchParams] = useSearchParams();
+  const opportunityId = searchParams.get('opportunityId') || null;
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Property
   const [address, setAddress] = useState(searchParams.get('address') || '');
@@ -117,11 +121,14 @@ export default function DealAnalyzerPage() {
     const hardCosts = baseBuild + lotPrepCost + softCostAmt + upgradeAmt;
     const contingency = hardCosts * (n(contingencyPct) / 100);
     const totalConstruction = hardCosts + contingency;
-    const interestReserve = totalConstruction * (n(loanRate) / 100) * (n(loanTerm) / 12) * 0.5;
-    const totalUses = landCost + closingBuyer + totalConstruction + interestReserve;
+
+    // Total uses before carry (needed to calc loan, then carry)
+    const usesBeforeCarry = landCost + closingBuyer + totalConstruction;
+    const loanAmt = usesBeforeCarry * (n(ltcPct) / 100);
+    const carryCosts = loanAmt * (n(loanRate) / 100) * (n(loanTerm) / 12);
+    const totalUses = usesBeforeCarry + carryCosts;
 
     // Sources
-    const loanAmt = totalUses * (n(ltcPct) / 100);
     const cashEquity = totalUses - loanAmt;
 
     // Sale
@@ -130,31 +137,117 @@ export default function DealAnalyzerPage() {
     const sellerClosing = projSale * (n(sellerClosingPct) / 100);
     const netProceeds = projSale - commission - sellerClosing;
 
-    // Profit
-    const grossProfit = netProceeds - totalUses;
-    const marginPct = projSale > 0 ? (grossProfit / projSale) * 100 : 0;
-    const roiTotal = totalUses > 0 ? (grossProfit / totalUses) * 100 : 0;
-    const roiCash = cashEquity > 0 ? (grossProfit / cashEquity) * 100 : 0;
-    const costPerSf = (PLANS[plan]?.sqft > 0) ? totalUses / PLANS[plan].sqft : 0;
+    // Returns
+    const netProfit = netProceeds - totalUses;
+    const marginPct = projSale > 0 ? (netProfit / projSale) * 100 : 0;
+    const roiTotal = totalUses > 0 ? (netProfit / totalUses) * 100 : 0;
+    const roiCash = cashEquity > 0 ? (netProfit / cashEquity) * 100 : 0;
 
     return {
       landCost, closingBuyer, baseBuild, lotPrepCost, softCostAmt, upgradeAmt,
-      hardCosts, contingency, totalConstruction, interestReserve, totalUses,
-      loanAmt, cashEquity, earnest: n(earnestMoney),
+      hardCosts, contingency, totalConstruction, carryCosts, totalUses,
+      loanAmt, cashEquity,
       projSale, commission, sellerClosing, netProceeds,
-      grossProfit, marginPct, roiTotal, roiCash, costPerSf,
+      netProfit, marginPct, roiTotal, roiCash,
     };
-  }, [askingPrice, ourOffer, buyerClosing, plan, baseBuildOverride, lotPrep, softCosts, upgradePkg, contingencyPct, salePrice, commissionPct, sellerClosingPct, loanRate, loanTerm, ltcPct, earnestMoney]);
+  }, [askingPrice, ourOffer, buyerClosing, plan, baseBuildOverride, lotPrep, softCosts, upgradePkg, contingencyPct, salePrice, commissionPct, sellerClosingPct, loanRate, loanTerm, ltcPct]);
 
-  const profitColor = analysis.grossProfit >= 0 ? 'green' : 'red';
+  // Verdict
+  const verdict = analysis.marginPct > 15 ? 'GO' : analysis.marginPct >= 10 ? 'MARGINAL' : 'PASS';
+
+  // --- Save to opportunity ---
+  const handleSave = async () => {
+    if (!opportunityId) return;
+    setSaving(true);
+    try {
+      const snapshot = {
+        saved_at: new Date().toISOString(),
+        inputs: {
+          address, municipality, lotSize, askingPrice, ourOffer, earnestMoney,
+          buyerClosing, plan, baseBuildOverride, lotPrep, softCosts, upgradePkg,
+          contingencyPct, salePrice, commissionPct, sellerClosingPct,
+          loanRate, loanTerm, ltcPct,
+        },
+        outputs: { ...analysis, verdict },
+      };
+      await supabase
+        .from('opportunities')
+        .update({ deal_analysis: snapshot, updated_at: new Date().toISOString() })
+        .eq('id', opportunityId);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --- Copy to clipboard ---
+  const handleCopy = () => {
+    const a = analysis;
+    const text = [
+      `SOURCES & USES PRO FORMA`,
+      `${address || 'No address'} | ${municipality}`,
+      `Plan: ${PLANS[plan]?.name} ${PLANS[plan]?.sqft}sf | ${UPGRADE_PACKAGES[upgradePkg]?.label} upgrades`,
+      ``,
+      `SOURCES OF FUNDS`,
+      `  Your Cash (Equity)     ${fmt(a.cashEquity)}`,
+      `  Construction Loan      ${fmt(a.loanAmt)}`,
+      `  = Total Sources        ${fmt(a.totalUses)}`,
+      ``,
+      `USES OF FUNDS`,
+      `  Land Acquisition       ${fmt(a.landCost)}`,
+      `  Acquisition Closing    ${fmt(a.closingBuyer)}`,
+      `  Base Build Cost        ${fmt(a.baseBuild)}`,
+      `  Lot Prep               ${fmt(a.lotPrepCost)}`,
+      `  Soft Costs             ${fmt(a.softCostAmt)}`,
+      `  Upgrade Delta          ${fmt(a.upgradeAmt)}`,
+      `  Contingency (${contingencyPct}%)      ${fmt(a.contingency)}`,
+      `  Carry Costs            ${fmt(a.carryCosts)}`,
+      `  = Total Uses           ${fmt(a.totalUses)}`,
+      ``,
+      `RETURNS`,
+      `  Projected Sale Price   ${fmt(a.projSale)}`,
+      `  Less: Commission       (${fmt(a.commission)})`,
+      `  Less: Closing Costs    (${fmt(a.sellerClosing)})`,
+      `  = Net Proceeds         ${fmt(a.netProceeds)}`,
+      ``,
+      `  Net Profit             ${fmt(a.netProfit)}`,
+      `  Gross Margin           ${fmtPct(a.marginPct)}`,
+      `  ROI (Total Cost)       ${fmtPct(a.roiTotal)}`,
+      `  ROI (Cash Invested)    ${fmtPct(a.roiCash)}`,
+      `  Cash Required          ${fmt(a.cashEquity)}`,
+      ``,
+      `  Verdict: ${verdict}`,
+    ].join('\n');
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-5 mb-6">
-          <h1 className="text-xl font-bold text-white">Sources & Uses Pro Forma</h1>
-          <p className="text-sm text-gray-400 mt-1">Scattered lot build-to-sell calculator</p>
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-5 mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-white">Sources & Uses Pro Forma</h1>
+            <p className="text-sm text-gray-400 mt-1">Scattered lot build-to-sell calculator</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopy}
+              className="px-4 py-2 bg-gray-700 text-gray-200 text-sm rounded hover:bg-gray-600 transition-colors"
+            >
+              {copied ? 'Copied!' : 'Copy to Clipboard'}
+            </button>
+            {opportunityId && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 bg-emerald-700 text-white text-sm rounded hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Saving...' : 'Save Analysis'}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-5 gap-6">
@@ -187,9 +280,9 @@ export default function DealAnalyzerPage() {
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-gray-300 mb-3">Construction</h3>
               <Field label="Plan">
-                <Sel value={plan} onChange={(v) => { setPlan(v); setBaseBuildOverride(''); }} options={Object.entries(PLANS).map(([k, p]) => ({ value: k, label: p.label }))} />
+                <Sel value={plan} onChange={(v) => { setPlan(v); setBaseBuildOverride(''); }} options={Object.entries(PLANS).map(([k, p]) => ({ value: k, label: `${p.name} ${p.sqft.toLocaleString()}sf` }))} />
               </Field>
-              <Field label={`Base Build Cost (${PLANS[plan]?.label})`}>
+              <Field label={`Base Build Cost (${PLANS[plan]?.name})`}>
                 <NumInput value={baseBuildOverride || PLANS[plan]?.baseCost} onChange={setBaseBuildOverride} prefix="$" />
               </Field>
               <Field label="Lot Prep"><NumInput value={lotPrep} onChange={setLotPrep} prefix="$" /></Field>
@@ -219,93 +312,67 @@ export default function DealAnalyzerPage() {
 
           {/* RIGHT COLUMN — ANALYSIS (3/5 = 60%) */}
           <div className="col-span-3 space-y-4">
-            {/* Profit banner */}
-            <div className={`rounded-lg p-5 border ${analysis.grossProfit >= 0 ? 'bg-emerald-900/30 border-emerald-700' : 'bg-red-900/30 border-red-700'}`}>
-              <div className="grid grid-cols-4 gap-4 text-center">
-                <div>
-                  <p className="text-xs text-gray-400">Gross Profit</p>
-                  <p className={`text-2xl font-bold ${analysis.grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt(analysis.grossProfit)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">Margin</p>
-                  <p className="text-2xl font-bold text-white">{fmtPct(analysis.marginPct)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">ROI (Total)</p>
-                  <p className="text-2xl font-bold text-white">{fmtPct(analysis.roiTotal)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">ROI (Cash)</p>
-                  <p className="text-2xl font-bold text-white">{fmtPct(analysis.roiCash)}</p>
-                </div>
+            {/* Verdict */}
+            <div className={`rounded-lg p-6 border text-center ${
+              verdict === 'GO' ? 'bg-emerald-900/40 border-emerald-600' :
+              verdict === 'MARGINAL' ? 'bg-yellow-900/40 border-yellow-600' :
+              'bg-red-900/40 border-red-600'
+            }`}>
+              <div className={`text-4xl font-bold ${
+                verdict === 'GO' ? 'text-emerald-400' :
+                verdict === 'MARGINAL' ? 'text-yellow-400' :
+                'text-red-400'
+              }`}>
+                {verdict === 'GO' ? 'GO' : verdict === 'MARGINAL' ? 'MARGINAL' : 'PASS'}
               </div>
+              <p className="text-sm text-gray-400 mt-1">
+                {verdict === 'GO' ? 'Margin > 15% — proceed with offer' :
+                 verdict === 'MARGINAL' ? 'Margin 10-15% — negotiate harder or reduce costs' :
+                 'Margin < 10% — does not meet criteria'}
+              </p>
             </div>
 
             {/* Sources & Uses */}
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
               <h3 className="text-sm font-semibold text-white mb-4">Sources & Uses</h3>
               <div className="grid grid-cols-2 gap-8">
-                {/* Uses */}
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Uses</p>
-                  <Row label="Land Acquisition" value={fmt(analysis.landCost)} />
-                  <Row label="Buyer Closing Costs" value={fmt(analysis.closingBuyer)} />
-                  <Row label="Base Build" value={fmt(analysis.baseBuild)} />
-                  <Row label="Lot Prep" value={fmt(analysis.lotPrepCost)} />
-                  <Row label="Soft Costs" value={fmt(analysis.softCostAmt)} />
-                  <Row label="Upgrade Package" value={fmt(analysis.upgradeAmt)} />
-                  <Row label={`Contingency (${contingencyPct}%)`} value={fmt(analysis.contingency)} />
-                  <Row label="Interest Reserve" value={fmt(analysis.interestReserve)} />
-                  <Row label="Total Project Cost" value={fmt(analysis.totalUses)} bold border />
-                </div>
                 {/* Sources */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Sources</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Sources of Funds</p>
+                  <Row label="Your Cash (Equity)" value={fmt(analysis.cashEquity)} />
                   <Row label={`Construction Loan (${ltcPct}%)`} value={fmt(analysis.loanAmt)} />
-                  <Row label="Cash Equity Required" value={fmt(analysis.cashEquity)} />
-                  <Row label="Total Sources" value={fmt(analysis.totalUses)} bold border />
-                  <div className="mt-4 pt-3 border-t border-gray-700">
-                    <p className="text-xs text-gray-500 mb-1">Earnest Money (part of equity)</p>
-                    <p className="text-sm text-gray-300">{fmt(analysis.earnest)}</p>
-                  </div>
+                  <Row label="= Total Sources" value={fmt(analysis.totalUses)} bold border />
+                </div>
+                {/* Uses */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Uses of Funds</p>
+                  <Row label="Land Acquisition" value={fmt(analysis.landCost)} />
+                  <Row label="Acquisition Closing Costs" value={fmt(analysis.closingBuyer)} />
+                  <Row label="Base Build Cost" value={fmt(analysis.baseBuild)} />
+                  <Row label="Lot Prep" value={fmt(analysis.lotPrepCost)} />
+                  <Row label="Soft Costs" value={fmt(analysis.softCostAmt)} />
+                  <Row label="Upgrade Delta" value={fmt(analysis.upgradeAmt)} />
+                  <Row label={`Contingency (${contingencyPct}%)`} value={fmt(analysis.contingency)} />
+                  <Row label="Carry Costs (loan interest)" value={fmt(analysis.carryCosts)} />
+                  <Row label="= Total Uses" value={fmt(analysis.totalUses)} bold border />
                 </div>
               </div>
             </div>
 
-            {/* Sale Proceeds */}
+            {/* Returns */}
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-white mb-4">Sale Proceeds</h3>
+              <h3 className="text-sm font-semibold text-white mb-4">Returns</h3>
               <Row label="Projected Sale Price" value={fmt(analysis.projSale)} />
-              <Row label={`Commission (${commissionPct}%)`} value={`(${fmt(analysis.commission)})`} />
-              <Row label={`Seller Closing (${sellerClosingPct}%)`} value={`(${fmt(analysis.sellerClosing)})`} />
-              <Row label="Net Sale Proceeds" value={fmt(analysis.netProceeds)} bold border />
-              <Row label="Less: Total Project Cost" value={`(${fmt(analysis.totalUses)})`} />
-              <Row label="Gross Profit" value={fmt(analysis.grossProfit)} bold border accent={profitColor} />
-            </div>
+              <Row label={`Less: Commission (${commissionPct}%)`} value={`(${fmt(analysis.commission)})`} />
+              <Row label={`Less: Closing Costs (${sellerClosingPct}%)`} value={`(${fmt(analysis.sellerClosing)})`} />
+              <Row label="= Net Proceeds" value={fmt(analysis.netProceeds)} bold border />
 
-            {/* Key Metrics */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-white mb-4">Key Metrics</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gray-900 rounded p-3 text-center">
-                  <p className="text-xs text-gray-400">Cost / SF</p>
-                  <p className="text-lg font-bold text-white">{fmt(analysis.costPerSf)}</p>
-                  <p className="text-xs text-gray-500">{PLANS[plan]?.sqft.toLocaleString()} sf plan</p>
-                </div>
-                <div className="bg-gray-900 rounded p-3 text-center">
-                  <p className="text-xs text-gray-400">Land % of Sale</p>
-                  <p className={`text-lg font-bold ${analysis.projSale > 0 && (analysis.landCost / analysis.projSale) <= 0.25 ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                    {analysis.projSale > 0 ? fmtPct((analysis.landCost / analysis.projSale) * 100) : '—'}
-                  </p>
-                  <p className="text-xs text-gray-500">Target: &le; 25%</p>
-                </div>
-                <div className="bg-gray-900 rounded p-3 text-center">
-                  <p className="text-xs text-gray-400">Build Cost / SF</p>
-                  <p className="text-lg font-bold text-white">
-                    {PLANS[plan]?.sqft > 0 ? fmt(analysis.totalConstruction / PLANS[plan].sqft) : '—'}
-                  </p>
-                  <p className="text-xs text-gray-500">Hard + contingency</p>
-                </div>
+              <div className="mt-4 pt-3 border-t border-gray-700 space-y-1">
+                <Row label="Net Profit" value={fmt(analysis.netProfit)} bold accent={analysis.netProfit >= 0 ? 'green' : 'red'} />
+                <Row label="Gross Margin" value={fmtPct(analysis.marginPct)} />
+                <Row label="ROI (on total cost)" value={fmtPct(analysis.roiTotal)} />
+                <Row label="ROI (on cash invested)" value={fmtPct(analysis.roiCash)} />
+                <Row label="Cash Required" value={fmt(analysis.cashEquity)} bold />
               </div>
             </div>
           </div>
