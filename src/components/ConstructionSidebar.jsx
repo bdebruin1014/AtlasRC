@@ -145,7 +145,7 @@ export default function ConstructionSidebar({ house }) {
 
         {/* OTHER */}
         <SidebarSection title="Other">
-          <NavItem to={`${basePath}/insurance`} icon={FileShield} label="Insurance" />
+          <NavItem to={`${basePath}/insurance`} icon={Shield} label="Insurance" />
           <NavItem to={`${basePath}/work-orders`} icon={Wrench} label="Work Orders" />
         </SidebarSection>
 
