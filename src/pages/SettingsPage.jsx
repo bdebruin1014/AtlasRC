@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import {
   User, Building, Users, Bell, Plug, Palette, CreditCard,
   Save, Lock, Monitor, Mail, Settings, Plus, Edit2, Trash2,
-  Check, X, Sun, Moon, Loader2, ExternalLink, Shield
+  Check, X, Sun, Moon, Loader2, ExternalLink, Shield,
+  Calendar, Cloud, RefreshCw, Unlink, Link2, CheckCircle2, Info
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import EditableField from '@/components/EditableField';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  isOutlookConfigured,
+  getAuthorizationUrl as getOutlookAuthUrl,
+  getOutlookConnection,
+  disconnectOutlook,
+} from '@/services/outlookService';
+import { isSharePointConfigured, getSharePointStatus } from '@/services/sharepointService';
 
 const SettingsPage = () => {
   const { toast } = useToast();
@@ -63,6 +72,90 @@ const SettingsPage = () => {
 
   // Billing state
   const [billingPlan, setBillingPlan] = useState('professional');
+
+  // Microsoft 365 integration state
+  const { user } = useAuth();
+  const [outlookConnection, setOutlookConnection] = useState(null);
+  const [sharePointStatus, setSharePointStatus] = useState(null);
+  const [outlookLoading, setOutlookLoading] = useState(false);
+  const [outlookConnecting, setOutlookConnecting] = useState(false);
+  const [outlookDisconnecting, setOutlookDisconnecting] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadOutlookConnection();
+    }
+    loadSharePointStatus();
+  }, [user?.id]);
+
+  const loadOutlookConnection = async () => {
+    if (!user?.id) return;
+    setOutlookLoading(true);
+    try {
+      const { data } = await getOutlookConnection(user.id);
+      setOutlookConnection(data);
+    } catch (err) {
+      console.error('Error loading Outlook connection:', err);
+    } finally {
+      setOutlookLoading(false);
+    }
+  };
+
+  const loadSharePointStatus = async () => {
+    try {
+      const status = await getSharePointStatus();
+      setSharePointStatus(status);
+    } catch (err) {
+      console.error('Error loading SharePoint status:', err);
+    }
+  };
+
+  const handleConnectOutlook = () => {
+    if (!isOutlookConfigured()) {
+      toast({ title: 'Not Configured', description: 'Outlook integration is not configured by your administrator.', variant: 'destructive' });
+      return;
+    }
+    setOutlookConnecting(true);
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('outlook_auth_state', state);
+    const authUrl = getOutlookAuthUrl(state);
+    const popup = window.open(authUrl, 'Outlook Login', 'width=600,height=700');
+
+    const handleMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'outlook-auth-success') {
+        window.removeEventListener('message', handleMessage);
+        setOutlookConnecting(false);
+        loadOutlookConnection();
+        toast({ title: 'Outlook Connected', description: 'Your Outlook account has been linked. Email and calendar features are now active.' });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+
+    const pollInterval = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(pollInterval);
+        window.removeEventListener('message', handleMessage);
+        setOutlookConnecting(false);
+        loadOutlookConnection();
+      }
+    }, 1000);
+  };
+
+  const handleDisconnectOutlook = async () => {
+    if (!confirm('Disconnect your Outlook account? You will lose access to email and calendar features.')) return;
+    setOutlookDisconnecting(true);
+    try {
+      await disconnectOutlook(user.id);
+      setOutlookConnection(null);
+      toast({ title: 'Outlook Disconnected', description: 'Your Outlook account has been unlinked.' });
+    } catch (err) {
+      console.error('Error disconnecting Outlook:', err);
+      toast({ title: 'Error', description: 'Failed to disconnect Outlook.', variant: 'destructive' });
+    } finally {
+      setOutlookDisconnecting(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -396,37 +489,147 @@ const SettingsPage = () => {
 
                      {activeTab === 'integrations' && (
                         <div className="space-y-6">
-                           <p className="text-sm text-gray-500">Connect third-party services to enhance your workflow</p>
+                           <p className="text-sm text-gray-500">Connect your Microsoft 365 account to enable email, calendar, and file features</p>
 
-                           <div className="grid gap-4">
-                              {integrations.map((integration) => (
-                                 <div key={integration.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                           {/* Microsoft 365 - Outlook & Calendar */}
+                           <div className="space-y-4">
+                              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Microsoft 365</h3>
+
+                              {/* Outlook / Email + Calendar */}
+                              <div className="border rounded-lg overflow-hidden">
+                                 <div className="flex items-center justify-between p-4 bg-gray-50 border-b">
                                     <div className="flex items-center gap-4">
-                                       <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xl">
-                                          {integration.icon}
+                                       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                                          <Mail className="w-5 h-5 text-white" />
                                        </div>
                                        <div>
-                                          <div className="font-medium text-gray-900">{integration.name}</div>
-                                          <div className="text-sm text-gray-500">{integration.description}</div>
+                                          <div className="font-medium text-gray-900">Outlook Email & Calendar</div>
+                                          <div className="text-sm text-gray-500">Access your emails and calendar events within Atlas</div>
                                        </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                       {integration.connected && (
-                                          <Badge className="bg-green-100 text-green-800">
-                                             <Check className="w-3 h-3 mr-1" /> Connected
-                                          </Badge>
+                                       {outlookConnection?.is_connected ? (
+                                          <>
+                                             <Badge className="bg-green-100 text-green-800">
+                                                <Check className="w-3 h-3 mr-1" /> Connected
+                                             </Badge>
+                                             <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleDisconnectOutlook}
+                                                disabled={outlookDisconnecting}
+                                                className="text-red-600 hover:bg-red-50 border-red-200"
+                                             >
+                                                {outlookDisconnecting ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Unlink className="w-3 h-3 mr-1" />}
+                                                Disconnect
+                                             </Button>
+                                          </>
+                                       ) : (
+                                          <Button
+                                             size="sm"
+                                             onClick={handleConnectOutlook}
+                                             disabled={outlookConnecting}
+                                             className="bg-emerald-600 hover:bg-emerald-700"
+                                          >
+                                             {outlookConnecting ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Link2 className="w-3 h-3 mr-1" />}
+                                             Connect Outlook
+                                          </Button>
                                        )}
-                                       <Button
-                                          variant={integration.connected ? "outline" : "default"}
-                                          size="sm"
-                                          onClick={() => handleToggleIntegration(integration.id)}
-                                          className={!integration.connected ? "bg-emerald-600 hover:bg-emerald-700" : ""}
-                                       >
-                                          {integration.connected ? 'Configure' : 'Connect'}
-                                       </Button>
                                     </div>
                                  </div>
-                              ))}
+
+                                 {outlookConnection?.is_connected ? (
+                                    <div className="p-4 space-y-3">
+                                       <div className="grid grid-cols-2 gap-4">
+                                          <div className="p-3 bg-gray-50 rounded-lg">
+                                             <div className="text-xs text-gray-500 mb-1">Connected Account</div>
+                                             <div className="text-sm font-medium text-gray-900">{outlookConnection.display_name || outlookConnection.email}</div>
+                                             <div className="text-xs text-gray-500">{outlookConnection.email}</div>
+                                          </div>
+                                          <div className="p-3 bg-gray-50 rounded-lg">
+                                             <div className="text-xs text-gray-500 mb-1">Connected Since</div>
+                                             <div className="text-sm font-medium text-gray-900">
+                                                {outlookConnection.updated_at ? new Date(outlookConnection.updated_at).toLocaleDateString() : '—'}
+                                             </div>
+                                          </div>
+                                       </div>
+                                       <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                          <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                          <div className="text-xs text-blue-700">
+                                             <strong>Active features:</strong> View/send emails from projects, calendar event sync, create meetings, link emails to projects.
+                                          </div>
+                                       </div>
+                                    </div>
+                                 ) : (
+                                    <div className="p-4">
+                                       <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg">
+                                          <Info className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                                          <div className="text-xs text-gray-600">
+                                             Connect your Outlook account to view emails, manage your calendar, and link communications to projects — all from within Atlas.
+                                          </div>
+                                       </div>
+                                    </div>
+                                 )}
+                              </div>
+
+                              {/* SharePoint - Org-wide (read-only for users) */}
+                              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center">
+                                       <Cloud className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                       <div className="font-medium text-gray-900">SharePoint</div>
+                                       <div className="text-sm text-gray-500">Organization document storage (managed by admin)</div>
+                                    </div>
+                                 </div>
+                                 <div className="flex items-center gap-3">
+                                    {sharePointStatus?.connected ? (
+                                       <Badge className="bg-green-100 text-green-800">
+                                          <Check className="w-3 h-3 mr-1" /> Active
+                                       </Badge>
+                                    ) : (
+                                       <Badge className="bg-gray-100 text-gray-600">
+                                          Not Connected
+                                       </Badge>
+                                    )}
+                                 </div>
+                              </div>
+                           </div>
+
+                           {/* Other Integrations */}
+                           <div className="space-y-4">
+                              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Other Integrations</h3>
+                              <div className="grid gap-4">
+                                 {integrations.map((integration) => (
+                                    <div key={integration.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                                       <div className="flex items-center gap-4">
+                                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xl">
+                                             {integration.icon}
+                                          </div>
+                                          <div>
+                                             <div className="font-medium text-gray-900">{integration.name}</div>
+                                             <div className="text-sm text-gray-500">{integration.description}</div>
+                                          </div>
+                                       </div>
+                                       <div className="flex items-center gap-3">
+                                          {integration.connected && (
+                                             <Badge className="bg-green-100 text-green-800">
+                                                <Check className="w-3 h-3 mr-1" /> Connected
+                                             </Badge>
+                                          )}
+                                          <Button
+                                             variant={integration.connected ? "outline" : "default"}
+                                             size="sm"
+                                             onClick={() => handleToggleIntegration(integration.id)}
+                                             className={!integration.connected ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                                          >
+                                             {integration.connected ? 'Configure' : 'Connect'}
+                                          </Button>
+                                       </div>
+                                    </div>
+                                 ))}
+                              </div>
                            </div>
                         </div>
                      )}

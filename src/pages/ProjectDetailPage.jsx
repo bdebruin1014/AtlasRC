@@ -39,6 +39,9 @@ import VerticalBudgetSection from '@/pages/projects/sections/VerticalBudgetSecti
 import VerticalScheduleSection from '@/pages/projects/sections/VerticalScheduleSection';
 import VerticalDrawsSection from '@/pages/projects/sections/VerticalDrawsSection';
 
+// Calendar Section
+import ProjectCalendarSection from '@/pages/projects/sections/ProjectCalendarSection';
+
 // Sales & Disposition Section Components
 import LotInventorySection from '@/pages/projects/sections/LotInventorySection';
 import LotSalesSection from '@/pages/projects/sections/LotSalesSection';
@@ -65,6 +68,7 @@ const SIDEBAR_ICONS = {
   'vertical-budget': Calculator,
   'vertical-schedule': Calendar,
   'vertical-draws': Receipt,
+  'project-calendar': Calendar,
 };
 
 // Icon map for sidebar group headers
@@ -159,6 +163,7 @@ const ProjectDetailPage = () => {
         { id: 'property', label: 'Property Details', icon: MapPin },
         { id: 'contacts', label: 'Contacts', icon: Users },
         { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+        { id: 'project-calendar', label: 'Calendar', icon: Calendar },
       ]
     });
 
@@ -1111,6 +1116,9 @@ const ProjectDetailPage = () => {
 
       case 'closings':
         return <ClosingsSection projectId={projectId} />;
+
+      case 'project-calendar':
+        return <ProjectCalendarSection projectId={projectId} />;
 
       default:
         return (

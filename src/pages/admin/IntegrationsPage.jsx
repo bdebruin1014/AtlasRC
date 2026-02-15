@@ -41,6 +41,8 @@ import {
 } from '@/services/outlookService';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { createNotification } from '@/services/notificationService';
 
 // ============================================
 // SUB-COMPONENTS
@@ -121,6 +123,7 @@ const IntegrationCard = ({ service, title, description, status, children, onActi
 
 const IntegrationsPage = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [sharePointStatus, setSharePointStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -131,13 +134,14 @@ const IntegrationsPage = () => {
   const [teamSearch, setTeamSearch] = useState('');
   const [sendingInvite, setSendingInvite] = useState(null);
 
-  // Calendar settings (stored locally for admin preferences)
+  // Calendar settings (persisted to Supabase)
   const [calendarSettings, setCalendarSettings] = useState({
     syncEnabled: false,
     defaultReminder: 15,
     showDeclined: false,
     workingHoursOnly: true,
   });
+  const [calendarSettingsSaving, setCalendarSettingsSaving] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -150,6 +154,7 @@ const IntegrationsPage = () => {
       await Promise.all([
         loadSharePointStatus(),
         loadTeamConnections(),
+        loadCalendarSettings(),
       ]);
     } finally {
       setLoading(false);
@@ -189,6 +194,44 @@ const IntegrationsPage = () => {
       setOutlookConnections(connections || []);
     } catch (error) {
       console.error('Error loading team connections:', error);
+    }
+  };
+
+  const loadCalendarSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'calendar_preferences')
+        .single();
+
+      if (data?.value && !error) {
+        setCalendarSettings(prev => ({ ...prev, ...data.value }));
+      }
+    } catch (err) {
+      // Table may not exist yet or no row - use defaults
+      console.debug('Calendar settings not found, using defaults');
+    }
+  };
+
+  const saveCalendarSettings = async (newSettings) => {
+    setCalendarSettings(newSettings);
+    setCalendarSettingsSaving(true);
+    try {
+      await supabase
+        .from('admin_settings')
+        .upsert({
+          key: 'calendar_preferences',
+          value: newSettings,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'key' });
+
+      toast({ title: 'Settings Saved', description: 'Calendar preferences have been updated.' });
+    } catch (err) {
+      console.error('Error saving calendar settings:', err);
+      toast({ title: 'Error', description: 'Failed to save calendar settings.', variant: 'destructive' });
+    } finally {
+      setCalendarSettingsSaving(false);
     }
   };
 
@@ -244,13 +287,36 @@ const IntegrationsPage = () => {
     }
   };
 
-  // Team notification helpers
+  // Team notification helpers - sends real in-app notification
   const handleNotifyUser = async (userId) => {
     setSendingInvite(userId);
-    // Simulate sending a notification (in production this would send an email or in-app notification)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSendingInvite(null);
-    alert('Integration setup reminder sent to user.');
+    try {
+      const targetMember = teamMembers.find(m => m.id === userId);
+      await createNotification({
+        userId: userId,
+        title: 'Connect Your Microsoft 365 Account',
+        message: 'Your admin has requested that you connect your Outlook account to enable email and calendar features in Atlas. Go to Settings → Integrations to connect.',
+        type: 'info',
+        priority: 'normal',
+        entityType: 'integration',
+        entityId: 'outlook',
+        actionUrl: '/settings',
+        metadata: { requested_by: user?.email, integration: 'outlook' },
+      });
+      toast({
+        title: 'Reminder Sent',
+        description: `Integration setup reminder sent to ${targetMember?.full_name || 'user'}.`,
+      });
+    } catch (err) {
+      console.error('Error sending notification:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to send reminder notification.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingInvite(null);
+    }
   };
 
   // Derived data
@@ -785,7 +851,7 @@ const IntegrationsPage = () => {
                       </div>
                       <Switch
                         checked={calendarSettings.syncEnabled}
-                        onCheckedChange={(checked) => setCalendarSettings(s => ({ ...s, syncEnabled: checked }))}
+                        onCheckedChange={(checked) => saveCalendarSettings({ ...calendarSettings, syncEnabled: checked })}
                         className="data-[state=checked]:bg-emerald-600"
                       />
                     </div>
@@ -796,7 +862,7 @@ const IntegrationsPage = () => {
                       </div>
                       <Switch
                         checked={calendarSettings.workingHoursOnly}
-                        onCheckedChange={(checked) => setCalendarSettings(s => ({ ...s, workingHoursOnly: checked }))}
+                        onCheckedChange={(checked) => saveCalendarSettings({ ...calendarSettings, workingHoursOnly: checked })}
                         className="data-[state=checked]:bg-emerald-600"
                       />
                     </div>
@@ -807,7 +873,7 @@ const IntegrationsPage = () => {
                       </div>
                       <Switch
                         checked={calendarSettings.showDeclined}
-                        onCheckedChange={(checked) => setCalendarSettings(s => ({ ...s, showDeclined: checked }))}
+                        onCheckedChange={(checked) => saveCalendarSettings({ ...calendarSettings, showDeclined: checked })}
                         className="data-[state=checked]:bg-emerald-600"
                       />
                     </div>
@@ -818,7 +884,7 @@ const IntegrationsPage = () => {
                       </div>
                       <select
                         value={calendarSettings.defaultReminder}
-                        onChange={(e) => setCalendarSettings(s => ({ ...s, defaultReminder: Number(e.target.value) }))}
+                        onChange={(e) => saveCalendarSettings({ ...calendarSettings, defaultReminder: Number(e.target.value) })}
                         className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
                         <option value={5}>5 minutes</option>
