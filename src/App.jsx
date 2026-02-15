@@ -158,6 +158,7 @@ const FinancialRatiosDashboardPage = lazy(() => import('@/pages/accounting/Finan
 const CustomersPage = lazy(() => import('@/pages/accounting/CustomersPage'));
 const CreditCardsPage = lazy(() => import('@/pages/accounting/CreditCardsPage'));
 const RecurringJournalEntriesPage = lazy(() => import('@/pages/accounting/RecurringJournalEntriesPage'));
+const AccountingVendorsPage = lazy(() => import('@/pages/accounting/VendorsPage'));
 
 // ============================================
 // OPERATIONS ENHANCEMENTS
@@ -296,6 +297,9 @@ const SettlementStatementPage = lazy(() => import('@/pages/projects/SettlementSt
 const ConstructionListPage = lazy(() => import('@/pages/construction/ConstructionListPage'));
 const HouseDetailPage = lazy(() => import('@/pages/construction/HouseDetailPage'));
 const ConstructionAdminPage = lazy(() => import('@/pages/construction/ConstructionAdminPage'));
+const ProjectsAdminPage = lazy(() => import('@/pages/projects/ProjectsAdminPage'));
+const OpportunitiesAdminPage = lazy(() => import('@/pages/opportunities/OpportunitiesAdminPage'));
+const AccountingAdminPage = lazy(() => import('@/pages/accounting/AccountingAdminPage'));
 const ContractAssemblerPage = lazy(() => import('@/pages/construction/ContractAssemblerPage'));
 const ConstructionSidebar = lazy(() => import('@/components/ConstructionSidebar'));
 const DailyLogsPage = lazy(() => import('@/pages/projects/DailyLogsPage'));
@@ -491,7 +495,8 @@ const AppContent = () => (
     <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
     {/* HIDDEN - Atlas Simplification */}
     {/* <Route path="/projects/kpi" element={<ProtectedRoute><AppLayout><ProjectKPIDashboardPage /></AppLayout></ProtectedRoute>} /> */}
-    {/* <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} /> */}
+    <Route path="/projects/resources" element={<ProtectedRoute><AppLayout><ResourceAllocationDashboardPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/projects/admin" element={<ProtectedRoute><AppLayout><ProjectsAdminPage /></AppLayout></ProtectedRoute>} />
     
     {/* ============================================ */}
     {/* PROJECT DETAIL ROUTES - Streamlined */}
@@ -621,8 +626,8 @@ const AppContent = () => (
     {/* ============================================ */}
     <Route path="/opportunities" element={<ProtectedRoute><AppLayout><OpportunitiesPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunities/new" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
-    {/* HIDDEN - Atlas Simplification */}
-    {/* <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} /> */}
+    <Route path="/opportunities/admin" element={<ProtectedRoute><AppLayout><OpportunitiesAdminPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/opportunities/analytics" element={<ProtectedRoute><AppLayout><PipelineAnalyticsDashboardPage /></AppLayout></ProtectedRoute>} />
     {/* <Route path="/opportunities/compare" element={<ProtectedRoute><AppLayout><OpportunityComparisonPage /></AppLayout></ProtectedRoute>} /> */}
     <Route path="/opportunity/:opportunityId" element={<ProtectedRoute><AppLayout><OpportunityDetailPage /></AppLayout></ProtectedRoute>} />
     <Route path="/opportunity/:opportunityId/edit" element={<ProtectedRoute><AppLayout><OpportunityFormPage /></AppLayout></ProtectedRoute>} />
@@ -667,6 +672,7 @@ const AppContent = () => (
     <Route path="/accounting/consolidation" element={<ProtectedRoute><AppLayout><ConsolidationPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/forecasting" element={<ProtectedRoute><AppLayout><FinancialForecastingPage /></AppLayout></ProtectedRoute>} />
     <Route path="/accounting/investor-portal" element={<ProtectedRoute><AppLayout><InvestorPortalPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/accounting/admin" element={<ProtectedRoute><AppLayout><AccountingAdminPage /></AppLayout></ProtectedRoute>} />
 
     {/* ============================================ */}
     {/* ENTITY ACCOUNTING ROUTES - Canonical Pattern: /accounting/entities/:entityId/... */}
@@ -711,14 +717,14 @@ const AppContent = () => (
       <Route path="bills" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
       <Route path="bills/new" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
       <Route path="bills/:billId" element={<Suspense fallback={<LoadingState />}><EntityBillsPage /></Suspense>} />
-      <Route path="vendors" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="vendors" element={<Suspense fallback={<LoadingState />}><AccountingVendorsPage /></Suspense>} />
       <Route path="batch-payments" element={<Suspense fallback={<LoadingState />}><BatchPaymentsPage /></Suspense>} />
       <Route path="1099" element={<Suspense fallback={<LoadingState />}><Vendors1099Page /></Suspense>} />
       <Route path="expenses" element={<Suspense fallback={<LoadingState />}><ExpenseManagementPage /></Suspense>} />
 
       {/* LOANS */}
       <Route path="loans" element={<Suspense fallback={<LoadingState />}><LoansPayablePage /></Suspense>} />
-      <Route path="loans/:loanId" element={<Suspense fallback={<LoadingState />}><PlaceholderPage /></Suspense>} />
+      <Route path="loans/:loanId" element={<Suspense fallback={<LoadingState />}><LoansPayablePage /></Suspense>} />
 
       {/* PAYROLL */}
       <Route path="payroll" element={<Suspense fallback={<LoadingState />}><PayrollPage /></Suspense>} />

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Eye, Edit2, X, Download, FileText, Calendar, CheckCircle, Clock, AlertTriangle, Shield, Building2, Upload, RefreshCw, Mail, Phone, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { getInsurancePolicies, createInsurancePolicy } from '@/services/constructionService';
 
 const InsurancePage = ({ projectId }) => {
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -123,6 +124,36 @@ const InsurancePage = ({ projectId }) => {
     notes: '',
   });
 
+  useEffect(() => {
+    if (!projectId) return;
+    async function fetchPolicies() {
+      const { data } = await getInsurancePolicies(projectId);
+      if (data && data.length > 0) {
+        setProjectPolicies(data.map(p => ({
+          id: p.id,
+          type: p.type,
+          policyNumber: p.policy_number,
+          carrier: p.carrier,
+          coverageAmount: p.coverage_amount,
+          premium: p.premium,
+          premiumPaid: p.premium_paid,
+          effectiveDate: p.effective_date,
+          expirationDate: p.expiration_date,
+          status: p.status,
+          namedInsured: p.named_insured,
+          additionalInsured: p.additional_insured || [],
+          deductible: p.deductible,
+          agent: p.agent_name,
+          agentPhone: p.agent_phone,
+          agentEmail: p.agent_email,
+          documents: [],
+          notes: p.notes,
+        })));
+      }
+    }
+    fetchPolicies();
+  }, [projectId]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-700';
@@ -177,6 +208,24 @@ const InsurancePage = ({ projectId }) => {
       documents: [],
     };
     setProjectPolicies(prev => [...prev, policy]);
+
+    if (projectId) {
+      createInsurancePolicy({
+        house_id: projectId,
+        type: newPolicy.type,
+        policy_number: newPolicy.policyNumber,
+        carrier: newPolicy.carrier,
+        coverage_amount: parseFloat(newPolicy.coverageAmount) || 0,
+        premium: parseFloat(newPolicy.premium) || 0,
+        deductible: parseFloat(newPolicy.deductible) || 0,
+        effective_date: newPolicy.effectiveDate,
+        expiration_date: newPolicy.expirationDate,
+        status: 'pending',
+        named_insured: '',
+        notes: newPolicy.notes,
+      });
+    }
+
     setShowPolicyModal(false);
     setNewPolicy({ type: '', carrier: '', policyNumber: '', coverageAmount: '', premium: '', effectiveDate: '', expirationDate: '', deductible: '', notes: '' });
   };

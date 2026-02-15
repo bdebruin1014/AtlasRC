@@ -1,61 +1,43 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Layout, Calculator, ArrowUpCircle,
-  CalendarDays, Building2, CheckSquare, DollarSign,
+  GitBranch, CheckSquare, Settings,
   ChevronRight, ChevronLeft,
 } from 'lucide-react';
 
 const sections = [
   {
-    title: 'Plans & Pricing',
-    icon: Layout,
+    title: 'Templates',
+    icon: GitBranch,
     items: [
-      { label: 'Floor Plans', description: 'Home plan library', path: '/construction/admin/floor-plans', icon: Layout },
-      { label: 'Plan Pricing', description: 'Sticks & bricks cost matrix', path: '/construction/admin/plans', icon: Calculator },
-      { label: 'Upgrade Packages', description: 'Upgrade tiers & pricing', path: '/construction/admin/upgrades', icon: ArrowUpCircle },
+      { label: 'Chart of Accounts Templates', description: 'Default COA structures', path: '/admin/coa-templates', icon: GitBranch },
+      { label: 'Workflow Templates', description: 'Accounting task workflows', path: '/admin/task-templates', icon: CheckSquare },
     ],
   },
   {
-    title: 'Scheduling & Workflows',
-    icon: CalendarDays,
+    title: 'Configuration',
+    icon: Settings,
     items: [
-      { label: 'Schedule Templates', description: 'Construction schedules by plan', path: '/construction/admin/schedule-templates', icon: CalendarDays },
-      { label: 'Workflow Templates', description: 'Task workflows and milestones', path: '/admin/task-templates', icon: CheckSquare },
-    ],
-  },
-  {
-    title: 'Cost Templates',
-    icon: DollarSign,
-    items: [
-      { label: 'Soft Cost Templates', description: 'Soft cost category defaults', path: '/admin/soft-cost-templates', icon: DollarSign },
-      { label: 'Lot Prep Templates', description: 'Lot preparation cost defaults', path: '/admin/lot-prep-templates', icon: DollarSign },
-    ],
-  },
-  {
-    title: 'Fees & Jurisdictions',
-    icon: Building2,
-    items: [
-      { label: 'Municipality Fees', description: 'Fee schedules by jurisdiction', path: '/construction/admin/municipalities', icon: Building2 },
+      { label: 'Entity Settings', description: 'Default accounting preferences', path: '/admin/settings', icon: Settings },
     ],
   },
 ];
 
-const ConstructionAdminPage = () => {
+const AccountingAdminPage = () => {
   const navigate = useNavigate();
 
   return (
     <div className="p-6 bg-gray-50 min-h-full overflow-auto">
       <div className="mb-6">
         <Link
-          to="/construction"
+          to="/accounting/dashboard"
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
-          Back to Houses
+          Back to Accounting
         </Link>
-        <h1 className="text-xl font-semibold text-gray-900">Construction Admin</h1>
-        <p className="text-sm text-gray-500">Manage plans, templates, and configuration</p>
+        <h1 className="text-xl font-semibold text-gray-900">Accounting Admin</h1>
+        <p className="text-sm text-gray-500">Manage accounting templates and configuration</p>
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -95,4 +77,4 @@ const ConstructionAdminPage = () => {
   );
 };
 
-export default ConstructionAdminPage;
+export default AccountingAdminPage;

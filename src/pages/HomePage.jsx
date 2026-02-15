@@ -42,6 +42,8 @@ import { cn } from "@/lib/utils";
 import { useProjects, useProjectSummary, PROJECT_TYPES } from '@/hooks/useProjects';
 import { projectService } from '@/services/projectService';
 import { opportunityService } from '@/services/opportunityService';
+import { createContact } from '@/services/contactsService';
+import { entityService } from '@/services/entityService';
 
 // ─── PROJECT TYPE ICONS ─────────────────────────────────────────────────────
 const PROJECT_TYPE_ICONS = {
@@ -203,7 +205,7 @@ const HomePage = () => {
     const spent = 0; // Would come from financials
     const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
     const status = pct > 100 ? 'Over Budget' : pct > 85 ? 'At Risk' : 'On Track';
-    return { name: p.name, budget: pct || Math.round(Math.random() * 40 + 50), status };
+    return { name: p.name, budget: pct || 0, status };
   });
 
   const formatCurrency = (val) => {
@@ -221,24 +223,52 @@ const HomePage = () => {
     { label: 'Active Deals', value: String(activeDeals), icon: Briefcase, color: 'bg-purple-100 text-purple-600', path: '/opportunities' },
   ];
 
-  const handleSaveContact = () => {
+  const handleSaveContact = async () => {
     if (!contactForm.name) {
       toast({ variant: "destructive", title: "Missing Information", description: "Company/Contact name is required." });
       return;
     }
-    toast({ title: "Contact Added", description: `${contactForm.name} has been added to contacts.` });
-    setIsContactModalOpen(false);
-    setContactForm({ name: '', company_type: '', phone: '', email: '' });
+    try {
+      const nameParts = contactForm.name.split(' ');
+      const payload = {
+        first_name: nameParts[0] || contactForm.name,
+        last_name: nameParts.slice(1).join(' ') || '',
+        company: contactForm.company_type ? contactForm.name : '',
+        company_type: contactForm.company_type || null,
+        phone: contactForm.phone || null,
+        email: contactForm.email || null,
+      };
+      await createContact(payload);
+      toast({ title: "Contact Added", description: `${contactForm.name} has been added to contacts.` });
+      setIsContactModalOpen(false);
+      setContactForm({ name: '', company_type: '', phone: '', email: '' });
+    } catch (err) {
+      console.error('Failed to create contact:', err);
+      toast({ variant: "destructive", title: "Error", description: "Failed to create contact. Please try again." });
+    }
   };
 
-  const handleSaveEntity = () => {
+  const handleSaveEntity = async () => {
     if (!entityForm.name || !entityForm.type) {
       toast({ variant: "destructive", title: "Missing Information", description: "Entity name and type are required." });
       return;
     }
-    toast({ title: "Entity Created", description: `${entityForm.name} has been created.` });
-    setIsEntityModalOpen(false);
-    setEntityForm({ name: '', type: '', ein: '', state_of_formation: '' });
+    try {
+      const payload = {
+        name: entityForm.name,
+        type: entityForm.type,
+        tax_id: entityForm.ein || null,
+        state_of_formation: entityForm.state_of_formation || null,
+        status: 'active',
+      };
+      await entityService.create(payload);
+      toast({ title: "Entity Created", description: `${entityForm.name} has been created.` });
+      setIsEntityModalOpen(false);
+      setEntityForm({ name: '', type: '', ein: '', state_of_formation: '' });
+    } catch (err) {
+      console.error('Failed to create entity:', err);
+      toast({ variant: "destructive", title: "Error", description: "Failed to create entity. Please try again." });
+    }
   };
 
   return (

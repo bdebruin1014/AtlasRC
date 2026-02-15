@@ -941,3 +941,110 @@ export async function updateWarrantyItem(id, updates) {
     return { data: DEMO_WARRANTY_ITEMS[idx], error: null };
   }
 }
+
+// ─── Insurance Policies ─────────────────────────────────────────────────────────
+
+const DEMO_INSURANCE_POLICIES = [
+  {
+    id: 'pol-1',
+    house_id: 'demo-house-1',
+    type: 'Builder Risk',
+    policy_number: 'BR-2024-001',
+    carrier: 'Hartford Insurance',
+    coverage_amount: 8500000,
+    premium: 42000,
+    premium_paid: true,
+    effective_date: '2024-03-01',
+    expiration_date: '2025-03-01',
+    status: 'active',
+    named_insured: 'VanRock Holdings LLC',
+    additional_insured: ['First National Bank'],
+    deductible: 25000,
+    agent_name: 'John Smith - ABC Insurance',
+    agent_phone: '(555) 123-4567',
+    agent_email: 'jsmith@abcinsurance.com',
+    notes: 'Covers all structures during construction.',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'pol-2',
+    house_id: 'demo-house-1',
+    type: 'General Liability',
+    policy_number: 'GL-2024-001',
+    carrier: 'Travelers Insurance',
+    coverage_amount: 2000000,
+    premium: 18000,
+    premium_paid: true,
+    effective_date: '2024-01-01',
+    expiration_date: '2025-01-01',
+    status: 'active',
+    named_insured: 'VanRock Holdings LLC',
+    additional_insured: [],
+    deductible: 5000,
+    agent_name: 'Sarah Johnson - XYZ Insurance',
+    agent_phone: '(555) 234-5678',
+    agent_email: 'sjohnson@xyzinsurance.com',
+    notes: 'Aggregate limit $2M.',
+    created_at: new Date().toISOString(),
+  },
+];
+
+export async function getInsurancePolicies(houseId) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_insurance_policies')
+      .select('*')
+      .eq('house_id', houseId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('getInsurancePolicies error:', err);
+    const items = DEMO_INSURANCE_POLICIES.filter(p => p.house_id === houseId);
+    return { data: items, error: null };
+  }
+}
+
+export async function createInsurancePolicy(data) {
+  try {
+    const { data: result, error } = await supabase
+      .from('construction_insurance_policies')
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: result, error: null };
+  } catch (err) {
+    console.error('createInsurancePolicy error:', err);
+    const newItem = {
+      id: `pol-${Date.now()}`,
+      ...data,
+      status: data.status || 'pending',
+      created_at: new Date().toISOString(),
+    };
+    DEMO_INSURANCE_POLICIES.push(newItem);
+    return { data: newItem, error: null };
+  }
+}
+
+export async function updateInsurancePolicy(id, updates) {
+  try {
+    const { data, error } = await supabase
+      .from('construction_insurance_policies')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('updateInsurancePolicy error:', err);
+    const idx = DEMO_INSURANCE_POLICIES.findIndex(p => p.id === id);
+    if (idx === -1) return { data: null, error: { message: 'Policy not found' } };
+    DEMO_INSURANCE_POLICIES[idx] = { ...DEMO_INSURANCE_POLICIES[idx], ...updates };
+    return { data: DEMO_INSURANCE_POLICIES[idx], error: null };
+  }
+}
