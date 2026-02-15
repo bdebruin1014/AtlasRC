@@ -8,7 +8,7 @@ import {
   FileText, Clock, Users,
   Receipt, Layers, FileCheck, DollarSign,
   Calculator, ArrowRightLeft, Link2,
-  BarChart3, TrendingUp, Briefcase,
+  BarChart3, TrendingUp, TrendingDown, Briefcase,
   Calendar, Lock, Settings, FolderOpen, MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -200,6 +200,20 @@ export default function EntityAccountingSidebar({ entity, taskCount = 0 }) {
         <SidebarSection title="Month-End">
           <NavItem to={`${basePath}/month-end`} icon={Calendar} label="Month-End Close" />
           <NavItem to={`${basePath}/fiscal-periods`} icon={Lock} label="Fiscal Periods" />
+        </SidebarSection>
+
+        {/* EQUITY & OWNERSHIP */}
+        <SidebarSection title="Equity & Ownership">
+          <NavItem to={`${basePath}/ownership`} icon={Users} label="Ownership" />
+          <NavItem to={`${basePath}/capital-contributions`} icon={DollarSign} label="Capital Contributions" />
+          <NavItem to={`${basePath}/distributions`} icon={ArrowRightLeft} label="Distributions" />
+        </SidebarSection>
+
+        {/* TAX & ASSETS */}
+        <SidebarSection title="Tax & Assets">
+          <NavItem to={`${basePath}/depreciation`} icon={TrendingDown} label="Depreciation" />
+          <NavItem to={`${basePath}/tax-tracking`} icon={FileCheck} label="Tax Tracking" />
+          <NavItem to={`${basePath}/fixed-assets`} icon={Briefcase} label="Fixed Assets" />
         </SidebarSection>
 
         {/* SETTINGS */}

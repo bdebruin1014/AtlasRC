@@ -26,8 +26,16 @@ const TopNavigation = () => {
       label: 'Accounting',
       icon: DollarSign,
       dropdown: [
-        { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview by entity' },
+        { label: 'Overview', path: '', isHeader: true },
+        { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview across entities' },
         { label: 'Entities', path: '/accounting/entities', icon: Building2, description: 'Entity-level accounting' },
+        { label: 'Hierarchy', path: '/accounting/hierarchy', icon: GitBranch, description: 'Ownership structure' },
+        { label: 'Global', path: '', isHeader: true },
+        { label: 'Chart of Accounts', path: '/accounting/chart-of-accounts', icon: BookOpen, description: 'Master account structure' },
+        { label: 'Consolidation', path: '/accounting/consolidation', icon: Layers, description: 'Consolidated financials' },
+        { label: 'Planning', path: '', isHeader: true },
+        { label: 'Forecasting', path: '/accounting/forecasting', icon: TrendingUp, description: 'Cash flow projections' },
+        { label: 'Investor Portal', path: '/accounting/investor-portal', icon: Users, description: 'Investor reporting & distributions' },
       ]
     },
     {
