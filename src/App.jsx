@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -309,6 +309,38 @@ const ContactDetailPageEnhanced = lazy(() => import('@/pages/Contacts/ContactDet
 const ContactFormPageEnhanced = lazy(() => import('@/pages/Contacts/ContactForm'));
 
 const BudgetModuleRouter = lazy(() => import('@/features/budgets/components/BudgetModuleRouter'));
+
+// ============================================
+// 404 NOT FOUND PAGE
+// ============================================
+const NotFoundPage = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+      <div className="text-center max-w-md">
+        <div className="text-6xl font-bold text-gray-300 mb-4">404</div>
+        <h1 className="text-xl font-bold text-gray-900 mb-2">Page Not Found</h1>
+        <p className="text-gray-500 mb-6">
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 text-sm font-medium text-white bg-emerald-700 rounded-md hover:bg-emerald-800"
+          >
+            Go Home
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ============================================
 // PROTECTED ROUTE & LAYOUTS
@@ -872,13 +904,7 @@ const AppContent = () => (
     {/* Budget Tools */}
     <Route path="/budgets/*" element={<ProtectedRoute><AppLayout><BudgetModuleRouter /></AppLayout></ProtectedRoute>} />
 
-    {/* ============================================ */}
-    {/* CONSTRUCTION MODULE */}
-    {/* ============================================ */}
-    <Route path="/construction/contract-assembler" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/contract-assembler/:houseId" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
-
-    <Route path="*" element={<Navigate to="/" replace />} />
+    <Route path="*" element={<NotFoundPage />} />
   </Routes>
 );
 
