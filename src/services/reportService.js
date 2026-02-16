@@ -1,4 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Mock report data for demo mode
 const mockTrialBalance = [

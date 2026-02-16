@@ -1,7 +1,7 @@
 // src/services/chatService.js
 // Team chat service with Supabase real-time
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // TEAM MEMBERS

@@ -2,7 +2,7 @@
 // Record Tasks Service — manages tasks attached to specific records across any module.
 // Supports ad-hoc task creation and workflow template application.
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { getTemplateById } from '@/services/workflowTemplateService';
 
 // ============================================

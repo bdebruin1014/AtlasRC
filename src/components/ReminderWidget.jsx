@@ -1,8 +1,9 @@
+import { isDemoMode } from '@/lib/utils';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Bell, X, Plus, Clock, Check, Trash2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
-import { isDemoMode } from '@/lib/utils';
+
 
 // Demo reminders data
 const demoReminders = [

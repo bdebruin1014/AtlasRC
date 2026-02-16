@@ -1,7 +1,7 @@
 // src/services/salesService.js
 // Revenue and sales tracking service
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

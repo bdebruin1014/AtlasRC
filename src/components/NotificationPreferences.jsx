@@ -1,6 +1,7 @@
+import { isDemoMode } from '@/lib/utils';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { isDemoMode } from '@/lib/utils';
+
 import {
   Bell,
   BellOff,

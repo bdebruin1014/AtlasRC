@@ -1,7 +1,7 @@
 // src/services/taskService.js
 // Project Task Management Service — connects to project_tasks table
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // CONSTANTS

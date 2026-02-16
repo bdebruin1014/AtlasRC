@@ -1,7 +1,7 @@
 // src/services/opportunityComparablesService.js
 // Opportunity Comparables Service — connects to opportunity_comparables table
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // MOCK DATA (fallback)

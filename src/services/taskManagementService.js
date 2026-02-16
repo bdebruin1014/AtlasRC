@@ -1,7 +1,7 @@
 // src/services/taskManagementService.js
 // Task Management Service with Responsible Party and Workflow Integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 /*
  * TASK MANAGEMENT SERVICE

@@ -1,7 +1,7 @@
 // src/services/dueDiligenceService.js
 // Due Diligence Management Service
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export const DD_CATEGORIES = [
   { id: 'environmental', label: 'Environmental', icon: '🌿' },
