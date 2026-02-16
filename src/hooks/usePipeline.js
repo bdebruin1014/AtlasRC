@@ -2,128 +2,7 @@
 // React hooks for Deal Analyzer Pipeline - Adapted for AtlasDev
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isDemoMode } from '@/lib/supabase';
-
-// =============================================================================
-// MOCK DATA FOR DEMO MODE
-// =============================================================================
-
-const MOCK_PROPERTIES = [
-  {
-    id: 'prop-1',
-    address: '123 Oak Street',
-    city: 'Greenville',
-    state: 'SC',
-    zip_code: '29601',
-    target_market: 'nickeltown',
-    asking_price: 85000,
-    lot_size_sf: 8500,
-    status: 'analyzed',
-    created_at: new Date().toISOString(),
-    score: 82,
-    recommendation: 'STRONG_BUY',
-    best_product: 'magnolia',
-    projected_profit: 65000,
-    projected_roi: 22.5,
-    max_offer: 78000,
-    has_disqualifier: false,
-  },
-  {
-    id: 'prop-2',
-    address: '456 Pine Lane',
-    city: 'Travelers Rest',
-    state: 'SC',
-    zip_code: '29690',
-    target_market: 'travelers_rest',
-    asking_price: 95000,
-    lot_size_sf: 10200,
-    status: 'analyzed',
-    created_at: new Date().toISOString(),
-    score: 75,
-    recommendation: 'BUY',
-    best_product: 'atlas',
-    projected_profit: 52000,
-    projected_roi: 18.2,
-    max_offer: 88000,
-    has_disqualifier: false,
-  },
-  {
-    id: 'prop-3',
-    address: '789 Maple Drive',
-    city: 'Taylors',
-    state: 'SC',
-    zip_code: '29687',
-    target_market: 'taylors',
-    asking_price: 72000,
-    lot_size_sf: 6800,
-    status: 'new',
-    created_at: new Date().toISOString(),
-    score: null,
-    recommendation: null,
-    best_product: null,
-    projected_profit: null,
-    projected_roi: null,
-    max_offer: null,
-    has_disqualifier: false,
-  },
-  {
-    id: 'prop-4',
-    address: '321 Cedar Way',
-    city: 'Greer',
-    state: 'SC',
-    zip_code: '29651',
-    target_market: 'greer',
-    asking_price: 115000,
-    lot_size_sf: 12500,
-    status: 'analyzed',
-    created_at: new Date().toISOString(),
-    score: 68,
-    recommendation: 'HOLD',
-    best_product: 'anchorage',
-    projected_profit: 38000,
-    projected_roi: 14.1,
-    max_offer: 105000,
-    has_disqualifier: false,
-  },
-  {
-    id: 'prop-5',
-    address: '555 Flood Zone Rd',
-    city: 'Greenville',
-    state: 'SC',
-    zip_code: '29605',
-    target_market: 'nickeltown',
-    asking_price: 45000,
-    lot_size_sf: 9000,
-    status: 'analyzed',
-    created_at: new Date().toISOString(),
-    score: 35,
-    recommendation: 'PASS',
-    best_product: null,
-    projected_profit: -5000,
-    projected_roi: -3.2,
-    max_offer: 35000,
-    has_disqualifier: true,
-    disqualifier_reasons: ['flood_zone'],
-  },
-];
-
-const MOCK_SUMMARY = {
-  total_properties: MOCK_PROPERTIES.length,
-  by_status: {
-    new: 1, enriching: 0, enriched: 0, analyzing: 0, analyzed: 4,
-    pending_review: 0, approved: 0, rejected: 0, under_contract: 0,
-    closed: 0, archived: 0,
-  },
-  by_recommendation: {
-    STRONG_BUY: 1, BUY: 1, HOLD: 1, PASS: 1,
-  },
-  by_market: {
-    nickeltown: 2, travelers_rest: 1, taylors: 1, greer: 1,
-  },
-  avg_score: 65,
-  total_potential_profit: 150000,
-  properties_needing_review: 4,
-};
+import { supabase } from '@/lib/supabase';
 
 // =============================================================================
 // PIPELINE SUMMARY HOOK
@@ -137,14 +16,7 @@ export function usePipelineSummary() {
   const fetchSummary = useCallback(async () => {
     try {
       setLoading(true);
-      
-      if (isDemoMode) {
-        // Return mock data in demo mode
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setSummary(MOCK_SUMMARY);
-        return;
-      }
-      
+
       // Fetch all properties with their recommendations
       const { data: properties, error: propError } = await supabase
         .from('deal_analyzer.properties')
@@ -249,33 +121,7 @@ export function useProperties(filters) {
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      
-      if (isDemoMode) {
-        // Return mock data in demo mode
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        let filtered = [...MOCK_PROPERTIES];
-        
-        if (filters?.search) {
-          filtered = filtered.filter(p => 
-            p.address.toLowerCase().includes(filters.search.toLowerCase())
-          );
-        }
-        
-        if (filters?.market?.length) {
-          filtered = filtered.filter(p => filters.market.includes(p.target_market));
-        }
-        
-        if (filters?.recommendation?.length) {
-          filtered = filtered.filter(p => 
-            p.recommendation && filters.recommendation.includes(p.recommendation)
-          );
-        }
-        
-        setProperties(filtered);
-        return;
-      }
-      
+
       let query = supabase
         .from('deal_analyzer.properties')
         .select(`
@@ -396,14 +242,7 @@ export function useProperty(propertyId) {
     
     try {
       setLoading(true);
-      
-      if (isDemoMode) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const found = MOCK_PROPERTIES.find(p => p.id === propertyId);
-        setProperty(found || null);
-        return;
-      }
-      
+
       const { data, error: queryError } = await supabase
         .from('deal_analyzer.properties')
         .select(`
@@ -454,21 +293,7 @@ export function usePropertyActions() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (isDemoMode) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const newProp = {
-          id: `prop-${Date.now()}`,
-          ...data,
-          state: data.state || 'SC',
-          status: 'new',
-          lot_size_acres: data.lot_size_sf / 43560,
-          created_at: new Date().toISOString(),
-        };
-        MOCK_PROPERTIES.unshift(newProp);
-        return newProp;
-      }
-      
+
       const { data: property, error: insertError } = await supabase
         .from('deal_analyzer.properties')
         .insert({
@@ -498,14 +323,7 @@ export function usePropertyActions() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (isDemoMode) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const prop = MOCK_PROPERTIES.find(p => p.id === propertyId);
-        if (prop) prop.status = 'enriched';
-        return { success: true };
-      }
-      
+
       const { data: property } = await supabase
         .from('deal_analyzer.properties')
         .select('address, city, state')
@@ -551,23 +369,7 @@ export function usePropertyActions() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (isDemoMode) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        const prop = MOCK_PROPERTIES.find(p => p.id === propertyId);
-        if (prop) {
-          prop.status = 'analyzed';
-          prop.score = Math.floor(Math.random() * 30) + 60;
-          const recs = ['STRONG_BUY', 'BUY', 'HOLD', 'PASS'];
-          prop.recommendation = recs[Math.floor(Math.random() * recs.length)];
-          prop.best_product = ['cherry', 'magnolia', 'atlas'][Math.floor(Math.random() * 3)];
-          prop.projected_profit = Math.floor(Math.random() * 50000) + 30000;
-          prop.projected_roi = Math.floor(Math.random() * 15) + 12;
-          prop.max_offer = prop.asking_price * 0.9;
-        }
-        return { success: true };
-      }
-      
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-property`,
         {
@@ -600,14 +402,7 @@ export function usePropertyActions() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (isDemoMode) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const prop = MOCK_PROPERTIES.find(p => p.id === propertyId);
-        if (prop) prop.status = status;
-        return;
-      }
-      
+
       const { error: updateError } = await supabase
         .from('deal_analyzer.properties')
         .update({ 
@@ -641,14 +436,7 @@ export function usePropertyActions() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (isDemoMode) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const idx = MOCK_PROPERTIES.findIndex(p => p.id === propertyId);
-        if (idx > -1) MOCK_PROPERTIES.splice(idx, 1);
-        return;
-      }
-      
+
       const { error: deleteError } = await supabase
         .from('deal_analyzer.properties')
         .delete()
@@ -681,7 +469,7 @@ export function usePropertyActions() {
 
 export function usePropertySubscription(propertyId, onUpdate) {
   useEffect(() => {
-    if (!propertyId || isDemoMode) return;
+    if (!propertyId) return;
     
     const subscription = supabase
       .channel(`property:${propertyId}`)
@@ -709,8 +497,6 @@ export function usePropertySubscription(propertyId, onUpdate) {
 
 export function usePipelineSubscription(onUpdate) {
   useEffect(() => {
-    if (isDemoMode) return;
-    
     const subscription = supabase
       .channel('pipeline-updates')
       .on(

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 const AuthContext = createContext({
   user: null,
@@ -10,7 +10,6 @@ const AuthContext = createContext({
   sendMagicLink: async () => {},
   sendPasswordResetEmail: async () => {},
   updatePassword: async () => {},
-  isDemoMode: false,
 });
 
 export const useAuth = () => {
@@ -21,28 +20,11 @@ export const useAuth = () => {
   return context;
 };
 
-// Demo user for testing without Supabase
-const DEMO_USER = {
-  id: 'demo-user-123',
-  email: 'demo@atlasdev.com',
-  user_metadata: {
-    name: 'Demo User',
-  },
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If in demo mode, auto-login with demo user
-    if (isDemoMode) {
-      console.log('Running in demo mode - using demo user');
-      setUser(DEMO_USER);
-      setLoading(false);
-      return;
-    }
-
     // Check active sessions
     const checkUser = async () => {
       try {
@@ -50,8 +32,7 @@ export const AuthProvider = ({ children }) => {
         setUser(session?.user ?? null);
       } catch (error) {
         console.error('Error checking auth session:', error);
-        // Fall back to demo mode on error
-        setUser(DEMO_USER);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -73,12 +54,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signIn = async (email, password) => {
-    if (isDemoMode) {
-      // Demo mode - accept any credentials
-      setUser(DEMO_USER);
-      return { user: DEMO_USER };
-    }
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -88,12 +63,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signUp = async (email, password, metadata = {}) => {
-    if (isDemoMode) {
-      // Demo mode - accept any credentials
-      setUser(DEMO_USER);
-      return { user: DEMO_USER };
-    }
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -106,11 +75,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    if (isDemoMode) {
-      setUser(null);
-      return;
-    }
-
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setUser(null);

@@ -2,7 +2,7 @@
 // React hooks for Opportunities - connects to Supabase opportunities table
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { opportunityService } from '@/services/opportunityService';
 import { activityService } from '@/services/activityService';
 import { notifyStageChange } from '@/services/notificationTriggerService';
@@ -14,52 +14,6 @@ export const OPPORTUNITY_STAGES = [
   { key: 'Qualified', label: 'Qualified', color: '#f59e0b' },
   { key: 'Negotiating', label: 'Negotiating', color: '#10b981' },
   { key: 'Under Contract', label: 'Under Contract', color: '#22c55e' },
-];
-
-// Fallback data when Supabase is unreachable
-const FALLBACK_OPPORTUNITIES = [
-  {
-    id: 'demo-1',
-    deal_number: '26-001',
-    address: '123 Oak Avenue',
-    city: 'Greenville',
-    state: 'SC',
-    zip_code: '29601',
-    stage: 'Prospecting',
-    property_type: 'vacant-lot',
-    estimated_value: 85000,
-    asking_price: 75000,
-    seller_name: 'John Smith',
-    notes: 'Owner motivated to sell',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-2',
-    deal_number: '26-002',
-    address: '456 Main Street',
-    city: 'Greenville',
-    state: 'SC',
-    zip_code: '29605',
-    stage: 'Contacted',
-    property_type: 'scattered-lot',
-    estimated_value: 150000,
-    asking_price: 120000,
-    seller_name: 'Jane Doe',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-3',
-    deal_number: '26-003',
-    address: '789 Pine Road',
-    city: 'Simpsonville',
-    state: 'SC',
-    zip_code: '29680',
-    stage: 'Qualified',
-    property_type: 'development-lot-sale',
-    estimated_value: 950000,
-    asking_price: 800000,
-    created_at: new Date().toISOString(),
-  },
 ];
 
 // Hook to fetch a single opportunity by ID
@@ -84,10 +38,6 @@ export function useOpportunity(opportunityId) {
     } catch (err) {
       console.error('Error fetching opportunity:', err);
       setError(err.message);
-      if (isDemoMode) {
-        const fallback = FALLBACK_OPPORTUNITIES.find(o => o.id === opportunityId);
-        setOpportunity(fallback || null);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -116,9 +66,6 @@ export function useOpportunities() {
     } catch (err) {
       console.error('Error fetching opportunities:', err);
       setError(err.message);
-      if (isDemoMode) {
-        setOpportunities(FALLBACK_OPPORTUNITIES);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +95,6 @@ export function useOpportunityActions() {
       return result;
     } catch (err) {
       console.error('Create opportunity failed:', err);
-      if (isDemoMode) return { ...data, id: `demo-${Date.now()}` };
       throw err;
     } finally {
       setIsLoading(false);
@@ -161,7 +107,6 @@ export function useOpportunityActions() {
       return await opportunityService.update(id, data);
     } catch (err) {
       console.error('Update opportunity failed:', err);
-      if (isDemoMode) return { id, ...data };
       throw err;
     } finally {
       setIsLoading(false);
@@ -180,7 +125,6 @@ export function useOpportunityActions() {
       return result;
     } catch (err) {
       console.error('Delete opportunity failed:', err);
-      if (isDemoMode) return true;
       throw err;
     } finally {
       setIsLoading(false);
@@ -267,8 +211,6 @@ export function useOpportunitySummary(opportunities) {
 // Hook for real-time subscription to opportunities
 export function useOpportunitySubscription(onUpdate) {
   useEffect(() => {
-    if (isDemoMode) return;
-
     const subscription = supabase
       .channel('opportunities-changes')
       .on(
