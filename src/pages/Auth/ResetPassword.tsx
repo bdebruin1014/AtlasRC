@@ -4,7 +4,7 @@ import { Building2, Lock, Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, AlertCi
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 
 // Password validation pattern - must contain uppercase, lowercase, and number
@@ -39,11 +39,6 @@ const ResetPassword: React.FC = () => {
   // Check for valid reset token on mount
   useEffect(() => {
     const checkToken = async () => {
-      if (isDemoMode) {
-        setIsValidToken(true);
-        return;
-      }
-
       // Check if there's a valid session from the reset link
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -138,15 +133,6 @@ const ResetPassword: React.FC = () => {
     e.preventDefault();
 
     if (!validateForm()) {
-      return;
-    }
-
-    if (isDemoMode) {
-      setSuccess(true);
-      toast({
-        title: 'Demo Mode',
-        description: 'In production, your password would be reset.',
-      });
       return;
     }
 
@@ -470,14 +456,6 @@ const ResetPassword: React.FC = () => {
           )}
         </div>
 
-        {/* Demo Mode Indicator */}
-        {isDemoMode && (
-          <div className="mt-4 text-center">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-              Demo Mode - Password reset simulated
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
