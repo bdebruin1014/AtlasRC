@@ -3,6 +3,7 @@ import { getCalendarEvents, createCalendarEvent } from '@/services/outlookServic
 import { getOutlookConnection } from '@/services/outlookService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -95,6 +96,7 @@ function getEventColorClasses(start) {
 
 export default function ProjectCalendarSection({ projectId }) {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Connection state
   const [isConnected, setIsConnected] = useState(null); // null = loading, true/false
@@ -250,7 +252,7 @@ export default function ProjectCalendarSection({ projectId }) {
       setShowForm(false);
     } catch (err) {
       console.error('Error creating event:', err);
-      alert('Failed to create event: ' + (err.message || 'Unknown error'));
+      toast({ title: 'Error', description: err.message || 'Failed to create event', variant: 'destructive' });
     } finally {
       setCreating(false);
     }

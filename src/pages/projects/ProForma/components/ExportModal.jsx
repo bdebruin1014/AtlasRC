@@ -2,6 +2,7 @@
 // Modal for exporting Pro Forma data to PDF, PowerPoint, CSV, and JSON
 
 import { useState, useRef } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   X, FileText, Presentation, FileSpreadsheet, FileJson,
@@ -62,6 +63,7 @@ export default function ExportModal({
   waterfallResults,
   scenarios,
 }) {
+  const { toast } = useToast();
   const [selectedFormat, setSelectedFormat] = useState('pdf');
   const [contentOptions, setContentOptions] = useState({
     includeSummary: true,
@@ -116,7 +118,7 @@ export default function ExportModal({
       setExportComplete(true);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      toast({ title: "Error", description: "Export failed. Please try again.", variant: 'destructive' });
     } finally {
       setExporting(false);
     }

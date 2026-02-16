@@ -29,6 +29,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import BatchPaymentWizardModal from '@/components/accounting/BatchPaymentWizardModal';
 
@@ -99,6 +100,7 @@ export default function BatchPaymentsPage() {
   const queryClient = useQueryClient();
   const context = useOutletContext();
   const entity = context?.entity;
+  const { toast } = useToast();
   const basePath = `/accounting/entities/${entityId}`;
 
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -210,7 +212,7 @@ export default function BatchPaymentsPage() {
     );
 
     if (achBatches.length === 0) {
-      alert('No pending ACH batches to export');
+      toast({ title: "Error", description: "No pending ACH batches to export", variant: 'destructive' });
       return;
     }
 
@@ -237,7 +239,7 @@ export default function BatchPaymentsPage() {
 
   const handleDeleteBatch = (batch) => {
     if (batch.status === 'processed') {
-      alert('Cannot delete a processed batch');
+      toast({ title: "Error", description: "Cannot delete a processed batch", variant: 'destructive' });
       return;
     }
     if (confirm(`Delete batch "${batch.batch_name}"?`)) {

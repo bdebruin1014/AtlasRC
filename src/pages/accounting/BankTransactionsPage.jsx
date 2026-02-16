@@ -19,6 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 import * as bankService from '@/services/bankAccountsService';
 import { CategorizeTransactionModal } from './CategorizeTransactionModal';
 import { SplitTransactionModal } from './SplitTransactionModal';
@@ -34,6 +35,7 @@ const STATUS_COLORS = {
 export default function BankTransactionsPage() {
   const { entityId, bankAccountId } = useParams();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -59,7 +61,7 @@ export default function BankTransactionsPage() {
     mutationFn: () => bankService.applyMatchingRules(entityId, bankAccountId),
     onSuccess: (result) => {
       queryClient.invalidateQueries(['bank-transactions', bankAccountId]);
-      alert(`Matched ${result.matched} of ${result.total} transactions`);
+      toast({ title: "Success", description: `Matched ${result.matched} of ${result.total} transactions` });
     }
   });
 

@@ -238,7 +238,7 @@ const IntegrationsPage = () => {
   // SharePoint handlers
   const handleConnectSharePoint = () => {
     if (!isSharePointConfigured()) {
-      alert('SharePoint is not configured. Please add VITE_MS_TENANT_ID and VITE_MS_CLIENT_ID to your environment variables.');
+      toast({ title: "Error", description: "SharePoint is not configured. Please add VITE_MS_TENANT_ID and VITE_MS_CLIENT_ID to your environment variables.", variant: 'destructive' });
       return;
     }
 
@@ -281,7 +281,7 @@ const IntegrationsPage = () => {
       await loadSharePointStatus();
     } catch (error) {
       console.error('Error disconnecting SharePoint:', error);
-      alert('Failed to disconnect SharePoint');
+      toast({ title: "Error", description: "Failed to disconnect SharePoint", variant: 'destructive' });
     } finally {
       setDisconnecting(false);
     }
