@@ -2,17 +2,6 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Check if the app is running in demo mode
- * Demo mode uses mock data instead of real database calls
- * @returns {boolean} True if in demo mode
- */
-export function isDemoMode() {
-  return import.meta.env.VITE_DEMO_MODE === 'true' || 
-         import.meta.env.VITE_DEMO_MODE === true ||
-         !import.meta.env.VITE_SUPABASE_URL;
-}
-
-/**
  * Merge Tailwind CSS classes with clsx
  */
 export function cn(...inputs) {

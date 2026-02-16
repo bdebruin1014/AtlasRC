@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Building2, Settings, Shield,
   Database, Key, Layers, CheckSquare, Calendar,
   Calculator, LineChart, DollarSign, Target, Milestone,
-  FolderKanban, ClipboardList, Home, GitBranch,
+  FolderKanban, ClipboardList, Home, GitBranch, Hammer,
   Tag, BarChart3, ListChecks, Sliders
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,23 +20,12 @@ const AdminSidebar = () => {
       ]
     },
     {
-      title: 'Product Catalog',
+      title: 'Module Admin',
       items: [
-        { label: 'Home Plan Library', path: '/admin/plans', icon: Home },
-        { label: 'Pricing Library', path: '/admin/pricing', icon: DollarSign },
-      ]
-    },
-    {
-      title: 'Templates',
-      items: [
-        { label: 'Project Templates', path: '/admin/project-templates', icon: FolderKanban },
-        { label: 'Budget Templates', path: '/admin/budget-templates', icon: Calculator },
-        { label: 'Schedule Templates', path: '/admin/schedule-templates', icon: Calendar },
-        { label: 'Proforma Templates', path: '/admin/proforma-templates', icon: LineChart },
-        { label: 'Deal Analyzer Templates', path: '/admin/deal-templates', icon: Target },
-        { label: 'Task Templates', path: '/admin/task-templates', icon: CheckSquare },
-        { label: 'Milestone Templates', path: '/admin/milestone-templates', icon: Milestone },
-        { label: 'COA Templates', path: '/admin/coa-templates', icon: GitBranch },
+        { label: 'Construction', path: '/construction/admin', icon: Hammer },
+        { label: 'Projects', path: '/projects/admin', icon: FolderKanban },
+        { label: 'Opportunities', path: '/opportunities/admin', icon: Target },
+        { label: 'Accounting', path: '/accounting/admin', icon: Calculator },
       ]
     },
     {

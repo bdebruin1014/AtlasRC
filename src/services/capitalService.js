@@ -97,34 +97,43 @@ let mockDistributionsData = [...mockDistributions];
 
 export const capitalService = {
   // ========== MEMBERS ==========
-  
+
   async getMembers(entityId) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('entity_members')
+        .select('*')
+        .eq('entity_id', entityId)
+        .order('name', { ascending: true });
+    } catch (err) {
+      console.error('Error fetching members:', err);
       return { data: mockMembersData, error: null };
     }
-    
-    return await supabase
-      .from('entity_members')
-      .select('*')
-      .eq('entity_id', entityId)
-      .order('name', { ascending: true });
   },
-  
+
   async getMemberById(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('entity_members')
+        .select('*')
+        .eq('id', id)
+        .single();
+    } catch (err) {
+      console.error('Error fetching member by id:', err);
       const member = mockMembersData.find(m => m.id === id);
       return { data: member || null, error: member ? null : 'Not found' };
     }
-    
-    return await supabase
-      .from('entity_members')
-      .select('*')
-      .eq('id', id)
-      .single();
   },
-  
+
   async createMember(member) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('entity_members')
+        .insert(member)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('Error creating member:', err);
       const newMember = {
         ...member,
         id: Date.now(),
@@ -134,16 +143,18 @@ export const capitalService = {
       mockMembersData.push(newMember);
       return { data: newMember, error: null };
     }
-    
-    return await supabase
-      .from('entity_members')
-      .insert(member)
-      .select()
-      .single();
   },
-  
+
   async updateMember(id, updates) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('entity_members')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('Error updating member:', err);
       const index = mockMembersData.findIndex(m => m.id === id);
       if (index !== -1) {
         mockMembersData[index] = { ...mockMembersData[index], ...updates };
@@ -151,17 +162,13 @@ export const capitalService = {
       }
       return { data: null, error: 'Not found' };
     }
-    
-    return await supabase
-      .from('entity_members')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
-  
+
   async deleteMember(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase.from('entity_members').delete().eq('id', id);
+    } catch (err) {
+      console.error('Error deleting member:', err);
       const index = mockMembersData.findIndex(m => m.id === id);
       if (index !== -1) {
         mockMembersData.splice(index, 1);
@@ -169,39 +176,55 @@ export const capitalService = {
       }
       return { error: 'Not found' };
     }
-    
-    return await supabase.from('entity_members').delete().eq('id', id);
   },
-  
+
   // ========== CONTRIBUTIONS ==========
-  
+
   async getContributions(entityId, options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('capital_contributions')
+        .select('*, entity_members(name)')
+        .eq('entity_id', entityId)
+        .order('date', { ascending: false });
+
+      if (options.memberId) {
+        query = query.eq('member_id', options.memberId);
+      }
+
+      return await query;
+    } catch (err) {
+      console.error('Error fetching contributions:', err);
       let filtered = [...mockContributionsData];
-      
+
       if (options.memberId) {
         filtered = filtered.filter(c => c.member_id === options.memberId);
       }
-      
+
       filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
       return { data: filtered, error: null };
     }
-    
-    let query = supabase
-      .from('capital_contributions')
-      .select('*, entity_members(name)')
-      .eq('entity_id', entityId)
-      .order('date', { ascending: false });
-    
-    if (options.memberId) {
-      query = query.eq('member_id', options.memberId);
-    }
-    
-    return await query;
   },
-  
+
   async createContribution(contribution) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('capital_contributions')
+        .insert(contribution)
+        .select()
+        .single();
+
+      if (!error) {
+        // Update member capital account
+        await supabase.rpc('update_capital_account', {
+          p_member_id: contribution.member_id,
+          p_amount: contribution.amount,
+        });
+      }
+
+      return { data, error };
+    } catch (err) {
+      console.error('Error creating contribution:', err);
       const member = mockMembersData.find(m => m.id === contribution.member_id);
       const newContribution = {
         ...contribution,
@@ -210,34 +233,26 @@ export const capitalService = {
         created_at: new Date().toISOString(),
       };
       mockContributionsData.push(newContribution);
-      
+
       // Update member capital account
       if (member) {
         member.capital_account += contribution.amount;
       }
-      
+
       return { data: newContribution, error: null };
     }
-    
-    const { data, error } = await supabase
-      .from('capital_contributions')
-      .insert(contribution)
-      .select()
-      .single();
-    
-    if (!error) {
-      // Update member capital account
-      await supabase.rpc('update_capital_account', {
-        p_member_id: contribution.member_id,
-        p_amount: contribution.amount,
-      });
-    }
-    
-    return { data, error };
   },
-  
+
   async updateContribution(id, updates) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('capital_contributions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('Error updating contribution:', err);
       const index = mockContributionsData.findIndex(c => c.id === id);
       if (index !== -1) {
         mockContributionsData[index] = { ...mockContributionsData[index], ...updates };
@@ -245,17 +260,13 @@ export const capitalService = {
       }
       return { data: null, error: 'Not found' };
     }
-    
-    return await supabase
-      .from('capital_contributions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
-  
+
   async deleteContribution(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase.from('capital_contributions').delete().eq('id', id);
+    } catch (err) {
+      console.error('Error deleting contribution:', err);
       const index = mockContributionsData.findIndex(c => c.id === id);
       if (index !== -1) {
         mockContributionsData.splice(index, 1);
@@ -263,39 +274,55 @@ export const capitalService = {
       }
       return { error: 'Not found' };
     }
-    
-    return await supabase.from('capital_contributions').delete().eq('id', id);
   },
-  
+
   // ========== DISTRIBUTIONS ==========
-  
+
   async getDistributions(entityId, options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('distributions')
+        .select('*, entity_members(name)')
+        .eq('entity_id', entityId)
+        .order('date', { ascending: false });
+
+      if (options.memberId) {
+        query = query.eq('member_id', options.memberId);
+      }
+
+      return await query;
+    } catch (err) {
+      console.error('Error fetching distributions:', err);
       let filtered = [...mockDistributionsData];
-      
+
       if (options.memberId) {
         filtered = filtered.filter(d => d.member_id === options.memberId);
       }
-      
+
       filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
       return { data: filtered, error: null };
     }
-    
-    let query = supabase
-      .from('distributions')
-      .select('*, entity_members(name)')
-      .eq('entity_id', entityId)
-      .order('date', { ascending: false });
-    
-    if (options.memberId) {
-      query = query.eq('member_id', options.memberId);
-    }
-    
-    return await query;
   },
-  
+
   async createDistribution(distribution) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('distributions')
+        .insert(distribution)
+        .select()
+        .single();
+
+      if (!error) {
+        // Update member capital account
+        await supabase.rpc('update_capital_account', {
+          p_member_id: distribution.member_id,
+          p_amount: -distribution.amount,
+        });
+      }
+
+      return { data, error };
+    } catch (err) {
+      console.error('Error creating distribution:', err);
       const member = mockMembersData.find(m => m.id === distribution.member_id);
       const newDistribution = {
         ...distribution,
@@ -304,34 +331,26 @@ export const capitalService = {
         created_at: new Date().toISOString(),
       };
       mockDistributionsData.push(newDistribution);
-      
+
       // Update member capital account (decrease)
       if (member) {
         member.capital_account -= distribution.amount;
       }
-      
+
       return { data: newDistribution, error: null };
     }
-    
-    const { data, error } = await supabase
-      .from('distributions')
-      .insert(distribution)
-      .select()
-      .single();
-    
-    if (!error) {
-      // Update member capital account
-      await supabase.rpc('update_capital_account', {
-        p_member_id: distribution.member_id,
-        p_amount: -distribution.amount,
-      });
-    }
-    
-    return { data, error };
   },
-  
+
   async updateDistribution(id, updates) {
-    if (isDemoMode) {
+    try {
+      return await supabase
+        .from('distributions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    } catch (err) {
+      console.error('Error updating distribution:', err);
       const index = mockDistributionsData.findIndex(d => d.id === id);
       if (index !== -1) {
         mockDistributionsData[index] = { ...mockDistributionsData[index], ...updates };
@@ -339,17 +358,13 @@ export const capitalService = {
       }
       return { data: null, error: 'Not found' };
     }
-    
-    return await supabase
-      .from('distributions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
-  
+
   async deleteDistribution(id) {
-    if (isDemoMode) {
+    try {
+      return await supabase.from('distributions').delete().eq('id', id);
+    } catch (err) {
+      console.error('Error deleting distribution:', err);
       const index = mockDistributionsData.findIndex(d => d.id === id);
       if (index !== -1) {
         mockDistributionsData.splice(index, 1);
@@ -357,18 +372,35 @@ export const capitalService = {
       }
       return { error: 'Not found' };
     }
-    
-    return await supabase.from('distributions').delete().eq('id', id);
   },
-  
+
   // ========== CAPITAL SUMMARY ==========
-  
+
   async getCapitalSummary(entityId) {
-    if (isDemoMode) {
+    try {
+      const { data: members, error } = await supabase
+        .from('entity_members')
+        .select('id, name, ownership_pct, capital_account')
+        .eq('entity_id', entityId);
+
+      if (error) return { data: null, error };
+
+      const totalCapital = members.reduce((sum, m) => sum + (m.capital_account || 0), 0);
+
+      return {
+        data: {
+          totalCapital,
+          memberCount: members.length,
+          members,
+        },
+        error: null,
+      };
+    } catch (err) {
+      console.error('Error fetching capital summary:', err);
       const totalContributions = mockContributionsData.reduce((sum, c) => sum + c.amount, 0);
       const totalDistributions = mockDistributionsData.reduce((sum, d) => sum + d.amount, 0);
       const totalCapital = mockMembersData.reduce((sum, m) => sum + m.capital_account, 0);
-      
+
       return {
         data: {
           totalContributions,
@@ -385,24 +417,6 @@ export const capitalService = {
         error: null,
       };
     }
-    
-    const { data: members, error } = await supabase
-      .from('entity_members')
-      .select('id, name, ownership_pct, capital_account')
-      .eq('entity_id', entityId);
-    
-    if (error) return { data: null, error };
-    
-    const totalCapital = members.reduce((sum, m) => sum + (m.capital_account || 0), 0);
-    
-    return {
-      data: {
-        totalCapital,
-        memberCount: members.length,
-        members,
-      },
-      error: null,
-    };
   },
 };
 

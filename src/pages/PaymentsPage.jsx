@@ -14,13 +14,11 @@ const PaymentsPage = () => {
   const navigate = useNavigate();
   
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handlePaymentSuccess = () => {
     setIsPaymentModalOpen(false);
-    // Refresh logic handled inside List typically via subscription or re-render on state change if lifted
-    // Here we assume PaymentsList fetches on mount or prop change. 
-    // To force refresh we could use a key or context. For simplicity, just close modal.
-    window.location.reload(); // Simple refresh
+    setRefreshKey(prev => prev + 1);
   };
 
   return (
@@ -65,9 +63,10 @@ const PaymentsPage = () => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
            <div className="max-w-[1600px] mx-auto space-y-6">
-              <PaymentsList 
-                 entityId={entityId} 
-                 onSelectPayment={() => {}}
+              <PaymentsList
+                 key={refreshKey}
+                 entityId={entityId}
+                 onSelectPayment={(payment) => console.log('Selected payment:', payment)}
                  onNewPayment={() => setIsPaymentModalOpen(true)}
               />
            </div>

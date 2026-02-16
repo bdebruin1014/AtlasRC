@@ -1,4 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Mock templates for demo mode
 const mockTemplates = [
@@ -105,7 +105,29 @@ const mockTemplateAccounts = {
 export const coaTemplateService = {
   // Get all templates
   async getAll(options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('coa_templates')
+        .select('*, coa_template_accounts(count)')
+        .order('name');
+
+      if (options.entityPurpose) {
+        query = query.eq('entity_purpose', options.entityPurpose);
+      }
+
+      if (options.projectType) {
+        query = query.eq('project_type', options.projectType);
+      }
+
+      if (options.isDefault !== undefined) {
+        query = query.eq('is_default', options.isDefault);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching COA templates:', err);
       let filtered = [...mockTemplates];
       if (options.entityPurpose) {
         filtered = filtered.filter(t => t.entity_purpose === options.entityPurpose);
@@ -115,30 +137,28 @@ export const coaTemplateService = {
       }
       return { data: filtered, error: null };
     }
-
-    let query = supabase
-      .from('coa_templates')
-      .select('*, coa_template_accounts(count)')
-      .order('name');
-
-    if (options.entityPurpose) {
-      query = query.eq('entity_purpose', options.entityPurpose);
-    }
-
-    if (options.projectType) {
-      query = query.eq('project_type', options.projectType);
-    }
-
-    if (options.isDefault !== undefined) {
-      query = query.eq('is_default', options.isDefault);
-    }
-
-    return await query;
   },
 
   // Get a template by ID with its accounts
   async getById(id) {
-    if (isDemoMode) {
+    try {
+      const { data: template, error } = await supabase
+        .from('coa_templates')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      const { data: accounts } = await supabase
+        .from('coa_template_accounts')
+        .select('*')
+        .eq('template_id', id)
+        .order('display_order');
+
+      return { data: { ...template, accounts: accounts || [] }, error: null };
+    } catch (err) {
+      console.error('Error fetching COA template by ID:', err);
       const template = mockTemplates.find(t => t.id === id);
       if (template) {
         return {
@@ -151,27 +171,48 @@ export const coaTemplateService = {
       }
       return { data: null, error: 'Not found' };
     }
-
-    const { data: template, error } = await supabase
-      .from('coa_templates')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) return { data: null, error };
-
-    const { data: accounts } = await supabase
-      .from('coa_template_accounts')
-      .select('*')
-      .eq('template_id', id)
-      .order('display_order');
-
-    return { data: { ...template, accounts: accounts || [] }, error: null };
   },
 
   // Find the best matching template for an entity
   async findMatchingTemplate(entityPurpose, projectType = null) {
-    if (isDemoMode) {
+    try {
+      // Try exact match first
+      let { data: template, error } = await supabase
+        .from('coa_templates')
+        .select('*')
+        .eq('entity_purpose', entityPurpose)
+        .eq('project_type', projectType)
+        .eq('is_default', true)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      // Fall back to purpose-only match for non-SPE
+      if (!template && entityPurpose !== 'spe') {
+        const { data } = await supabase
+          .from('coa_templates')
+          .select('*')
+          .eq('entity_purpose', entityPurpose)
+          .eq('is_default', true)
+          .single();
+        template = data;
+      }
+
+      // For SPE without specific project type, use general
+      if (!template && entityPurpose === 'spe') {
+        const { data } = await supabase
+          .from('coa_templates')
+          .select('*')
+          .eq('entity_purpose', 'spe')
+          .eq('project_type', 'none')
+          .eq('is_default', true)
+          .single();
+        template = data;
+      }
+
+      return { data: template || null, error: null };
+    } catch (err) {
+      console.error('Error finding matching COA template:', err);
       // First try exact match
       let match = mockTemplates.find(t =>
         t.entity_purpose === entityPurpose &&
@@ -198,45 +239,39 @@ export const coaTemplateService = {
 
       return { data: match || null, error: null };
     }
-
-    // Try exact match first
-    let { data: template } = await supabase
-      .from('coa_templates')
-      .select('*')
-      .eq('entity_purpose', entityPurpose)
-      .eq('project_type', projectType)
-      .eq('is_default', true)
-      .single();
-
-    // Fall back to purpose-only match for non-SPE
-    if (!template && entityPurpose !== 'spe') {
-      const { data } = await supabase
-        .from('coa_templates')
-        .select('*')
-        .eq('entity_purpose', entityPurpose)
-        .eq('is_default', true)
-        .single();
-      template = data;
-    }
-
-    // For SPE without specific project type, use general
-    if (!template && entityPurpose === 'spe') {
-      const { data } = await supabase
-        .from('coa_templates')
-        .select('*')
-        .eq('entity_purpose', 'spe')
-        .eq('project_type', 'none')
-        .eq('is_default', true)
-        .single();
-      template = data;
-    }
-
-    return { data: template, error: null };
   },
 
   // Create a new template (admin only)
   async create(template) {
-    if (isDemoMode) {
+    try {
+      const { accounts, ...templateData } = template;
+
+      const { data: newTemplate, error: templateError } = await supabase
+        .from('coa_templates')
+        .insert({ ...templateData, is_system: false })
+        .select()
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Insert accounts if provided
+      if (accounts && accounts.length > 0) {
+        const accountsWithTemplateId = accounts.map((acc, idx) => ({
+          ...acc,
+          template_id: newTemplate.id,
+          display_order: acc.display_order || idx,
+        }));
+
+        const { error: accountsError } = await supabase
+          .from('coa_template_accounts')
+          .insert(accountsWithTemplateId);
+
+        if (accountsError) throw accountsError;
+      }
+
+      return { data: newTemplate, error: null };
+    } catch (err) {
+      console.error('Error creating COA template:', err);
       const newTemplate = {
         ...template,
         id: `custom-${Date.now()}`,
@@ -246,38 +281,35 @@ export const coaTemplateService = {
       mockTemplates.push(newTemplate);
       return { data: newTemplate, error: null };
     }
-
-    const { accounts, ...templateData } = template;
-
-    const { data: newTemplate, error: templateError } = await supabase
-      .from('coa_templates')
-      .insert({ ...templateData, is_system: false })
-      .select()
-      .single();
-
-    if (templateError) return { data: null, error: templateError };
-
-    // Insert accounts if provided
-    if (accounts && accounts.length > 0) {
-      const accountsWithTemplateId = accounts.map((acc, idx) => ({
-        ...acc,
-        template_id: newTemplate.id,
-        display_order: acc.display_order || idx,
-      }));
-
-      const { error: accountsError } = await supabase
-        .from('coa_template_accounts')
-        .insert(accountsWithTemplateId);
-
-      if (accountsError) return { data: null, error: accountsError };
-    }
-
-    return { data: newTemplate, error: null };
   },
 
   // Update a template (non-system templates only)
   async update(id, updates) {
-    if (isDemoMode) {
+    try {
+      // Check if system template
+      const { data: existing, error: fetchError } = await supabase
+        .from('coa_templates')
+        .select('is_system')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      if (existing?.is_system) {
+        return { data: null, error: 'Cannot modify system templates' };
+      }
+
+      const { data, error } = await supabase
+        .from('coa_templates')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error updating COA template:', err);
       const index = mockTemplates.findIndex(t => t.id === id);
       if (index !== -1) {
         if (mockTemplates[index].is_system) {
@@ -288,29 +320,34 @@ export const coaTemplateService = {
       }
       return { data: null, error: 'Not found' };
     }
-
-    // Check if system template
-    const { data: existing } = await supabase
-      .from('coa_templates')
-      .select('is_system')
-      .eq('id', id)
-      .single();
-
-    if (existing?.is_system) {
-      return { data: null, error: 'Cannot modify system templates' };
-    }
-
-    return await supabase
-      .from('coa_templates')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
 
   // Delete a template (non-system templates only)
   async delete(id) {
-    if (isDemoMode) {
+    try {
+      // Check if system template
+      const { data: existing, error: fetchError } = await supabase
+        .from('coa_templates')
+        .select('is_system')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      if (existing?.is_system) {
+        return { error: 'Cannot delete system templates' };
+      }
+
+      // Accounts will be deleted via CASCADE
+      const { error } = await supabase
+        .from('coa_templates')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (err) {
+      console.error('Error deleting COA template:', err);
       const index = mockTemplates.findIndex(t => t.id === id);
       if (index !== -1) {
         if (mockTemplates[index].is_system) {
@@ -321,23 +358,6 @@ export const coaTemplateService = {
       }
       return { error: 'Not found' };
     }
-
-    // Check if system template
-    const { data: existing } = await supabase
-      .from('coa_templates')
-      .select('is_system')
-      .eq('id', id)
-      .single();
-
-    if (existing?.is_system) {
-      return { error: 'Cannot delete system templates' };
-    }
-
-    // Accounts will be deleted via CASCADE
-    return await supabase
-      .from('coa_templates')
-      .delete()
-      .eq('id', id);
   },
 
   // Duplicate a template

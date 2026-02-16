@@ -3,7 +3,7 @@ import { NavLink, useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronDown, ChevronLeft, LayoutDashboard, MapPin, Users, CheckSquare,
   FileText, DollarSign, Calculator, Calendar, Hammer, Receipt,
-  TrendingUp, CreditCard, FolderOpen, Mail, MessageSquare, ShoppingCart
+  TrendingUp, CreditCard, FolderOpen, Mail, MessageSquare, ShoppingCart, Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -69,6 +69,10 @@ const ProjectSidebar = () => {
     },
   ];
 
+  const adminItems = [
+    { label: 'Projects Admin', icon: Settings, path: '/projects/admin' },
+  ];
+
   return (
     <div className="w-60 bg-[#1e2a3a] flex flex-col h-full flex-shrink-0 border-r border-gray-700">
       <div className="p-3 border-b border-gray-700">
@@ -115,6 +119,29 @@ const ProjectSidebar = () => {
             )}
           </div>
         ))}
+
+        {/* Admin Section */}
+        <div className="mt-4 pt-4 border-t border-gray-700">
+          <p className="px-3 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
+          {adminItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) => cn(
+                  "flex items-center gap-2 px-4 py-1.5 text-xs transition-colors",
+                  isActive
+                    ? "text-white bg-white/10 border-l-2 border-emerald-500"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                {item.label}
+              </NavLink>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );

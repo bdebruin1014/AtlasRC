@@ -318,9 +318,9 @@ const BankAccountsPage = () => {
                           <p className="text-xs text-gray-400 mt-2">Confirmed by bank feeds</p>
                        </div>
                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Unreconciled Items</p>
-                          <h3 className="text-2xl font-bold text-amber-600 mt-1">14</h3>
-                          <p className="text-xs text-gray-400 mt-2">Requires attention</p>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Accounts</p>
+                          <h3 className="text-2xl font-bold text-amber-600 mt-1">{accounts.filter(a => a.status === 'active').length}</h3>
+                          <p className="text-xs text-gray-400 mt-2">Across all banks</p>
                        </div>
                     </div>
 
@@ -474,7 +474,7 @@ const BankAccountsPage = () => {
                                 </tr>
                              </thead>
                              <tbody className="divide-y divide-gray-100">
-                                {MOCK_TRANSACTIONS.map((tx) => (
+                                {transactions.map((tx) => (
                                    <tr key={tx.id} className="hover:bg-gray-50 group transition-colors">
                                       <td className="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">{formatDate(tx.date)}</td>
                                       <td className="px-6 py-3">

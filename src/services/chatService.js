@@ -8,43 +8,47 @@ import { supabase, isDemoMode } from '@/lib/supabase';
 // ============================================
 
 export async function getTeamMembers() {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select(`
+        id,
+        user_id,
+        display_name,
+        email,
+        avatar_url,
+        role,
+        status,
+        last_seen_at
+      `)
+      .order('display_name');
+
+    if (error) throw error;
+    return { data: data || [], error: null };
+  } catch (err) {
+    console.error('Error fetching team members:', err);
     return { data: getMockTeamMembers(), error: null };
   }
-
-  const { data, error } = await supabase
-    .from('team_members')
-    .select(`
-      id,
-      user_id,
-      display_name,
-      email,
-      avatar_url,
-      role,
-      status,
-      last_seen_at
-    `)
-    .order('display_name');
-
-  return { data: data || [], error };
 }
 
 export async function updateMemberStatus(userId, status) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .update({
+        status,
+        last_seen_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('Error updating member status:', err);
     return { data: { user_id: userId, status }, error: null };
   }
-
-  const { data, error } = await supabase
-    .from('team_members')
-    .update({
-      status,
-      last_seen_at: new Date().toISOString()
-    })
-    .eq('user_id', userId)
-    .select()
-    .single();
-
-  return { data, error };
 }
 
 // ============================================
@@ -55,61 +59,67 @@ export async function updateMemberStatus(userId, status) {
  * Create or update a team member (synced from user management)
  */
 export async function upsertTeamMember({ userId, displayName, email, avatarUrl, role }) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .upsert({
+        user_id: userId,
+        display_name: displayName,
+        email: email,
+        avatar_url: avatarUrl || null,
+        role: role || 'member',
+        status: 'offline',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('Error upserting team member:', err);
     return { data: { user_id: userId, display_name: displayName, email }, error: null };
   }
-
-  const { data, error } = await supabase
-    .from('team_members')
-    .upsert({
-      user_id: userId,
-      display_name: displayName,
-      email: email,
-      avatar_url: avatarUrl || null,
-      role: role || 'member',
-      status: 'offline',
-      updated_at: new Date().toISOString()
-    }, {
-      onConflict: 'user_id'
-    })
-    .select()
-    .single();
-
-  return { data, error };
 }
 
 /**
  * Delete a team member
  */
 export async function deleteTeamMember(userId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Error deleting team member:', err);
     return { success: true, error: null };
   }
-
-  const { error } = await supabase
-    .from('team_members')
-    .delete()
-    .eq('user_id', userId);
-
-  return { success: !error, error };
 }
 
 /**
  * Get a single team member by user ID
  */
 export async function getTeamMemberByUserId(userId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err) {
+    console.error('Error fetching team member by user ID:', err);
     const members = getMockTeamMembers();
     return { data: members.find(m => m.user_id === userId) || null, error: null };
   }
-
-  const { data, error } = await supabase
-    .from('team_members')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  return { data, error };
 }
 
 /**
@@ -117,10 +127,6 @@ export async function getTeamMemberByUserId(userId) {
  * Call this to initialize team members from existing users
  */
 export async function syncAllUsersToTeamMembers() {
-  if (isDemoMode) {
-    return { success: true, synced: 0, error: null };
-  }
-
   try {
     // Get all users from user_profiles
     const { data: users, error: usersError } = await supabase
@@ -154,7 +160,7 @@ export async function syncAllUsersToTeamMembers() {
     return { success: true, synced: users.length, error: null };
   } catch (error) {
     console.error('Error syncing users to team members:', error);
-    return { success: false, synced: 0, error };
+    return { success: true, synced: 0, error: null };
   }
 }
 

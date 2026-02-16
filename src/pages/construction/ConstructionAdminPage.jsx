@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Layout, Calculator, ArrowUpCircle,
-  CalendarDays, Building2,
+  CalendarDays, Building2, CheckSquare, DollarSign,
   ChevronRight, ChevronLeft,
 } from 'lucide-react';
 
@@ -17,10 +17,19 @@ const sections = [
     ],
   },
   {
-    title: 'Scheduling',
+    title: 'Scheduling & Workflows',
     icon: CalendarDays,
     items: [
       { label: 'Schedule Templates', description: 'Construction schedules by plan', path: '/construction/admin/schedule-templates', icon: CalendarDays },
+      { label: 'Workflow Templates', description: 'Task workflows and milestones', path: '/admin/task-templates', icon: CheckSquare },
+    ],
+  },
+  {
+    title: 'Cost Templates',
+    icon: DollarSign,
+    items: [
+      { label: 'Soft Cost Templates', description: 'Soft cost category defaults', path: '/admin/soft-cost-templates', icon: DollarSign },
+      { label: 'Lot Prep Templates', description: 'Lot preparation cost defaults', path: '/admin/lot-prep-templates', icon: DollarSign },
     ],
   },
   {

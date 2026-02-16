@@ -49,7 +49,7 @@ const BillsPage = () => {
   };
 
   const handleEditBill = (bill) => {
-    toast({ title: "Edit Bill", description: "Edit mode not implemented in this view." });
+    toast({ title: "Edit Bill", description: "Navigate to the entity to edit this bill" });
   };
 
   return (

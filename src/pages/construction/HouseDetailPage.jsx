@@ -13,6 +13,7 @@ import {
   getHouseById, updateHouse, advanceMilestone, getDailyLogs,
   MILESTONES, getMilestoneLabel, getMilestoneIndex,
 } from '@/services/constructionService';
+import RecordTasksPanel from '@/components/RecordTasksPanel';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -618,6 +619,13 @@ const HouseDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* ── TASKS PANEL ─────────────────────────────────────────────── */}
+      <RecordTasksPanel
+        module="construction"
+        recordId={houseId}
+        recordName={house.house_name || 'House'}
+      />
     </div>
   );
 };

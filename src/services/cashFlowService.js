@@ -1,7 +1,7 @@
 // src/services/cashFlowService.js
 // Cash flow tracking and projection service
 
-import { isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -147,20 +147,59 @@ const DEMO_CASH_FLOWS = generateDemoCashFlows();
 // ─── CRUD Operations ──────────────────────────────────────────────────────────
 
 export async function getProjectCashFlows(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('cash_flows')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('period_start', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching project cash flows:', err);
     return DEMO_CASH_FLOWS.filter(r => r.project_id === projectId)
       .sort((a, b) => new Date(a.period_start) - new Date(b.period_start));
   }
 }
 
 export async function getCashFlowRecord(recordId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('cash_flows')
+      .select('*')
+      .eq('id', recordId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching cash flow record:', err);
     return DEMO_CASH_FLOWS.find(r => r.id === recordId) || null;
   }
 }
 
 export async function createCashFlowRecord(projectId, data) {
-  if (isDemoMode) {
+  try {
+    const newRecord = {
+      project_id: projectId,
+      ...data,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const totals = calculateRecordTotals(newRecord);
+    newRecord.ending_cash = totals.endingCash;
+
+    const { data: result, error } = await supabase
+      .from('cash_flows')
+      .insert([newRecord])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return result;
+  } catch (err) {
+    console.error('Error creating cash flow record:', err);
     const record = {
       id: `cf-${Date.now()}`,
       project_id: projectId,
@@ -176,7 +215,18 @@ export async function createCashFlowRecord(projectId, data) {
 }
 
 export async function updateCashFlowRecord(recordId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('cash_flows')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', recordId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating cash flow record:', err);
     const idx = DEMO_CASH_FLOWS.findIndex(r => r.id === recordId);
     if (idx === -1) throw new Error('Record not found');
     if (DEMO_CASH_FLOWS[idx].is_locked) throw new Error('Record is locked');
@@ -188,7 +238,16 @@ export async function updateCashFlowRecord(recordId, updates) {
 }
 
 export async function deleteCashFlowRecord(recordId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('cash_flows')
+      .delete()
+      .eq('id', recordId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting cash flow record:', err);
     const idx = DEMO_CASH_FLOWS.findIndex(r => r.id === recordId);
     if (idx !== -1) DEMO_CASH_FLOWS.splice(idx, 1);
     return true;

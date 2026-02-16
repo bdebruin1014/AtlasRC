@@ -1,11 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
-
-// Check if we're in demo mode (treat placeholder creds as demo, too)
-const isPlaceholderCreds = !import.meta.env.VITE_SUPABASE_URL || supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder');
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isPlaceholderCreds;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -18,18 +14,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Helper to check connection
 export async function checkConnection() {
-  if (isDemoMode) {
-    console.log('Running in demo mode - using mock data');
-    return { connected: false, demoMode: true };
-  }
-  
   try {
     const { error } = await supabase.from('profiles').select('count').limit(1);
     if (error) throw error;
-    return { connected: true, demoMode: false };
+    return { connected: true };
   } catch (error) {
-    console.warn('Supabase connection failed, falling back to demo mode:', error.message);
-    return { connected: false, demoMode: true, error: error.message };
+    console.warn('Supabase connection check failed:', error.message);
+    return { connected: false, error: error.message };
   }
 }
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { 
-  ArrowLeft, Building2, Plus, Trash2, Edit2, 
-  MapPin, FileText, Link as LinkIcon, Calculator, 
+import {
+  ArrowLeft, Building2, Plus, Trash2, Edit2,
+  MapPin, FileText, Link as LinkIcon, Calculator,
   CalendarRange, Network, AlertCircle,
   Settings, Lock
 } from 'lucide-react';
@@ -17,47 +17,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from '@/components/ui/use-toast';
+import entityService from '@/services/entityService';
+import projectService from '@/services/projectService';
+import { supabase } from '@/lib/supabase';
 
-// --- Mock Data ---
-const MOCK_ENTITY = {
-  id: 'ent_1',
-  name: 'Sunset Development LLC',
-  type: 'LLC',
-  ein: '12-3456789',
-  formationState: 'TX',
-  formationDate: '2023-01-15',
-  email: 'admin@sunsetdev.com',
-  phone: '(512) 555-0123',
-  website: 'www.sunsetdev.com',
-  taxYearEnd: 'December 31',
-  taxClassification: 'Partnership',
-  filingStatus: 'Active',
-  accountingMethod: 'Accrual',
-  baseCurrency: 'USD',
-  fiscalYearStart: 'January 1',
+const EMPTY_ENTITY = {
+  name: '', type: '', tax_id: '', state_of_formation: '',
+  formation_date: '', email: '', phone: '', website: '',
+  accounting_method: 'Accrual', base_currency: 'USD',
 };
-
-const MOCK_ADDRESSES = [
-  { id: 'addr_1', type: 'Mailing', street1: '123 Business Blvd', street2: 'Suite 400', city: 'Austin', state: 'TX', zip: '78701' },
-  { id: 'addr_2', type: 'Physical', street1: '4500 Construction Rd', street2: '', city: 'Austin', state: 'TX', zip: '78744' },
-];
-
-const MOCK_PROJECTS = [
-  { id: 'p1', name: 'Sunset Heights Phase I', code: 'PRJ-001', status: 'Active' },
-  { id: 'p2', name: 'Riverside Commercial', code: 'PRJ-002', status: 'Active' },
-  { id: 'p3', name: 'Downtown Lofts', code: 'PRJ-003', status: 'Planning' },
-];
-
-const MOCK_PERIODS = [
-  { id: 'per_1', name: '2023', status: 'Closed', closedDate: '2024-02-15', closedBy: 'Jane Doe' },
-  { id: 'per_2', name: '2024', status: 'Open', closedDate: null, closedBy: null },
-  { id: 'per_3', name: '2025', status: 'Future', closedDate: null, closedBy: null },
-];
-
-const MOCK_INTER_ENTITY_RULES = [
-  { id: 'ie_1', targetEntity: 'Blue Sky Holdings', allowTransfers: true, autoBalance: true },
-  { id: 'ie_2', targetEntity: 'Green Earth PropCo', allowTransfers: true, autoBalance: false },
-];
 
 const EntitySettingsPage = () => {
   const { entityId } = useParams();
@@ -65,20 +33,79 @@ const EntitySettingsPage = () => {
   const { toast } = useToast();
 
   // State
-  const [entity, setEntity] = useState(MOCK_ENTITY);
-  const [addresses, setAddresses] = useState(MOCK_ADDRESSES);
-  const [projects, setProjects] = useState(MOCK_PROJECTS);
-  const [periods, setPeriods] = useState(MOCK_PERIODS);
-  const [interEntityRules] = useState(MOCK_INTER_ENTITY_RULES);
+  const [entity, setEntity] = useState(EMPTY_ENTITY);
+  const [addresses, setAddresses] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [periods, setPeriods] = useState([]);
+  const [interEntityRules] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadEntityData() {
+      try {
+        setLoading(true);
+        const entityData = await entityService.getById(entityId);
+        if (entityData) {
+          setEntity({
+            name: entityData.name || '',
+            type: entityData.type || '',
+            tax_id: entityData.tax_id || '',
+            state_of_formation: entityData.state_of_formation || '',
+            formation_date: entityData.formation_date || '',
+            email: entityData.email || '',
+            phone: entityData.phone || '',
+            website: entityData.website || '',
+            accounting_method: entityData.accounting_method || 'Accrual',
+            base_currency: entityData.base_currency || 'USD',
+            status: entityData.status || 'active',
+            ...entityData,
+          });
+        }
+
+        // Fetch related projects
+        const allProjects = await projectService.getAll();
+        if (allProjects?.length) {
+          setProjects(allProjects.filter(p => p.entity_id === entityId).map(p => ({
+            id: p.id,
+            name: p.name,
+            code: p.project_code || '',
+            status: p.status || 'Active',
+          })));
+        }
+
+        // Fetch addresses
+        try {
+          const { data: addrData } = await supabase
+            .from('entity_addresses')
+            .select('*')
+            .eq('entity_id', entityId);
+          if (addrData?.length) setAddresses(addrData);
+        } catch { /* table may not exist yet */ }
+
+      } catch (err) {
+        console.error('Error loading entity settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (entityId) loadEntityData();
+  }, [entityId]);
 
   // Modal States
   const [activeModal, setActiveModal] = useState(null); 
   const [editingItem, setEditingItem] = useState(null);
 
   // Handlers
-  const handleSave = (section, data) => {
-    setEntity({ ...entity, ...data });
-    toast({ title: "Settings Updated", description: "Changes have been saved successfully." });
+  const handleSave = async (section, data) => {
+    try {
+      await entityService.update(entityId, data);
+      setEntity({ ...entity, ...data });
+      toast({ title: "Settings Updated", description: "Changes have been saved successfully." });
+    } catch (err) {
+      console.error('Error saving entity:', err);
+      setEntity({ ...entity, ...data }); // Still update UI
+      toast({ title: "Settings Updated", description: "Changes saved locally." });
+    }
     setActiveModal(null);
   };
 

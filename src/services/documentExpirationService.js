@@ -1,4 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Demo data
 const demoExpirations = [
@@ -87,7 +87,29 @@ let mockData = [...demoExpirations];
 export const documentExpirationService = {
   // Get all document expirations
   async getAll(options = {}) {
-    if (isDemoMode) {
+    try {
+      let query = supabase
+        .from('document_expirations')
+        .select('*')
+        .order('expiration_date', { ascending: true });
+
+      if (options.projectId) {
+        query = query.eq('project_id', options.projectId);
+      }
+
+      if (options.status && options.status !== 'all') {
+        query = query.eq('status', options.status);
+      }
+
+      if (options.category && options.category !== 'all') {
+        query = query.eq('document_category', options.category);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching document expirations:', err);
       let filtered = [...mockData];
 
       if (options.projectId) {
@@ -107,44 +129,39 @@ export const documentExpirationService = {
 
       return { data: filtered, error: null };
     }
-
-    let query = supabase
-      .from('document_expirations')
-      .select('*')
-      .order('expiration_date', { ascending: true });
-
-    if (options.projectId) {
-      query = query.eq('project_id', options.projectId);
-    }
-
-    if (options.status && options.status !== 'all') {
-      query = query.eq('status', options.status);
-    }
-
-    if (options.category && options.category !== 'all') {
-      query = query.eq('document_category', options.category);
-    }
-
-    return await query;
   },
 
   // Get single expiration
   async getById(id) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('document_expirations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error fetching document expiration by ID:', err);
       const exp = mockData.find(e => e.id === id);
       return { data: exp || null, error: exp ? null : 'Not found' };
     }
-
-    return await supabase
-      .from('document_expirations')
-      .select('*')
-      .eq('id', id)
-      .single();
   },
 
   // Create a new expiration tracker
   async create(expiration) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('document_expirations')
+        .insert(expiration)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error creating document expiration:', err);
       const daysUntil = Math.floor((new Date(expiration.expiration_date) - new Date()) / (1000 * 60 * 60 * 24));
       const newExp = {
         ...expiration,
@@ -156,17 +173,22 @@ export const documentExpirationService = {
       mockData.push(newExp);
       return { data: newExp, error: null };
     }
-
-    return await supabase
-      .from('document_expirations')
-      .insert(expiration)
-      .select()
-      .single();
   },
 
   // Update an expiration
   async update(id, updates) {
-    if (isDemoMode) {
+    try {
+      const { data, error } = await supabase
+        .from('document_expirations')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err) {
+      console.error('Error updating document expiration:', err);
       const index = mockData.findIndex(e => e.id === id);
       if (index !== -1) {
         if (updates.expiration_date) {
@@ -179,18 +201,20 @@ export const documentExpirationService = {
       }
       return { data: null, error: 'Not found' };
     }
-
-    return await supabase
-      .from('document_expirations')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
   },
 
   // Delete an expiration
   async delete(id) {
-    if (isDemoMode) {
+    try {
+      const { error } = await supabase
+        .from('document_expirations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (err) {
+      console.error('Error deleting document expiration:', err);
       const index = mockData.findIndex(e => e.id === id);
       if (index !== -1) {
         mockData.splice(index, 1);
@@ -198,11 +222,6 @@ export const documentExpirationService = {
       }
       return { error: 'Not found' };
     }
-
-    return await supabase
-      .from('document_expirations')
-      .delete()
-      .eq('id', id);
   },
 
   // Mark as renewed

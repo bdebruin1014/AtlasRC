@@ -1,7 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
-
-// Track demo mode sequence numbers
-let demoSequence = 0;
+import { supabase } from '@/lib/supabase';
 
 /**
  * Generate a project number in YY-XXX format
@@ -9,12 +6,6 @@ let demoSequence = 0;
  * @returns {string} Project number like "25-001"
  */
 export async function generateProjectNumber(organizationId) {
-  if (isDemoMode || !organizationId) {
-    const year = new Date().getFullYear() % 100;
-    demoSequence += 1;
-    return `${String(year).padStart(2, '0')}-${String(demoSequence).padStart(3, '0')}`;
-  }
-
   try {
     const { data, error } = await supabase.rpc('generate_project_number', {
       org_id: organizationId,

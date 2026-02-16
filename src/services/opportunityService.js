@@ -203,13 +203,12 @@ export const opportunityService = {
 
     if (error) throw error;
 
-    const stageOrder = ['lead', 'qualified', 'analysis', 'loi', 'due_diligence', 'contract', 'closed_won', 'closed_lost'];
+    // Stages matching OPPORTUNITY_STAGES in useOpportunities.js
+    const stageOrder = ['Prospecting', 'Contacted', 'Qualified', 'Negotiating', 'Under Contract'];
     const stats = {
       total: data.length,
       totalValue: data.reduce((sum, o) => sum + (parseFloat(o.asking_price) || 0), 0),
-      potentialValue: data
-        .filter(o => !['closed_won', 'closed_lost'].includes(o.stage))
-        .reduce((sum, o) => sum + (parseFloat(o.estimated_value || o.asking_price) || 0), 0),
+      potentialValue: data.reduce((sum, o) => sum + (parseFloat(o.estimated_value || o.asking_price) || 0), 0),
       byStage: {},
     };
 

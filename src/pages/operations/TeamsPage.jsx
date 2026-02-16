@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,7 @@ import {
 } from '@/services/teamService';
 
 const TeamsPage = () => {
+  const { toast } = useToast();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, active: 0, totalMembers: 0, avgMembersPerTeam: 0 });
@@ -129,7 +131,7 @@ const TeamsPage = () => {
       loadData();
     } catch (error) {
       console.error('Error saving team:', error);
-      alert('Error saving team: ' + (error.message || 'Unknown error'));
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -143,7 +145,7 @@ const TeamsPage = () => {
       loadData();
     } catch (error) {
       console.error('Error deleting team:', error);
-      alert('Error deleting team');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
   };
 
@@ -168,7 +170,7 @@ const TeamsPage = () => {
       loadData();
     } catch (error) {
       console.error('Error adding members:', error);
-      alert('Error adding members');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -182,7 +184,7 @@ const TeamsPage = () => {
       loadData();
     } catch (error) {
       console.error('Error removing member:', error);
-      alert('Error removing member');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
   };
 
@@ -193,7 +195,7 @@ const TeamsPage = () => {
       loadData();
     } catch (error) {
       console.error('Error updating member role:', error);
-      alert('Error updating role');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
   };
 

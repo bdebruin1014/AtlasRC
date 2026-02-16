@@ -57,7 +57,7 @@ const InvoicesPage = () => {
                   key={refreshKey}
                   entityId={entityId} 
                   onNewInvoice={() => setIsNewInvoiceOpen(true)}
-                  onSelectInvoice={() => {}}
+                  onSelectInvoice={(invoice) => console.log('Selected invoice:', invoice)}
                />
             </div>
          </div>

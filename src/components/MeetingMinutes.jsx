@@ -391,7 +391,8 @@ const MeetingMinutes = ({ projectId = null }) => {
   };
 
   const exportToPDF = (meeting) => {
-    alert(`Export meeting "${meeting.title}" to PDF`);
+    // TODO: integrate PDF generation library
+    console.log(`Export meeting "${meeting.title}" to PDF`);
   };
 
   if (loading) {

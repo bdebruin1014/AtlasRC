@@ -1,7 +1,7 @@
 // src/services/salesService.js
 // Revenue and sales tracking service
 
-import { isDemoMode } from '@/lib/supabase';
+import { supabase, isDemoMode } from '@/lib/supabase';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -190,19 +190,55 @@ const DEMO_SALES = [
 // ─── CRUD Operations ──────────────────────────────────────────────────────────
 
 export async function getProjectSales(projectId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('listing_date', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Error fetching project sales:', err);
     return DEMO_SALES.filter(s => s.project_id === projectId);
   }
 }
 
 export async function getSale(saleId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('id', saleId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching sale:', err);
     return DEMO_SALES.find(s => s.id === saleId) || null;
   }
 }
 
 export async function createSale(projectId, data) {
-  if (isDemoMode) {
+  try {
+    const { data: created, error } = await supabase
+      .from('sales')
+      .insert({
+        project_id: projectId,
+        ...data,
+        list_price: parseFloat(data.list_price) || 0,
+        sale_price: data.sale_price ? parseFloat(data.sale_price) : null,
+        status: data.status || 'available',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return created;
+  } catch (err) {
+    console.error('Error creating sale:', err);
     const sale = {
       id: `sale-${Date.now()}`,
       project_id: projectId,
@@ -219,7 +255,18 @@ export async function createSale(projectId, data) {
 }
 
 export async function updateSale(saleId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('sales')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', saleId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating sale:', err);
     const idx = DEMO_SALES.findIndex(s => s.id === saleId);
     if (idx === -1) throw new Error('Sale not found');
     const sale = { ...DEMO_SALES[idx], ...updates, updated_at: new Date().toISOString() };
@@ -237,7 +284,16 @@ export async function updateSale(saleId, updates) {
 }
 
 export async function deleteSale(saleId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('sales')
+      .delete()
+      .eq('id', saleId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting sale:', err);
     const idx = DEMO_SALES.findIndex(s => s.id === saleId);
     if (idx !== -1) DEMO_SALES.splice(idx, 1);
     return true;
@@ -245,7 +301,18 @@ export async function deleteSale(saleId) {
 }
 
 export async function updateSaleStatus(saleId, newStatus) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('sales')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', saleId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating sale status:', err);
     const idx = DEMO_SALES.findIndex(s => s.id === saleId);
     if (idx === -1) throw new Error('Sale not found');
     DEMO_SALES[idx].status = newStatus;

@@ -5,11 +5,12 @@ import {
   Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2,
   BarChart3, Target, TrendingUp, Clock, BookOpen, Receipt, Plus,
   FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw, Hammer,
-  Layout, ArrowUpCircle, CalendarDays
+  Layout, ArrowUpCircle, CalendarDays, Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/contexts/PermissionContext';
 import NotificationCenter from './NotificationCenter';
+import GlobalSearch from './GlobalSearch';
 
 const TopNavigation = () => {
   const navigate = useNavigate();
@@ -20,8 +21,6 @@ const TopNavigation = () => {
     { label: 'Home', path: '/', icon: Home },
     { label: 'Opportunities', path: '/opportunities', icon: FolderKanban },
     { label: 'Projects', path: '/projects', icon: Building2 },
-    { label: 'Contacts', path: '/contacts', icon: Users },
-    { label: 'Calendar', path: '/calendar', icon: Calendar },
     {
       label: 'Construction',
       icon: Hammer,
@@ -33,33 +32,28 @@ const TopNavigation = () => {
         { label: 'Upgrade Packages', path: '/construction/admin/upgrades', icon: ArrowUpCircle, description: 'Upgrade tiers & pricing' },
         { label: 'Schedule Templates', path: '/construction/admin/schedule-templates', icon: CalendarDays, description: 'Construction schedules by plan' },
         { label: 'Municipality Fees', path: '/construction/admin/municipalities', icon: Building2, description: 'Fee schedules by jurisdiction' },
+        { label: 'Tools', path: '', isHeader: true },
+        { label: 'Contract Assembler', path: '/construction/contract-assembler', icon: FileSignature, description: 'Build contract packages' },
       ]
     },
     {
       label: 'Accounting',
       icon: DollarSign,
       dropdown: [
-        { label: 'Overview', path: '', isHeader: true },
         { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview across entities' },
         { label: 'Entities', path: '/accounting/entities', icon: Building2, description: 'Entity-level accounting' },
         { label: 'Hierarchy', path: '/accounting/hierarchy', icon: GitBranch, description: 'Ownership structure' },
-        { label: 'Global', path: '', isHeader: true },
         { label: 'Chart of Accounts', path: '/accounting/chart-of-accounts', icon: BookOpen, description: 'Master account structure' },
         { label: 'Consolidation', path: '/accounting/consolidation', icon: Layers, description: 'Consolidated financials' },
-        { label: 'Planning', path: '', isHeader: true },
-        { label: 'Forecasting', path: '/accounting/forecasting', icon: TrendingUp, description: 'Cash flow projections' },
-        { label: 'Investor Portal', path: '/accounting/investor-portal', icon: Users, description: 'Investor reporting & distributions' },
       ]
     },
     {
       label: 'Operations',
       icon: Cog,
       dropdown: [
-        { label: 'Dashboard', path: '/operations', icon: ClipboardList, description: 'Operations overview' },
-        { label: 'Notification Center', path: '/operations/notifications', icon: Clock, description: 'All notifications' },
+        { label: 'Contacts', path: '/contacts', icon: Users, description: 'People & organizations' },
+        { label: 'Calendar', path: '/calendar', icon: Calendar, description: 'Schedule & events' },
         { label: 'Teams', path: '/operations/teams', icon: Users2, description: 'Team organization' },
-        { label: 'Workflow Templates', path: '/operations/tasks/templates', icon: GitBranch, description: 'Task workflow templates' },
-        { label: 'Milestone Templates', path: '/operations/milestones', icon: Flag, description: 'Global milestone tracking' },
         { label: 'Tools', path: '', isHeader: true },
         { label: 'E-Signatures', path: '/operations/esign', icon: FileSignature, description: 'Send & track documents' },
         { label: 'Document Library', path: '/operations/documents', icon: FolderOpen, description: 'Templates & files' },
@@ -76,8 +70,6 @@ const TopNavigation = () => {
       'Home': null,
       'Opportunities': 'pipeline',
       'Projects': 'projects',
-      'Contacts': 'contacts',
-      'Calendar': 'calendar',
       'Construction': 'construction',
       'Accounting': 'accounting',
       'Operations': 'operations',
@@ -98,7 +90,7 @@ const TopNavigation = () => {
         </div>
         <span className="text-white font-bold text-sm">Atlas</span>
       </div>
-      
+
       <nav className="flex items-center gap-0.5">
         {visibleNavItems.map((item) => {
           const IconComponent = item.icon;
@@ -172,6 +164,7 @@ const TopNavigation = () => {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        <GlobalSearch />
         <NotificationCenter />
         <button onClick={() => navigate('/settings')} className="text-gray-400 hover:text-white p-1.5">
           <Settings className="w-4 h-4" />

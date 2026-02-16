@@ -1,7 +1,7 @@
 // src/pages/CalendarPage.jsx
 // Enhanced Calendar with full CRUD, multiple views, and integrations
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, Plus, Search, Filter, Calendar as CalendarIcon,
   Clock, MapPin, Users, Tag, Bell, Repeat, X, Edit2, Trash2, CheckSquare,
@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 /*
  * ENHANCED CALENDAR PAGE
@@ -28,6 +30,7 @@ import { cn } from '@/lib/utils';
  */
 
 const CalendarPage = () => {
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -36,6 +39,7 @@ const CalendarPage = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
 
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const daysOfWeekShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -211,6 +215,56 @@ const CalendarPage = () => {
     },
   ]);
 
+  // Load events from Supabase on mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      if (!user?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: true });
+
+        if (data && !error && data.length > 0) {
+          setEvents(data.map(e => ({
+            ...e,
+            attendees: e.attendees || [],
+            project: e.project || null,
+            recurring: e.recurring || null,
+          })));
+        }
+        // If no saved events, keep the demo events
+      } catch (err) {
+        console.debug('Using demo calendar events');
+      }
+      setEventsLoaded(true);
+    };
+
+    loadEvents();
+  }, [user?.id]);
+
+  // Persist events to Supabase when they change (after initial load)
+  useEffect(() => {
+    if (!eventsLoaded || !user?.id) return;
+    const saveEvents = async () => {
+      try {
+        // Upsert all current events
+        const eventsToSave = events.map(e => ({
+          ...e,
+          user_id: user.id,
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase
+          .from('calendar_events')
+          .upsert(eventsToSave, { onConflict: 'id' });
+      } catch (err) {
+        console.debug('Calendar events saved locally only');
+      }
+    };
+    saveEvents();
+  }, [events, eventsLoaded, user?.id]);
+
   // Calendar calculations
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -342,9 +396,26 @@ const CalendarPage = () => {
   };
 
   const handleDeleteEvent = (eventId) => {
+    if (!confirm('Delete this event?')) return;
     setEvents(events.filter(e => e.id !== eventId));
     setShowEventModal(false);
     setSelectedEvent(null);
+  };
+
+  // Edit event state
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+
+  const handleEditEvent = (event) => {
+    setEditingEvent({ ...event });
+    setShowEventModal(false);
+    setShowEditEventModal(true);
+  };
+
+  const handleSaveEditEvent = (updatedEvent) => {
+    setEvents(prev => prev.map(e => e.id === updatedEvent.id ? { ...e, ...updatedEvent } : e));
+    setShowEditEventModal(false);
+    setEditingEvent(null);
   };
 
   const getHeaderTitle = () => {
@@ -773,6 +844,7 @@ const CalendarPage = () => {
             setSelectedEvent(null);
           }}
           onDelete={handleDeleteEvent}
+          onEdit={handleEditEvent}
           formatTime={formatTime}
         />
       )}
@@ -793,12 +865,29 @@ const CalendarPage = () => {
           }}
         />
       )}
+
+      {/* Edit Event Modal */}
+      {showEditEventModal && editingEvent && (
+        <NewEventModal
+          initialDate={new Date(editingEvent.date)}
+          categories={eventCategories}
+          editMode
+          initialData={editingEvent}
+          onClose={() => {
+            setShowEditEventModal(false);
+            setEditingEvent(null);
+          }}
+          onSave={(updated) => {
+            handleSaveEditEvent({ ...editingEvent, ...updated });
+          }}
+        />
+      )}
     </div>
   );
 };
 
 // Event Detail Modal Component
-const EventDetailModal = ({ event, categories, onClose, onDelete, formatTime }) => {
+const EventDetailModal = ({ event, categories, onClose, onDelete, onEdit, formatTime }) => {
   const cat = categories[event.category];
   const Icon = cat.icon;
 
@@ -817,7 +906,7 @@ const EventDetailModal = ({ event, categories, onClose, onDelete, formatTime }) 
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-1.5 hover:bg-white/50 rounded">
+              <button className="p-1.5 hover:bg-white/50 rounded" onClick={() => onEdit?.(event)}>
                 <Edit2 className="w-4 h-4 text-gray-600" />
               </button>
               <button
@@ -936,7 +1025,7 @@ const EventDetailModal = ({ event, categories, onClose, onDelete, formatTime }) 
 
         <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button className="bg-emerald-600 hover:bg-emerald-700">
+          <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => onEdit?.(event)}>
             <Edit2 className="w-4 h-4 mr-2" />
             Edit Event
           </Button>
@@ -947,17 +1036,17 @@ const EventDetailModal = ({ event, categories, onClose, onDelete, formatTime }) 
 };
 
 // New Event Modal Component
-const NewEventModal = ({ initialDate, categories, onClose, onSave }) => {
+const NewEventModal = ({ initialDate, categories, onClose, onSave, editMode = false, initialData = null }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    category: 'meeting',
-    date: initialDate ? initialDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    startTime: '09:00',
-    endTime: '10:00',
-    allDay: false,
-    location: '',
-    description: '',
-    reminder: '15_min',
+    title: initialData?.title || '',
+    category: initialData?.category || 'meeting',
+    date: initialData?.date || (initialDate ? initialDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+    startTime: initialData?.startTime || '09:00',
+    endTime: initialData?.endTime || '10:00',
+    allDay: initialData?.allDay || false,
+    location: initialData?.location || '',
+    description: initialData?.description || '',
+    reminder: initialData?.reminder || '15_min',
   });
 
   const handleSubmit = () => {
@@ -976,7 +1065,7 @@ const NewEventModal = ({ initialDate, categories, onClose, onSave }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto">
         <div className="p-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New Event</h2>
+          <h2 className="text-lg font-semibold">{editMode ? 'Edit Event' : 'New Event'}</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X className="w-5 h-5" />
           </button>
@@ -1097,7 +1186,7 @@ const NewEventModal = ({ initialDate, categories, onClose, onSave }) => {
             onClick={handleSubmit}
             disabled={!formData.title}
           >
-            Create Event
+            {editMode ? 'Save Changes' : 'Create Event'}
           </Button>
         </div>
       </div>

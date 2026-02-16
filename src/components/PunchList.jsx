@@ -382,7 +382,8 @@ const PunchList = ({ projectId = null }) => {
   };
 
   const exportToPDF = () => {
-    alert('Export functionality would generate a PDF punch list report');
+    // TODO: integrate PDF generation library
+    console.log('Punch list export requested');
   };
 
   if (loading) {

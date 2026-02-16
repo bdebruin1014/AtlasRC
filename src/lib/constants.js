@@ -43,14 +43,164 @@ export const PRIORITY_LEVELS = [
   { value: 'cold', label: 'Cold' },
 ];
 
-// Project Types
-export const PROJECT_TYPES = [
-  { value: 'scattered_lot', label: 'Scattered Lot' },
-  { value: 'fix_flip', label: 'Fix & Flip' },
-  { value: 'btr_development', label: 'BTR Development' },
-  { value: 'lot_development', label: 'Lot Development' },
-  { value: 'for_sale_community', label: 'For Sale Community' },
+// Opportunity Types — canonical definitions (mirror project types for clean conversion)
+export const OPPORTUNITY_TYPES = [
+  { value: 'scattered-lot', label: 'Scattered Lot', description: 'Individual lot acquisition for spec home build' },
+  { value: 'lot-development', label: 'Lot Development', description: 'Raw land to develop into finished lots for sale' },
+  { value: 'lot-purchase-development', label: 'Lot Purchase Development', description: 'Buy finished lots, build homes for sale' },
+  { value: 'community-development', label: 'Community Development', description: 'Full subdivision from raw land to sold homes' },
 ];
+
+// Project Types — canonical definitions used across the app
+export const PROJECT_TYPES = [
+  { value: 'scattered-lot', label: 'Scattered Lot' },
+  { value: 'lot-development', label: 'Lot Development' },
+  { value: 'lot-purchase-development', label: 'Lot Purchase Development' },
+  { value: 'community-development', label: 'Community Development' },
+];
+
+// Project type configuration — controls which modules/sidebar sections are visible per type
+export const PROJECT_TYPE_CONFIG = {
+  'scattered-lot': {
+    label: 'Scattered Lot',
+    description: 'Buy an individual lot, build a spec home, sell it',
+    icon: 'Home',
+    budgetType: 'individual-spec-home',
+    sections: {
+      overview: true,
+      acquisition: true,
+      construction: true,
+      finance: true,
+      documents: true,
+    },
+    sidebarOverrides: {
+      acquisition: [
+        { id: 'purchase-contract', label: 'Purchase Contract' },
+        { id: 'due-diligence', label: 'Due Diligence' },
+        { id: 'closing', label: 'Closing' },
+      ],
+      construction: [
+        { id: 'budget', label: 'Budget' },
+        { id: 'schedule', label: 'Schedule' },
+        { id: 'draws', label: 'Build / Draw' },
+        { id: 'change-orders', label: 'Change Orders' },
+      ],
+    },
+  },
+  'lot-development': {
+    label: 'Lot Development',
+    description: 'Buy raw land, develop horizontal infrastructure, sell finished lots',
+    icon: 'Map',
+    budgetType: 'horizontal-lot',
+    sections: {
+      overview: true,
+      acquisition: true,
+      entitlements: true,
+      horizontal: true,
+      lotSales: true,
+      finance: true,
+      documents: true,
+    },
+    sidebarOverrides: {
+      acquisition: [
+        { id: 'purchase-contract', label: 'Land Purchase Contract' },
+        { id: 'due-diligence', label: 'Due Diligence' },
+        { id: 'closing', label: 'Closing' },
+      ],
+      entitlements: [
+        { id: 'zoning', label: 'Zoning & Entitlements' },
+        { id: 'plat', label: 'Plat / Subdivision' },
+        { id: 'permits-site', label: 'Site Permits' },
+      ],
+      horizontal: [
+        { id: 'budget', label: 'Site Development Budget' },
+        { id: 'schedule', label: 'Site Work Schedule' },
+        { id: 'draws', label: 'Draws' },
+        { id: 'change-orders', label: 'Change Orders' },
+      ],
+      lotSales: [
+        { id: 'lot-inventory', label: 'Lot Inventory' },
+        { id: 'lot-sales', label: 'Lot Sales' },
+      ],
+    },
+  },
+  'lot-purchase-development': {
+    label: 'Lot Purchase Development',
+    description: 'Buy finished lots and build homes for sale',
+    icon: 'Hammer',
+    budgetType: 'bts',
+    sections: {
+      overview: true,
+      acquisition: true,
+      construction: true,
+      disposition: true,
+      finance: true,
+      documents: true,
+    },
+    sidebarOverrides: {
+      acquisition: [
+        { id: 'purchase-contract', label: 'Lot Purchase' },
+        { id: 'due-diligence', label: 'Due Diligence' },
+        { id: 'closing', label: 'Closing' },
+      ],
+      construction: [
+        { id: 'houses', label: 'Houses' },
+        { id: 'budget', label: 'Budget' },
+        { id: 'schedule', label: 'Schedule' },
+        { id: 'draws', label: 'Draws' },
+        { id: 'change-orders', label: 'Change Orders' },
+      ],
+      disposition: [
+        { id: 'sales-pipeline', label: 'Sales Pipeline' },
+        { id: 'closings', label: 'Closings' },
+      ],
+    },
+  },
+  'community-development': {
+    label: 'Community Development',
+    description: 'Full subdivision — raw land through finished homes and sales',
+    icon: 'Building2',
+    budgetType: 'horizontal-lot',
+    sections: {
+      overview: true,
+      acquisition: true,
+      entitlements: true,
+      horizontal: true,
+      construction: true,
+      disposition: true,
+      finance: true,
+      documents: true,
+    },
+    sidebarOverrides: {
+      acquisition: [
+        { id: 'purchase-contract', label: 'Land Purchase Contract' },
+        { id: 'due-diligence', label: 'Due Diligence' },
+        { id: 'closing', label: 'Land Closing' },
+      ],
+      entitlements: [
+        { id: 'zoning', label: 'Zoning & Entitlements' },
+        { id: 'plat', label: 'Plat / Subdivision' },
+        { id: 'permits-site', label: 'Site Permits' },
+      ],
+      horizontal: [
+        { id: 'budget', label: 'Site Development Budget' },
+        { id: 'schedule', label: 'Site Work Schedule' },
+        { id: 'draws', label: 'Site Draws' },
+      ],
+      construction: [
+        { id: 'houses', label: 'Houses' },
+        { id: 'vertical-budget', label: 'Vertical Budget' },
+        { id: 'vertical-schedule', label: 'Build Schedule' },
+        { id: 'vertical-draws', label: 'Construction Draws' },
+        { id: 'change-orders', label: 'Change Orders' },
+      ],
+      disposition: [
+        { id: 'sales-pipeline', label: 'Sales Pipeline' },
+        { id: 'closings', label: 'Closings' },
+      ],
+    },
+  },
+};
 
 // Development Options (for BTR, Lot Dev, For Sale)
 export const DEVELOPMENT_OPTIONS = [

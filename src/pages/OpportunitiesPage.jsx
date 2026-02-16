@@ -1,12 +1,26 @@
 // OpportunitiesPage.jsx - List and manage opportunities
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useOpportunities, useOpportunityActions, useOpportunitySummary, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
+import { OPPORTUNITY_TYPES } from '@/lib/constants';
 import OpportunityModal from '@/components/OpportunityModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, DollarSign, MapPin, User } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, MapPin, User, Home, Map, Hammer, Building2, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const OPPORTUNITY_TYPE_ICONS = {
+  'scattered-lot': Home,
+  'lot-development': Map,
+  'lot-purchase-development': Hammer,
+  'community-development': Building2,
+};
 
 const formatCurrency = (amount) => {
   if (!amount) return '-';
@@ -31,10 +45,24 @@ const OpportunitiesPage = () => {
   
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState(null);
+  const [preselectedType, setPreselectedType] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const stageFilter = searchParams.get('stage') || '';
+
+  // Support deep-linking: /opportunities?create=true&type=scattered-lot
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      const type = searchParams.get('type') || '';
+      setPreselectedType(type);
+      setEditingOpportunity(null);
+      setModalOpen(true);
+      searchParams.delete('create');
+      searchParams.delete('type');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
 
   // Filter opportunities by stage if URL param is present
   const filteredOpportunities = useMemo(() => {
@@ -49,8 +77,9 @@ const OpportunitiesPage = () => {
     setSearchParams(searchParams);
   };
 
-  const handleCreate = () => {
+  const handleCreateWithType = (type) => {
     setEditingOpportunity(null);
+    setPreselectedType(type);
     setModalOpen(true);
   };
 
@@ -118,10 +147,35 @@ const OpportunitiesPage = () => {
               Grid
             </button>
           </div>
-          <Button onClick={handleCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Opportunity
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="bg-[#047857] hover:bg-[#065f46] gap-2">
+                <Plus className="h-4 w-4" />
+                New Opportunity
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              {OPPORTUNITY_TYPES.map((type) => {
+                const Icon = OPPORTUNITY_TYPE_ICONS[type.value] || Building2;
+                return (
+                  <DropdownMenuItem
+                    key={type.value}
+                    onClick={() => handleCreateWithType(type.value)}
+                    className="cursor-pointer py-3"
+                  >
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 mr-3">
+                      <Icon className="w-4 h-4 text-emerald-700" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">New {type.label}</p>
+                      <p className="text-xs text-gray-500">{type.description}</p>
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -198,7 +252,14 @@ const OpportunitiesPage = () => {
                       <td className="py-3 px-4">
                         <Badge className={getStageBadgeColor(opp.stage)}>{opp.stage}</Badge>
                       </td>
-                      <td className="py-3 px-4 capitalize">{opp.opportunity_type?.replace('-', ' ')}</td>
+                      <td className="py-3 px-4">
+                        {opp.opportunity_type ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700">
+                            {(() => { const Icon = OPPORTUNITY_TYPE_ICONS[opp.opportunity_type]; return Icon ? <Icon className="w-3 h-3" /> : null; })()}
+                            {OPPORTUNITY_TYPES.find(t => t.value === opp.opportunity_type)?.label || opp.opportunity_type?.replace(/-/g, ' ')}
+                          </span>
+                        ) : '—'}
+                      </td>
                       <td className="py-3 px-4 text-right">{formatCurrency(opp.estimated_value)}</td>
                       <td className="py-3 px-4">
                         {opp.seller_name && (
@@ -236,7 +297,14 @@ const OpportunitiesPage = () => {
                     <Badge className={getStageBadgeColor(opp.stage)}>{opp.stage}</Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="mb-2 text-gray-700 font-medium capitalize">{opp.opportunity_type?.replace('-', ' ')}</div>
+                    <div className="mb-2">
+                      {opp.opportunity_type ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gray-100 rounded text-xs font-medium text-gray-700">
+                          {(() => { const Icon = OPPORTUNITY_TYPE_ICONS[opp.opportunity_type]; return Icon ? <Icon className="w-3 h-3" /> : null; })()}
+                          {OPPORTUNITY_TYPES.find(t => t.value === opp.opportunity_type)?.label || opp.opportunity_type?.replace(/-/g, ' ')}
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="mb-1 flex items-center gap-2 text-gray-600">
                       <MapPin className="h-4 w-4" />
                       <span>{opp.address}, {opp.city}, {opp.state}</span>
@@ -272,8 +340,9 @@ const OpportunitiesPage = () => {
       {/* Modal */}
       <OpportunityModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setPreselectedType(''); }}
         opportunity={editingOpportunity}
+        preselectedType={preselectedType}
         onSave={handleSave}
         isLoading={isSaving}
       />

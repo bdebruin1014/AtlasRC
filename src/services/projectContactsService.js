@@ -28,7 +28,23 @@ const mockContacts = [
 ];
 
 export async function getProjectContacts(projectId, filters = {}) {
-  if (isDemoMode) {
+  try {
+    let query = supabase
+      .from('project_contacts')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('is_active', true);
+
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.search) {
+      query = query.or(`first_name.ilike.%${filters.search}%,last_name.ilike.%${filters.search}%,company_name.ilike.%${filters.search}%`);
+    }
+
+    const { data, error } = await query.order('category').order('is_primary', { ascending: false });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching project contacts:', err);
     let contacts = mockContacts.filter(c => !projectId || c.project_id === projectId || projectId === 'proj-1');
     if (filters.category) contacts = contacts.filter(c => c.category === filters.category);
     if (filters.search) {
@@ -41,87 +57,76 @@ export async function getProjectContacts(projectId, filters = {}) {
     }
     return contacts;
   }
-
-  let query = supabase
-    .from('project_contacts')
-    .select('*')
-    .eq('project_id', projectId)
-    .eq('is_active', true);
-
-  if (filters.category) query = query.eq('category', filters.category);
-  if (filters.search) {
-    query = query.or(`first_name.ilike.%${filters.search}%,last_name.ilike.%${filters.search}%,company_name.ilike.%${filters.search}%`);
-  }
-
-  const { data, error } = await query.order('category').order('is_primary', { ascending: false });
-  if (error) throw error;
-  return data;
 }
 
 export async function getProjectContactById(contactId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_contacts')
+      .select('*')
+      .eq('id', contactId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching project contact by ID:', err);
     return mockContacts.find(c => c.id === contactId) || null;
   }
-
-  const { data, error } = await supabase
-    .from('project_contacts')
-    .select('*')
-    .eq('id', contactId)
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function createProjectContact(contactData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_contacts')
+      .insert([{ ...contactData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating project contact:', err);
     const newContact = { id: `pc-${Date.now()}`, ...contactData, created_at: new Date().toISOString() };
     mockContacts.push(newContact);
     return newContact;
   }
-
-  const { data, error } = await supabase
-    .from('project_contacts')
-    .insert([{ ...contactData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updateProjectContact(contactId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('project_contacts')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', contactId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error updating project contact:', err);
     const idx = mockContacts.findIndex(c => c.id === contactId);
     if (idx >= 0) mockContacts[idx] = { ...mockContacts[idx], ...updates };
     return mockContacts[idx];
   }
-
-  const { data, error } = await supabase
-    .from('project_contacts')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', contactId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteProjectContact(contactId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('project_contacts')
+      .delete()
+      .eq('id', contactId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting project contact:', err);
     const idx = mockContacts.findIndex(c => c.id === contactId);
     if (idx >= 0) mockContacts.splice(idx, 1);
     return true;
   }
-
-  const { error } = await supabase
-    .from('project_contacts')
-    .delete()
-    .eq('id', contactId);
-
-  if (error) throw error;
-  return true;
 }
 
 export async function getContactsByCategory(projectId) {

@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
+import { useParams, useOutletContext } from 'react-router-dom';
 import { Download, Printer, Calendar, Building2, ChevronDown, TrendingUp, TrendingDown, FileText, BarChart3, PieChart, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const FinancialReportsPage = ({ selectedEntity, viewMode, flatEntities }) => {
+const FinancialReportsPage = (props) => {
+  const { entityId } = useParams();
+  const outletContext = useOutletContext?.() || {};
+  const entity = props.selectedEntity ? { id: props.selectedEntity } : outletContext.entity;
+  const [viewMode, setViewMode] = useState(props.viewMode || 'standalone');
+  const selectedEntity = props.selectedEntity || entity?.id || entityId;
+  const flatEntities = props.flatEntities || (entity ? [entity] : []);
   const [activeReport, setActiveReport] = useState('income-statement');
   const [period, setPeriod] = useState('ytd');
   const [compareToast, setCompareToast] = useState('prior-year');
@@ -335,8 +342,8 @@ const FinancialReportsPage = ({ selectedEntity, viewMode, flatEntities }) => {
           <div className="ml-auto flex items-center gap-2">
             <span className="text-sm text-gray-500">View:</span>
             <div className="flex bg-gray-100 rounded-lg p-1">
-              <button className={cn("px-3 py-1 text-sm rounded", viewMode === 'consolidated' ? "bg-white shadow" : "")}>Consolidated</button>
-              <button className={cn("px-3 py-1 text-sm rounded", viewMode === 'standalone' ? "bg-white shadow" : "")}>Standalone</button>
+              <button className={cn("px-3 py-1 text-sm rounded", viewMode === 'consolidated' ? "bg-white shadow" : "")} onClick={() => setViewMode('consolidated')}>Consolidated</button>
+              <button className={cn("px-3 py-1 text-sm rounded", viewMode === 'standalone' ? "bg-white shadow" : "")} onClick={() => setViewMode('standalone')}>Standalone</button>
             </div>
           </div>
         </div>

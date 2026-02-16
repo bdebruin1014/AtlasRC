@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +54,7 @@ const SharePointBrowser = ({
   showCreateFolder = true,
   className,
 }) => {
+  const { toast } = useToast();
   const [currentFolderId, setCurrentFolderId] = useState(initialFolderId);
   const [items, setItems] = useState([]);
   const [breadcrumbs, setBreadcrumbs] = useState([{ id: 'root', name: 'Root' }]);
@@ -153,7 +155,7 @@ const SharePointBrowser = ({
       loadFolder(currentFolderId);
     } catch (error) {
       console.error('Error uploading files:', error);
-      alert('Error uploading files');
+      toast({ title: "Error", description: error.message || 'Error uploading files', variant: 'destructive' });
     }
     setUploading(false);
     event.target.value = '';
@@ -170,7 +172,7 @@ const SharePointBrowser = ({
       loadFolder(currentFolderId);
     } catch (error) {
       console.error('Error creating folder:', error);
-      alert('Error creating folder');
+      toast({ title: "Error", description: error.message || 'Error creating folder', variant: 'destructive' });
     }
   };
 
@@ -183,7 +185,7 @@ const SharePointBrowser = ({
       loadFolder(currentFolderId);
     } catch (error) {
       console.error('Error deleting item:', error);
-      alert('Error deleting item');
+      toast({ title: "Error", description: error.message || 'Error deleting item', variant: 'destructive' });
     }
   };
 
@@ -195,7 +197,7 @@ const SharePointBrowser = ({
       window.open(url, '_blank');
     } catch (error) {
       console.error('Error getting download URL:', error);
-      alert('Error downloading file');
+      toast({ title: "Error", description: error.message || 'Error downloading file', variant: 'destructive' });
     }
   };
 
@@ -205,10 +207,10 @@ const SharePointBrowser = ({
       const { data, error } = await createShareLink(userId, driveId, item.id, 'view');
       if (error) throw error;
       await navigator.clipboard.writeText(data.url);
-      alert('Share link copied to clipboard!');
+      toast({ title: "Success", description: "Share link copied to clipboard!" });
     } catch (error) {
       console.error('Error creating share link:', error);
-      alert('Error creating share link');
+      toast({ title: "Error", description: error.message || 'Error creating share link', variant: 'destructive' });
     }
   };
 

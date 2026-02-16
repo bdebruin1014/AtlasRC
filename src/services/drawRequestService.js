@@ -414,9 +414,6 @@ const DEMO_DRAW_SCHEDULE = [
 // ─── CRUD OPERATIONS ──────────────────────────────────────────────────────────
 
 export async function getDrawRequests(projectId) {
-  if (isDemoMode) {
-    return cloneDrawsForProject(projectId).sort((a, b) => a.draw_number - b.draw_number);
-  }
   try {
     const { data, error } = await supabase
       .from('draw_requests')
@@ -426,26 +423,37 @@ export async function getDrawRequests(projectId) {
     if (error) throw error;
     if (data && data.length) return data;
   } catch (err) {
-    console.warn('Falling back to demo draw requests:', err?.message || err);
+    console.error('Falling back to demo draw requests:', err?.message || err);
   }
   return cloneDrawsForProject(projectId).sort((a, b) => a.draw_number - b.draw_number);
 }
 
 export async function getDrawRequest(drawId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_requests')
+      .select('*')
+      .eq('id', drawId)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo draw request:', err?.message || err);
     return DEMO_DRAW_REQUESTS.find(d => d.id === drawId) || null;
   }
-  const { data, error } = await supabase
-    .from('draw_requests')
-    .select('*')
-    .eq('id', drawId)
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function createDrawRequest(projectId, drawData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_requests')
+      .insert({ project_id: projectId, ...drawData })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo create draw request:', err?.message || err);
     const newDraw = {
       id: `draw-${Date.now()}`,
       project_id: projectId,
@@ -457,17 +465,20 @@ export async function createDrawRequest(projectId, drawData) {
     DEMO_DRAW_REQUESTS.push(newDraw);
     return newDraw;
   }
-  const { data, error } = await supabase
-    .from('draw_requests')
-    .insert({ project_id: projectId, ...drawData })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateDrawRequest(drawId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_requests')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', drawId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo update draw request:', err?.message || err);
     const idx = DEMO_DRAW_REQUESTS.findIndex(d => d.id === drawId);
     if (idx >= 0) {
       Object.assign(DEMO_DRAW_REQUESTS[idx], updates, { updated_at: new Date().toISOString() });
@@ -475,43 +486,48 @@ export async function updateDrawRequest(drawId, updates) {
     }
     return { id: drawId, ...updates };
   }
-  const { data, error } = await supabase
-    .from('draw_requests')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', drawId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteDrawRequest(drawId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase.from('draw_requests').delete().eq('id', drawId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Falling back to demo delete draw request:', err?.message || err);
     const idx = DEMO_DRAW_REQUESTS.findIndex(d => d.id === drawId);
     if (idx >= 0) DEMO_DRAW_REQUESTS.splice(idx, 1);
     return true;
   }
-  const { error } = await supabase.from('draw_requests').delete().eq('id', drawId);
-  if (error) throw error;
-  return true;
 }
 
 // ─── DRAW REQUEST ITEMS ───────────────────────────────────────────────────────
 
 export async function getDrawRequestItems(drawRequestId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_request_items')
+      .select('*')
+      .eq('draw_request_id', drawRequestId);
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Falling back to demo draw request items:', err?.message || err);
     return DEMO_DRAW_ITEMS.filter(i => i.draw_request_id === drawRequestId);
   }
-  const { data, error } = await supabase
-    .from('draw_request_items')
-    .select('*')
-    .eq('draw_request_id', drawRequestId);
-  if (error) throw error;
-  return data || [];
 }
 
 export async function createDrawRequestItem(drawRequestId, itemData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_request_items')
+      .insert({ draw_request_id: drawRequestId, ...itemData })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo create draw request item:', err?.message || err);
     const newItem = {
       id: `dri-${Date.now()}`,
       draw_request_id: drawRequestId,
@@ -521,59 +537,67 @@ export async function createDrawRequestItem(drawRequestId, itemData) {
     DEMO_DRAW_ITEMS.push(newItem);
     return newItem;
   }
-  const { data, error } = await supabase
-    .from('draw_request_items')
-    .insert({ draw_request_id: drawRequestId, ...itemData })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function updateDrawRequestItem(itemId, updates) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_request_items')
+      .update(updates)
+      .eq('id', itemId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo update draw request item:', err?.message || err);
     const idx = DEMO_DRAW_ITEMS.findIndex(i => i.id === itemId);
     if (idx >= 0) Object.assign(DEMO_DRAW_ITEMS[idx], updates);
     return DEMO_DRAW_ITEMS[idx] || { id: itemId, ...updates };
   }
-  const { data, error } = await supabase
-    .from('draw_request_items')
-    .update(updates)
-    .eq('id', itemId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 export async function deleteDrawRequestItem(itemId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase.from('draw_request_items').delete().eq('id', itemId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Falling back to demo delete draw request item:', err?.message || err);
     const idx = DEMO_DRAW_ITEMS.findIndex(i => i.id === itemId);
     if (idx >= 0) DEMO_DRAW_ITEMS.splice(idx, 1);
     return true;
   }
-  const { error } = await supabase.from('draw_request_items').delete().eq('id', itemId);
-  if (error) throw error;
-  return true;
 }
 
 // ─── DRAW REQUEST DOCUMENTS ──────────────────────────────────────────────────
 
 export async function getDrawRequestDocuments(drawRequestId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_request_documents')
+      .select('*')
+      .eq('draw_request_id', drawRequestId)
+      .order('uploaded_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Falling back to demo draw request documents:', err?.message || err);
     return DEMO_DRAW_DOCUMENTS.filter(d => d.draw_request_id === drawRequestId);
   }
-  const { data, error } = await supabase
-    .from('draw_request_documents')
-    .select('*')
-    .eq('draw_request_id', drawRequestId)
-    .order('uploaded_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
 }
 
 export async function addDrawRequestDocument(drawRequestId, docData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('draw_request_documents')
+      .insert({ draw_request_id: drawRequestId, ...docData })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Falling back to demo add draw request document:', err?.message || err);
     const newDoc = {
       id: `doc-${Date.now()}`,
       draw_request_id: drawRequestId,
@@ -583,13 +607,6 @@ export async function addDrawRequestDocument(drawRequestId, docData) {
     DEMO_DRAW_DOCUMENTS.push(newDoc);
     return newDoc;
   }
-  const { data, error } = await supabase
-    .from('draw_request_documents')
-    .insert({ draw_request_id: drawRequestId, ...docData })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 // ─── STATUS TRANSITIONS ───────────────────────────────────────────────────────

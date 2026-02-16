@@ -87,26 +87,43 @@ function getMockTasks(opportunityId, stage) {
  * Get all tasks for a specific opportunity + stage
  */
 export async function getStageTasks(opportunityId, stage) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('opportunity_stage_tasks')
+      .select('*')
+      .eq('opportunity_id', opportunityId)
+      .eq('stage', stage)
+      .order('display_order');
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error fetching stage tasks:', err);
     return getMockTasks(opportunityId, stage);
   }
-
-  const { data, error } = await supabase
-    .from('opportunity_stage_tasks')
-    .select('*')
-    .eq('opportunity_id', opportunityId)
-    .eq('stage', stage)
-    .order('display_order');
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Get all tasks across all stages for an opportunity (grouped by stage)
  */
 export async function getAllStageTasks(opportunityId) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('opportunity_stage_tasks')
+      .select('*')
+      .eq('opportunity_id', opportunityId)
+      .order('display_order');
+
+    if (error) throw error;
+
+    const grouped = {};
+    for (const task of data) {
+      if (!grouped[task.stage]) grouped[task.stage] = [];
+      grouped[task.stage].push(task);
+    }
+    return grouped;
+  } catch (err) {
+    console.error('Error fetching all stage tasks:', err);
     const stages = ['Prospecting', 'Contacted', 'Qualified', 'Negotiating', 'Under Contract'];
     const grouped = {};
     for (const stage of stages) {
@@ -114,28 +131,30 @@ export async function getAllStageTasks(opportunityId) {
     }
     return grouped;
   }
-
-  const { data, error } = await supabase
-    .from('opportunity_stage_tasks')
-    .select('*')
-    .eq('opportunity_id', opportunityId)
-    .order('display_order');
-
-  if (error) throw error;
-
-  const grouped = {};
-  for (const task of data) {
-    if (!grouped[task.stage]) grouped[task.stage] = [];
-    grouped[task.stage].push(task);
-  }
-  return grouped;
 }
 
 /**
- * Toggle task completion — sets completed_at and completed_by
+ * Toggle task completion -- sets completed_at and completed_by
  */
 export async function toggleTask(taskId, isComplete) {
-  if (isDemoMode) {
+  try {
+    const updates = {
+      is_complete: isComplete,
+      completed_at: isComplete ? new Date().toISOString() : null,
+      completed_by: isComplete ? (await supabase.auth.getUser()).data?.user?.id || null : null,
+    };
+
+    const { data, error } = await supabase
+      .from('opportunity_stage_tasks')
+      .update(updates)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error toggling task:', err);
     for (const key of Object.keys(mockTaskStore)) {
       const tasks = mockTaskStore[key];
       const task = tasks.find(t => t.id === taskId);
@@ -148,29 +167,26 @@ export async function toggleTask(taskId, isComplete) {
     }
     return null;
   }
-
-  const updates = {
-    is_complete: isComplete,
-    completed_at: isComplete ? new Date().toISOString() : null,
-    completed_by: isComplete ? (await supabase.auth.getUser()).data?.user?.id || null : null,
-  };
-
-  const { data, error } = await supabase
-    .from('opportunity_stage_tasks')
-    .update(updates)
-    .eq('id', taskId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Create a custom task for an opportunity stage
  */
 export async function createTask(taskData) {
-  if (isDemoMode) {
+  try {
+    const { data, error } = await supabase
+      .from('opportunity_stage_tasks')
+      .insert([{
+        ...taskData,
+        created_at: new Date().toISOString(),
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error creating task:', err);
     const key = `${taskData.opportunity_id}::${taskData.stage}`;
     const tasks = getMockTasks(taskData.opportunity_id, taskData.stage);
     const newTask = {
@@ -186,25 +202,22 @@ export async function createTask(taskData) {
     mockTaskStore[key].push(newTask);
     return newTask;
   }
-
-  const { data, error } = await supabase
-    .from('opportunity_stage_tasks')
-    .insert([{
-      ...taskData,
-      created_at: new Date().toISOString(),
-    }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /**
  * Delete a task
  */
 export async function deleteTask(taskId) {
-  if (isDemoMode) {
+  try {
+    const { error } = await supabase
+      .from('opportunity_stage_tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting task:', err);
     for (const key of Object.keys(mockTaskStore)) {
       const idx = mockTaskStore[key].findIndex(t => t.id === taskId);
       if (idx >= 0) {
@@ -214,14 +227,6 @@ export async function deleteTask(taskId) {
     }
     return false;
   }
-
-  const { error } = await supabase
-    .from('opportunity_stage_tasks')
-    .delete()
-    .eq('id', taskId);
-
-  if (error) throw error;
-  return true;
 }
 
 /**
@@ -246,51 +251,52 @@ export async function getStageProgress(opportunityId, stage) {
  *  or when manually triggering population)
  */
 export async function populateTasksForStage(opportunityId, stage) {
-  if (isDemoMode) {
+  try {
+    // Fetch active templates for the stage
+    const { data: templates, error: tplError } = await supabase
+      .from('opportunity_stage_task_templates')
+      .select('*')
+      .eq('stage', stage)
+      .eq('is_active', true)
+      .order('display_order');
+
+    if (tplError) throw tplError;
+
+    // Fetch existing tasks to avoid duplicates
+    const { data: existing, error: existError } = await supabase
+      .from('opportunity_stage_tasks')
+      .select('task_text')
+      .eq('opportunity_id', opportunityId)
+      .eq('stage', stage);
+
+    if (existError) throw existError;
+
+    const existingTexts = new Set(existing.map(t => t.task_text));
+    const newTasks = templates
+      .filter(t => !existingTexts.has(t.task_text))
+      .map(t => ({
+        opportunity_id: opportunityId,
+        stage: t.stage,
+        task_text: t.task_text,
+        is_required: t.is_required,
+        display_order: t.display_order,
+        created_at: new Date().toISOString(),
+      }));
+
+    if (newTasks.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('opportunity_stage_tasks')
+      .insert(newTasks)
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Error populating tasks for stage:', err);
     // Reset and re-populate from templates
     const key = `${opportunityId}::${stage}`;
     delete mockTaskStore[key];
     return getMockTasks(opportunityId, stage);
   }
-
-  // Fetch active templates for the stage
-  const { data: templates, error: tplError } = await supabase
-    .from('opportunity_stage_task_templates')
-    .select('*')
-    .eq('stage', stage)
-    .eq('is_active', true)
-    .order('display_order');
-
-  if (tplError) throw tplError;
-
-  // Fetch existing tasks to avoid duplicates
-  const { data: existing, error: existError } = await supabase
-    .from('opportunity_stage_tasks')
-    .select('task_text')
-    .eq('opportunity_id', opportunityId)
-    .eq('stage', stage);
-
-  if (existError) throw existError;
-
-  const existingTexts = new Set(existing.map(t => t.task_text));
-  const newTasks = templates
-    .filter(t => !existingTexts.has(t.task_text))
-    .map(t => ({
-      opportunity_id: opportunityId,
-      stage: t.stage,
-      task_text: t.task_text,
-      is_required: t.is_required,
-      display_order: t.display_order,
-      created_at: new Date().toISOString(),
-    }));
-
-  if (newTasks.length === 0) return [];
-
-  const { data, error } = await supabase
-    .from('opportunity_stage_tasks')
-    .insert(newTasks)
-    .select();
-
-  if (error) throw error;
-  return data;
 }

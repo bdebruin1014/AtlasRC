@@ -33,8 +33,10 @@ import {
 } from '@/services/userService';
 import { getUserTeams, getTeams } from '@/services/teamService';
 import { ROLES, ROLE_LABELS, ROLE_DESCRIPTIONS, PERMISSION_GROUPS, PERMISSIONS } from '@/services/permissionService';
+import { useToast } from '@/components/ui/use-toast';
 
 const UsersManagementPage = () => {
+  const { toast } = useToast();
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,7 @@ const UsersManagementPage = () => {
         if (error) throw error;
       } else {
         if (!userData.password) {
-          alert('Password is required for new users');
+          toast({ title: "Validation Error", description: "Password is required for new users", variant: 'destructive' });
           setSaving(false);
           return;
         }
@@ -145,7 +147,7 @@ const UsersManagementPage = () => {
       loadData();
     } catch (error) {
       console.error('Error saving user:', error);
-      alert('Error saving user: ' + (error.message || 'Unknown error'));
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -159,7 +161,7 @@ const UsersManagementPage = () => {
       loadData();
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Error deleting user');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
   };
 
@@ -170,7 +172,7 @@ const UsersManagementPage = () => {
       loadData();
     } catch (error) {
       console.error('Error toggling user status:', error);
-      alert('Error toggling user status');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
   };
 
@@ -180,10 +182,10 @@ const UsersManagementPage = () => {
     try {
       const { error } = await resetUserPassword(user.id);
       if (error) throw error;
-      alert('Password reset email sent');
+      toast({ title: "Success", description: "Password reset email sent" });
     } catch (error) {
       console.error('Error resetting password:', error);
-      alert('Error sending password reset email');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
   };
 
@@ -209,7 +211,7 @@ const UsersManagementPage = () => {
       loadData();
     } catch (error) {
       console.error('Error saving permissions:', error);
-      alert('Error saving permissions');
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -221,10 +223,10 @@ const UsersManagementPage = () => {
     try {
       const result = await syncUsersToChat();
       if (result.error) throw result.error;
-      alert(`Successfully synced ${result.synced} users to team chat`);
+      toast({ title: "Success", description: `Successfully synced ${result.synced} users to team chat` });
     } catch (error) {
       console.error('Error syncing users to chat:', error);
-      alert('Error syncing users to chat: ' + (error.message || 'Unknown error'));
+      toast({ title: "Error", description: error.message || 'An error occurred', variant: 'destructive' });
     }
     setSaving(false);
   };

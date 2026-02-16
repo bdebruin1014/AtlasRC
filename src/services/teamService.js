@@ -1,70 +1,7 @@
 // src/services/teamService.js
 // Team Management Service with Supabase Integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
-
-// ============================================
-// MOCK DATA (for demo mode)
-// ============================================
-
-const mockTeams = [
-  {
-    id: 'team-1',
-    name: 'Development',
-    description: 'Land development and entitlement team',
-    color: '#047857',
-    is_active: true,
-    created_at: '2024-01-15T00:00:00Z',
-    members: [
-      { id: 'tm-1', user_id: 'user-1', team_role: 'lead', full_name: 'Bryan De Bruin', email: 'bryan@vanrock.com' },
-      { id: 'tm-2', user_id: 'user-2', team_role: 'member', full_name: 'John Smith', email: 'john@vanrock.com' },
-      { id: 'tm-3', user_id: 'user-3', team_role: 'member', full_name: 'Sarah Johnson', email: 'sarah@vanrock.com' },
-    ],
-  },
-  {
-    id: 'team-2',
-    name: 'Construction',
-    description: 'Construction management and oversight',
-    color: '#2563eb',
-    is_active: true,
-    created_at: '2024-02-01T00:00:00Z',
-    members: [
-      { id: 'tm-4', user_id: 'user-4', team_role: 'lead', full_name: 'Mike Williams', email: 'mike@vanrock.com' },
-      { id: 'tm-5', user_id: 'user-5', team_role: 'member', full_name: 'Emily Davis', email: 'emily@vanrock.com' },
-    ],
-  },
-  {
-    id: 'team-3',
-    name: 'Finance',
-    description: 'Accounting and investor relations',
-    color: '#7c3aed',
-    is_active: true,
-    created_at: '2024-01-20T00:00:00Z',
-    members: [
-      { id: 'tm-6', user_id: 'user-3', team_role: 'lead', full_name: 'Sarah Johnson', email: 'sarah@vanrock.com' },
-    ],
-  },
-  {
-    id: 'team-4',
-    name: 'Sales',
-    description: 'Property sales and disposition',
-    color: '#dc2626',
-    is_active: true,
-    created_at: '2024-03-01T00:00:00Z',
-    members: [],
-  },
-];
-
-const mockAvailableUsers = [
-  { id: 'user-1', full_name: 'Bryan De Bruin', email: 'bryan@vanrock.com' },
-  { id: 'user-2', full_name: 'John Smith', email: 'john@vanrock.com' },
-  { id: 'user-3', full_name: 'Sarah Johnson', email: 'sarah@vanrock.com' },
-  { id: 'user-4', full_name: 'Mike Williams', email: 'mike@vanrock.com' },
-  { id: 'user-5', full_name: 'Emily Davis', email: 'emily@vanrock.com' },
-  { id: 'user-6', full_name: 'Robert Brown', email: 'robert@vanrock.com' },
-  { id: 'user-7', full_name: 'Lisa Anderson', email: 'lisa@vanrock.com' },
-  { id: 'user-8', full_name: 'Jennifer Taylor', email: 'jen@vanrock.com' },
-];
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // TEAM CRUD OPERATIONS
@@ -72,10 +9,6 @@ const mockAvailableUsers = [
 
 export async function getTeams(filters = {}) {
   try {
-    if (isDemoMode) {
-      return filterMockTeams(filters);
-    }
-
     let query = supabase
       .from('teams')
       .select(`
@@ -121,34 +54,12 @@ export async function getTeams(filters = {}) {
     return teams;
   } catch (error) {
     console.error('Error fetching teams:', error);
-    return filterMockTeams(filters);
+    return [];
   }
-}
-
-function filterMockTeams(filters) {
-  let filtered = [...mockTeams];
-
-  if (filters.isActive !== undefined) {
-    filtered = filtered.filter(t => t.is_active === filters.isActive);
-  }
-
-  if (filters.search) {
-    const search = filters.search.toLowerCase();
-    filtered = filtered.filter(t =>
-      t.name.toLowerCase().includes(search) ||
-      t.description?.toLowerCase().includes(search)
-    );
-  }
-
-  return filtered;
 }
 
 export async function getTeamById(teamId) {
   try {
-    if (isDemoMode) {
-      return mockTeams.find(t => t.id === teamId) || null;
-    }
-
     const { data, error } = await supabase
       .from('teams')
       .select(`
@@ -181,24 +92,12 @@ export async function getTeamById(teamId) {
     };
   } catch (error) {
     console.error('Error fetching team:', error);
-    return mockTeams.find(t => t.id === teamId) || null;
+    return null;
   }
 }
 
 export async function createTeam(teamData) {
   try {
-    if (isDemoMode) {
-      const newTeam = {
-        id: `team-${Date.now()}`,
-        ...teamData,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        members: [],
-      };
-      mockTeams.push(newTeam);
-      return { data: newTeam, error: null };
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
 
     const { data, error } = await supabase
@@ -223,15 +122,6 @@ export async function createTeam(teamData) {
 
 export async function updateTeam(teamId, updates) {
   try {
-    if (isDemoMode) {
-      const idx = mockTeams.findIndex(t => t.id === teamId);
-      if (idx >= 0) {
-        mockTeams[idx] = { ...mockTeams[idx], ...updates };
-        return { data: mockTeams[idx], error: null };
-      }
-      return { data: null, error: { message: 'Team not found' } };
-    }
-
     const { data, error } = await supabase
       .from('teams')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -252,15 +142,6 @@ export async function updateTeam(teamId, updates) {
 
 export async function deleteTeam(teamId) {
   try {
-    if (isDemoMode) {
-      const idx = mockTeams.findIndex(t => t.id === teamId);
-      if (idx >= 0) {
-        mockTeams[idx].is_active = false;
-        return { success: true, error: null };
-      }
-      return { success: false, error: { message: 'Team not found' } };
-    }
-
     // Soft delete
     const { error } = await supabase
       .from('teams')
@@ -278,15 +159,6 @@ export async function deleteTeam(teamId) {
 
 export async function hardDeleteTeam(teamId) {
   try {
-    if (isDemoMode) {
-      const idx = mockTeams.findIndex(t => t.id === teamId);
-      if (idx >= 0) {
-        mockTeams.splice(idx, 1);
-        return { success: true, error: null };
-      }
-      return { success: false, error: { message: 'Team not found' } };
-    }
-
     const { error } = await supabase
       .from('teams')
       .delete()
@@ -307,24 +179,6 @@ export async function hardDeleteTeam(teamId) {
 
 export async function addTeamMember(teamId, userId, teamRole = 'member') {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      const user = mockAvailableUsers.find(u => u.id === userId);
-      if (team && user) {
-        const newMember = {
-          id: `tm-${Date.now()}`,
-          user_id: userId,
-          team_role: teamRole,
-          full_name: user.full_name,
-          email: user.email,
-          joined_at: new Date().toISOString(),
-        };
-        team.members.push(newMember);
-        return { data: newMember, error: null };
-      }
-      return { data: null, error: { message: 'Team or user not found' } };
-    }
-
     const { data, error } = await supabase
       .from('team_members')
       .insert([{
@@ -360,18 +214,6 @@ export async function addTeamMember(teamId, userId, teamRole = 'member') {
 
 export async function removeTeamMember(teamId, userId) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      if (team) {
-        const idx = team.members.findIndex(m => m.user_id === userId);
-        if (idx >= 0) {
-          team.members.splice(idx, 1);
-          return { success: true, error: null };
-        }
-      }
-      return { success: false, error: { message: 'Team member not found' } };
-    }
-
     const { error } = await supabase
       .from('team_members')
       .delete()
@@ -389,18 +231,6 @@ export async function removeTeamMember(teamId, userId) {
 
 export async function updateTeamMemberRole(teamId, userId, newRole) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      if (team) {
-        const member = team.members.find(m => m.user_id === userId);
-        if (member) {
-          member.team_role = newRole;
-          return { data: member, error: null };
-        }
-      }
-      return { data: null, error: { message: 'Team member not found' } };
-    }
-
     const { data, error } = await supabase
       .from('team_members')
       .update({ team_role: newRole })
@@ -420,11 +250,6 @@ export async function updateTeamMemberRole(teamId, userId, newRole) {
 
 export async function getTeamMembers(teamId) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      return team?.members || [];
-    }
-
     const { data, error } = await supabase
       .from('team_members_with_details')
       .select('*')
@@ -435,8 +260,7 @@ export async function getTeamMembers(teamId) {
     return data || [];
   } catch (error) {
     console.error('Error fetching team members:', error);
-    const team = mockTeams.find(t => t.id === teamId);
-    return team?.members || [];
+    return [];
   }
 }
 
@@ -446,17 +270,6 @@ export async function getTeamMembers(teamId) {
 
 export async function getUserTeams(userId) {
   try {
-    if (isDemoMode) {
-      return mockTeams.filter(t =>
-        t.members.some(m => m.user_id === userId)
-      ).map(t => ({
-        team_id: t.id,
-        team_name: t.name,
-        team_color: t.color,
-        team_role: t.members.find(m => m.user_id === userId)?.team_role,
-      }));
-    }
-
     const { data, error } = await supabase
       .from('team_members')
       .select(`
@@ -482,12 +295,6 @@ export async function getUserTeams(userId) {
 
 export async function getAvailableUsersForTeam(teamId) {
   try {
-    if (isDemoMode) {
-      const team = mockTeams.find(t => t.id === teamId);
-      const existingUserIds = team?.members.map(m => m.user_id) || [];
-      return mockAvailableUsers.filter(u => !existingUserIds.includes(u.id));
-    }
-
     // Get users not already in this team
     const { data: teamMembers } = await supabase
       .from('team_members')
@@ -513,9 +320,7 @@ export async function getAvailableUsersForTeam(teamId) {
     return data || [];
   } catch (error) {
     console.error('Error fetching available users:', error);
-    const team = mockTeams.find(t => t.id === teamId);
-    const existingUserIds = team?.members.map(m => m.user_id) || [];
-    return mockAvailableUsers.filter(u => !existingUserIds.includes(u.id));
+    return [];
   }
 }
 
@@ -525,10 +330,6 @@ export async function getAvailableUsersForTeam(teamId) {
 
 export async function assignTeamToProject(projectId, teamId) {
   try {
-    if (isDemoMode) {
-      return { success: true, error: null };
-    }
-
     // Get all team members and add them to the project
     const team = await getTeamById(teamId);
     if (!team) {
@@ -556,10 +357,6 @@ export async function assignTeamToProject(projectId, teamId) {
 
 export async function assignTeamToOpportunity(opportunityId, teamId) {
   try {
-    if (isDemoMode) {
-      return { success: true, error: null };
-    }
-
     // Get all team members and add them to the opportunity
     const team = await getTeamById(teamId);
     if (!team) {
@@ -592,17 +389,6 @@ export async function assignTeamToOpportunity(opportunityId, teamId) {
 
 export async function getTeamStats() {
   try {
-    if (isDemoMode) {
-      return {
-        total: mockTeams.length,
-        active: mockTeams.filter(t => t.is_active).length,
-        totalMembers: mockTeams.reduce((sum, t) => sum + t.members.length, 0),
-        avgMembersPerTeam: mockTeams.length > 0
-          ? Math.round(mockTeams.reduce((sum, t) => sum + t.members.length, 0) / mockTeams.length * 10) / 10
-          : 0,
-      };
-    }
-
     const { data: teams, error: teamsError } = await supabase
       .from('teams')
       .select('id, is_active');

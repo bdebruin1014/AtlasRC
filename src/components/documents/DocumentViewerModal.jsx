@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   getDocument, 
   updateDocument, 
@@ -48,6 +49,7 @@ const DocumentViewerModal = ({
   onUpdate = () => {},
   onDelete = () => {}
 }) => {
+  const { toast } = useToast();
   const [document, setDocument] = useState(initialDocument);
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -137,8 +139,7 @@ const DocumentViewerModal = ({
     
     if (url) {
       await navigator.clipboard.writeText(url);
-      // Show toast or notification
-      alert('Link copied to clipboard');
+      toast({ title: "Success", description: "Link copied to clipboard" });
     }
     
     setActionLoading(null);

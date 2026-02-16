@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { 
-  Building2, LayoutDashboard, FileText, CreditCard, 
-  BookOpen, List, Wallet, Users, Settings, AlertTriangle, Briefcase
+import {
+  Building2, LayoutDashboard, FileText, CreditCard,
+  BookOpen, List, Wallet, Users, Settings, AlertTriangle, Briefcase, CheckSquare
 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { cn, isValidUUID } from "@/lib/utils";
@@ -22,6 +22,8 @@ import VendorsPage from '@/pages/accounting/VendorsPage';
 import ChartOfAccountsPage from '@/pages/accounting/ChartOfAccountsPage';
 import EntitySettingsPage from '@/pages/accounting/EntitySettingsPage';
 import EntityCapitalPage from '@/pages/accounting/EntityCapitalPage';
+import RecordTasksPanel from '@/components/RecordTasksPanel';
+import BillDetailDrawer from '@/components/accounting/BillDetailDrawer';
 
 const TABS = [
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, path: 'dashboard' },
@@ -32,6 +34,7 @@ const TABS = [
   { id: 'capital', label: 'Capital', icon: Briefcase, path: 'capital' },
   { id: 'banking', label: 'Bank Accounts', icon: Wallet, path: 'banking' },
   { id: 'vendors', label: 'Vendors', icon: Users, path: 'vendors' },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, path: 'tasks' },
   { id: 'settings', label: 'Settings', icon: Settings, path: 'settings' },
 ];
 
@@ -43,6 +46,7 @@ const AccountingPage = () => {
   const [activeTab, setActiveTab] = useState(tab || 'dashboard');
   const [counts, setCounts] = useState({ bills: 0, payments: 0 });
   const [error, setError] = useState(null);
+  const [selectedBill, setSelectedBill] = useState(null);
 
   // Sync tab state with URL param
   useEffect(() => {
@@ -124,21 +128,21 @@ const AccountingPage = () => {
       case 'bills': return (
           <div className="p-6 bg-gray-50 min-h-full">
             <div className="max-w-[1600px] mx-auto">
-              <BillsList entityId={entityId} onSelectBill={() => {}} onNewBill={() => {}} />
+              <BillsList entityId={entityId} onSelectBill={(bill) => setSelectedBill(bill)} onNewBill={() => {}} />
             </div>
           </div>
         );
       case 'payments': return (
           <div className="p-6 bg-gray-50 min-h-full">
             <div className="max-w-[1600px] mx-auto">
-              <PaymentsList entityId={entityId} onSelectPayment={() => {}} onNewPayment={() => {}} />
+              <PaymentsList entityId={entityId} onSelectPayment={(payment) => console.log('Selected payment:', payment)} onNewPayment={() => {}} />
             </div>
           </div>
         );
       case 'journal-entries': return (
           <div className="p-6 bg-gray-50 min-h-full">
             <div className="max-w-[1600px] mx-auto">
-              <JournalEntriesList entityId={entityId} onSelectEntry={() => {}} onNewEntry={() => {}} />
+              <JournalEntriesList entityId={entityId} onSelectEntry={(entry) => console.log('Selected entry:', entry)} onNewEntry={() => {}} />
             </div>
           </div>
         );
@@ -168,6 +172,17 @@ const AccountingPage = () => {
       case 'banking': return <BankAccountsPage />;
       case 'vendors': return <VendorsPage />;
       case 'chart-of-accounts': return <ChartOfAccountsPage />;
+      case 'tasks': return (
+          <div className="p-6 bg-gray-50 min-h-full">
+            <div className="max-w-[1600px] mx-auto">
+              <RecordTasksPanel
+                module="accounting"
+                recordId={entityId}
+                recordName={entityName}
+              />
+            </div>
+          </div>
+        );
       case 'settings': return <EntitySettingsPage />;
       default: return <EntityAccountingDashboard />;
     }
@@ -252,6 +267,16 @@ const AccountingPage = () => {
           {renderContent()}
         </div>
       </div>
+
+      {/* Bill Detail Drawer */}
+      <BillDetailDrawer
+        isOpen={!!selectedBill}
+        onClose={() => setSelectedBill(null)}
+        bill={selectedBill}
+        onEdit={() => {}}
+        onPay={() => {}}
+        onDelete={() => {}}
+      />
     </>
   );
 };

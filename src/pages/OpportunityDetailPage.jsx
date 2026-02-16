@@ -4,7 +4,8 @@ import {
   ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
   ClipboardList, MapPin, Calculator, TrendingUp, Target, ArrowRight, Mail, MessageSquare,
   FileSignature, CheckCircle, Send, FileCheck, Plus, Calendar, Clock, Eye, Download,
-  Phone, ExternalLink, Loader2, RefreshCw
+  Phone, ExternalLink, Loader2, RefreshCw, Trash2, Star, X, ChevronRight, AlertCircle,
+  BarChart3, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,34 +22,54 @@ import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
 // Stage task service
 import { getStageTasks, toggleTask, getStageProgress } from '@/services/stageTaskService';
 
+// Opportunity section services
+import { getTasks as getOppTasks, createTask as createOppTask, updateTask as updateOppTask, deleteTask as deleteOppTask, toggleTask as toggleOppTask, TASK_PRIORITIES as OPP_TASK_PRIORITIES, TASK_CATEGORIES as OPP_TASK_CATEGORIES, TASK_STATUSES as OPP_TASK_STATUSES } from '@/services/opportunityTasksService';
+import { getContacts as getOppContacts, createContact as createOppContact, updateContact as updateOppContact, deleteContact as deleteOppContact, CONTACT_ROLES } from '@/services/opportunityContactsService';
+import { getComparables as getOppComparables, createComparable as createOppComparable, updateComparable as updateOppComparable, deleteComparable as deleteOppComparable } from '@/services/opportunityComparablesService';
+
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
+
+// Record Tasks Panel (workflow-based tasks with template support)
+import RecordTasksPanel from '@/components/RecordTasksPanel';
 
 // E-Sign and Document Components
 import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
 import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
 import ConvertToProjectModal from '@/components/ConvertToProjectModal';
-
-const OPPORTUNITY_TYPES = [
-  { value: 'vacant-lot', label: 'Vacant Lot' },
-  { value: 'flip-property', label: 'Flip Property' },
-  { value: 'development-lot-sale', label: 'Development Lot Sale' },
-  { value: 'development-for-sale', label: 'Development For Sale' },
-  { value: 'development-btr', label: 'Development BTR' },
-  { value: 'scattered-lot', label: 'Scattered Lot' },
-];
+import { OPPORTUNITY_TYPES } from '@/lib/constants';
 
 const OpportunityDetailPage = () => {
   const { toast } = useToast();
   const { opportunityId } = useParams();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
-  const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
+  const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'management', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [stageTasks, setStageTasks] = useState({});
   const [stageProgress, setStageProgress] = useState({});
+
+  // --- Opportunity Tasks state ---
+  const [oppTasks, setOppTasks] = useState([]);
+  const [oppTasksLoading, setOppTasksLoading] = useState(false);
+  const [oppTaskFilter, setOppTaskFilter] = useState('all');
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', category: 'due-diligence', priority: 'medium', status: 'todo', due_date: '', assigned_to: '', description: '' });
+
+  // --- Opportunity Contacts state ---
+  const [oppContacts, setOppContacts] = useState([]);
+  const [oppContactsLoading, setOppContactsLoading] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', role: 'Seller', company: '', phone: '', email: '', notes: '', is_primary: false });
+
+  // --- Opportunity Comparables state ---
+  const [oppComps, setOppComps] = useState([]);
+  const [oppCompsLoading, setOppCompsLoading] = useState(false);
+  const [showAddComp, setShowAddComp] = useState(false);
+  const [expandedCompId, setExpandedCompId] = useState(null);
+  const [newComp, setNewComp] = useState({ address: '', city: '', state: '', sale_date: '', sale_price: '', square_footage: '', price_per_sqft: '', lot_size_acres: '', bedrooms: '', bathrooms: '', year_built: '', distance_miles: '', notes: '', source: 'MLS' });
 
   // Fetch opportunity from database
   const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
@@ -71,23 +92,12 @@ const OpportunityDetailPage = () => {
     1500
   );
 
-  // Document management state
-  const [mailingRecords, setMailingRecords] = useState([
-    { id: '1', type: 'Letter', template: 'Initial Contact Letter', sentDate: '2024-12-15', status: 'delivered', trackingId: 'USPS-123456789' },
-    { id: '2', type: 'Postcard', template: 'Follow-up Postcard', sentDate: '2024-12-28', status: 'in-transit', trackingId: 'USPS-987654321' },
-    { id: '3', type: 'Letter', template: 'Offer Letter', sentDate: '2025-01-05', status: 'pending', trackingId: null },
-  ]);
+  // Document management state — starts empty, populated from database
+  const [mailingRecords, setMailingRecords] = useState([]);
 
-  const [communications, setCommunications] = useState([
-    { id: '1', type: 'phone', direction: 'outbound', date: '2025-01-08 10:30 AM', contact: 'James Wilson', summary: 'Initial call to discuss property. Seller interested in offer.', duration: '12 min' },
-    { id: '2', type: 'email', direction: 'inbound', date: '2025-01-09 2:15 PM', contact: 'James Wilson', summary: 'Seller sent property documents including survey and deed.', attachments: 2 },
-    { id: '3', type: 'phone', direction: 'outbound', date: '2025-01-10 9:00 AM', contact: 'James Wilson', summary: 'Discussed offer terms. Seller agreed to $2M purchase price.', duration: '18 min' },
-  ]);
+  const [communications, setCommunications] = useState([]);
 
-  const [esignedDocs, setEsignedDocs] = useState([
-    { id: '1', name: 'Purchase Agreement - 600 Heritage Way', status: 'completed', sentDate: '2025-01-10', completedDate: '2025-01-11', signers: [{ name: 'James Wilson', status: 'signed' }, { name: 'VanRock Holdings', status: 'signed' }] },
-    { id: '2', name: 'Due Diligence Extension', status: 'pending', sentDate: '2025-01-12', completedDate: null, signers: [{ name: 'James Wilson', status: 'pending' }, { name: 'VanRock Holdings', status: 'signed' }] },
-  ]);
+  const [esignedDocs, setEsignedDocs] = useState([]);
 
   const [showMailingDialog, setShowMailingDialog] = useState(false);
   const [showCommDialog, setShowCommDialog] = useState(false);
@@ -144,6 +154,155 @@ const OpportunityDetailPage = () => {
     }
   };
 
+  // --- Load opportunity tasks, contacts, comps when their sections become active ---
+  useEffect(() => {
+    if (activeSection === 'tasks' && opportunityId) loadOppTasks();
+  }, [activeSection, opportunityId]);
+
+  useEffect(() => {
+    if (activeSection === 'contacts' && opportunityId) loadOppContacts();
+  }, [activeSection, opportunityId]);
+
+  useEffect(() => {
+    if (activeSection === 'comps' && opportunityId) loadOppComps();
+  }, [activeSection, opportunityId]);
+
+  const loadOppTasks = async () => {
+    setOppTasksLoading(true);
+    try {
+      const data = await getOppTasks(opportunityId);
+      setOppTasks(data);
+    } catch (err) {
+      console.error('Failed to load opportunity tasks:', err);
+    } finally {
+      setOppTasksLoading(false);
+    }
+  };
+
+  const loadOppContacts = async () => {
+    setOppContactsLoading(true);
+    try {
+      const data = await getOppContacts(opportunityId);
+      setOppContacts(data);
+    } catch (err) {
+      console.error('Failed to load opportunity contacts:', err);
+    } finally {
+      setOppContactsLoading(false);
+    }
+  };
+
+  const loadOppComps = async () => {
+    setOppCompsLoading(true);
+    try {
+      const data = await getOppComparables(opportunityId);
+      setOppComps(data);
+    } catch (err) {
+      console.error('Failed to load opportunity comparables:', err);
+    } finally {
+      setOppCompsLoading(false);
+    }
+  };
+
+  const handleAddOppTask = async () => {
+    if (!newTask.title.trim()) {
+      toast({ title: 'Error', description: 'Task title is required.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const created = await createOppTask(opportunityId, newTask);
+      setOppTasks(prev => [...prev, created]);
+      setNewTask({ title: '', category: 'due-diligence', priority: 'medium', status: 'todo', due_date: '', assigned_to: '', description: '' });
+      setShowAddTask(false);
+      toast({ title: 'Task Added', description: 'New task has been created.' });
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      toast({ title: 'Error', description: 'Failed to create task.', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleOppTask = async (taskId, currentStatus) => {
+    try {
+      const updated = await toggleOppTask(taskId, currentStatus);
+      setOppTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: updated.status } : t));
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
+  };
+
+  const handleDeleteOppTask = async (taskId) => {
+    try {
+      await deleteOppTask(taskId);
+      setOppTasks(prev => prev.filter(t => t.id !== taskId));
+      toast({ title: 'Task Deleted', description: 'Task has been removed.' });
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  };
+
+  const handleAddOppContact = async () => {
+    if (!newContact.name.trim()) {
+      toast({ title: 'Error', description: 'Contact name is required.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const created = await createOppContact(opportunityId, newContact);
+      setOppContacts(prev => [...prev, created]);
+      setNewContact({ name: '', role: 'Seller', company: '', phone: '', email: '', notes: '', is_primary: false });
+      setShowAddContact(false);
+      toast({ title: 'Contact Added', description: 'New contact has been created.' });
+    } catch (err) {
+      console.error('Failed to create contact:', err);
+      toast({ title: 'Error', description: 'Failed to create contact.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteOppContact = async (contactId) => {
+    try {
+      await deleteOppContact(contactId);
+      setOppContacts(prev => prev.filter(c => c.id !== contactId));
+      toast({ title: 'Contact Deleted', description: 'Contact has been removed.' });
+    } catch (err) {
+      console.error('Failed to delete contact:', err);
+    }
+  };
+
+  const handleAddOppComp = async () => {
+    if (!newComp.address.trim()) {
+      toast({ title: 'Error', description: 'Address is required.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const compData = {
+        ...newComp,
+        sale_price: newComp.sale_price ? parseFloat(newComp.sale_price) : null,
+        square_footage: newComp.square_footage ? parseFloat(newComp.square_footage) : null,
+        lot_size_acres: newComp.lot_size_acres ? parseFloat(newComp.lot_size_acres) : null,
+        bedrooms: newComp.bedrooms ? parseInt(newComp.bedrooms) : null,
+        bathrooms: newComp.bathrooms ? parseFloat(newComp.bathrooms) : null,
+        year_built: newComp.year_built ? parseInt(newComp.year_built) : null,
+        distance_miles: newComp.distance_miles ? parseFloat(newComp.distance_miles) : null,
+      };
+      const created = await createOppComparable(opportunityId, compData);
+      setOppComps(prev => [...prev, created]);
+      setNewComp({ address: '', city: '', state: '', sale_date: '', sale_price: '', square_footage: '', price_per_sqft: '', lot_size_acres: '', bedrooms: '', bathrooms: '', year_built: '', distance_miles: '', notes: '', source: 'MLS' });
+      setShowAddComp(false);
+      toast({ title: 'Comparable Added', description: 'New comparable sale has been added.' });
+    } catch (err) {
+      console.error('Failed to create comparable:', err);
+      toast({ title: 'Error', description: 'Failed to create comparable.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteOppComp = async (compId) => {
+    try {
+      await deleteOppComparable(compId);
+      setOppComps(prev => prev.filter(c => c.id !== compId));
+      toast({ title: 'Comparable Deleted', description: 'Comparable has been removed.' });
+    } catch (err) {
+      console.error('Failed to delete comparable:', err);
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -187,6 +346,15 @@ const OpportunityDetailPage = () => {
         { id: 'stage-qualified', label: 'Qualified', icon: CheckCircle },
         { id: 'stage-negotiating', label: 'Negotiating', icon: FileSignature },
         { id: 'stage-under-contract', label: 'Under Contract', icon: FileCheck },
+      ]
+    },
+    {
+      id: 'management',
+      label: 'Management',
+      items: [
+        { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+        { id: 'contacts', label: 'Contacts', icon: Users },
+        { id: 'comps', label: 'Comparables', icon: TrendingUp },
       ]
     },
     {
@@ -1376,13 +1544,475 @@ const OpportunityDetailPage = () => {
         );
       
       case 'tasks':
-        return <OpportunityTasks opportunity={opportunity} />;
-      
-      case 'contacts':
-        return <OpportunityContacts opportunity={opportunity} />;
-      
-      case 'comps':
-        return <OpportunityComparables opportunity={opportunity} />;
+        return (
+          <div className="p-6">
+            <RecordTasksPanel
+              module="opportunities"
+              recordId={opportunityId}
+              recordName={formData?.address || formData?.property_address || 'Opportunity'}
+            />
+          </div>
+        );
+
+      case 'contacts': {
+        return (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Contacts</h2>
+                <p className="text-sm text-gray-500">{oppContacts.length} contact{oppContacts.length !== 1 ? 's' : ''} for this opportunity</p>
+              </div>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowAddContact(true)}>
+                <Plus className="w-4 h-4 mr-1" /> Add Contact
+              </Button>
+            </div>
+
+            {/* Add Contact Form */}
+            {showAddContact && (
+              <div className="bg-white border rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-gray-900">New Contact</h3>
+                  <button onClick={() => setShowAddContact(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-gray-500">Name *</Label>
+                    <Input
+                      value={newContact.name}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
+                      className="mt-1"
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Role</Label>
+                    <Select value={newContact.role} onValueChange={(v) => setNewContact(prev => ({ ...prev, role: v }))}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CONTACT_ROLES.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Company</Label>
+                    <Input
+                      value={newContact.company}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, company: e.target.value }))}
+                      className="mt-1"
+                      placeholder="Company name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Phone</Label>
+                    <Input
+                      value={newContact.phone}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
+                      className="mt-1"
+                      placeholder="(864) 555-0100"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Email</Label>
+                    <Input
+                      value={newContact.email}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
+                      className="mt-1"
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div className="flex items-end pb-1">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newContact.is_primary}
+                        onChange={(e) => setNewContact(prev => ({ ...prev, is_primary: e.target.checked }))}
+                        className="rounded border-gray-300 text-emerald-600"
+                      />
+                      <span className="text-sm text-gray-600">Primary contact</span>
+                    </label>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Textarea
+                      value={newContact.notes}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, notes: e.target.value }))}
+                      className="mt-1"
+                      rows={2}
+                      placeholder="Additional notes..."
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setShowAddContact(false)}>Cancel</Button>
+                  <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleAddOppContact}>Add Contact</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Contact Cards Grid */}
+            {oppContactsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-[#047857]" />
+                <span className="ml-2 text-gray-500">Loading contacts...</span>
+              </div>
+            ) : oppContacts.length === 0 ? (
+              <div className="bg-white border rounded-lg p-12 text-center">
+                <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">No contacts yet. Add your first contact above.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {oppContacts.map(contact => {
+                  const roleMeta = CONTACT_ROLES.find(r => r.id === contact.role);
+                  return (
+                    <div key={contact.id} className="bg-white border rounded-lg p-5 hover:shadow-sm transition-shadow relative">
+                      {contact.is_primary && (
+                        <Star className="w-4 h-4 text-amber-400 fill-amber-400 absolute top-3 right-3" />
+                      )}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-medium text-gray-600">
+                            {contact.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-medium text-sm text-gray-900 truncate">{contact.name}</h4>
+                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-medium mt-1", roleMeta?.color || 'bg-gray-100 text-gray-700')}>
+                            {roleMeta?.label || contact.role}
+                          </span>
+                        </div>
+                      </div>
+                      {contact.company && (
+                        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                          <Building2 className="w-3 h-3" /> {contact.company}
+                        </p>
+                      )}
+                      <div className="space-y-1.5">
+                        {contact.phone && (
+                          <a href={`tel:${contact.phone}`} className="text-xs text-gray-600 flex items-center gap-1.5 hover:text-[#047857]">
+                            <Phone className="w-3 h-3" /> {contact.phone}
+                          </a>
+                        )}
+                        {contact.email && (
+                          <a href={`mailto:${contact.email}`} className="text-xs text-gray-600 flex items-center gap-1.5 hover:text-[#047857]">
+                            <Mail className="w-3 h-3" /> {contact.email}
+                          </a>
+                        )}
+                      </div>
+                      {contact.notes && (
+                        <p className="text-xs text-gray-400 mt-3 line-clamp-2 border-t pt-2">{contact.notes}</p>
+                      )}
+                      <div className="flex justify-end mt-3">
+                        <button
+                          onClick={() => handleDeleteOppContact(contact.id)}
+                          className="text-gray-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case 'comps': {
+        const compStats = oppComps.length > 0 ? {
+          avgPrice: oppComps.reduce((s, c) => s + (c.sale_price || 0), 0) / oppComps.length,
+          avgPsf: oppComps.filter(c => c.price_per_sqft).length > 0
+            ? oppComps.filter(c => c.price_per_sqft).reduce((s, c) => s + c.price_per_sqft, 0) / oppComps.filter(c => c.price_per_sqft).length
+            : 0,
+          count: oppComps.length,
+        } : { avgPrice: 0, avgPsf: 0, count: 0 };
+        return (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Comparable Sales</h2>
+                <p className="text-sm text-gray-500">Analyze nearby property sales to determine value</p>
+              </div>
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowAddComp(true)}>
+                <Plus className="w-4 h-4 mr-1" /> Add Comp
+              </Button>
+            </div>
+
+            {/* Summary Stats */}
+            {oppComps.length > 0 && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white border rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-1">Avg Sale Price</p>
+                  <p className="text-xl font-semibold">${compStats.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                </div>
+                <div className="bg-white border rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-1">Avg $/SF</p>
+                  <p className="text-xl font-semibold">${compStats.avgPsf.toFixed(2)}</p>
+                </div>
+                <div className="bg-white border rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-1"># Comps</p>
+                  <p className="text-xl font-semibold">{compStats.count}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Add Comp Form */}
+            {showAddComp && (
+              <div className="bg-white border rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-gray-900">New Comparable</h3>
+                  <button onClick={() => setShowAddComp(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <Label className="text-xs text-gray-500">Address *</Label>
+                    <Input
+                      value={newComp.address}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, address: e.target.value }))}
+                      className="mt-1"
+                      placeholder="123 Main St"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Source</Label>
+                    <Select value={newComp.source} onValueChange={(v) => setNewComp(prev => ({ ...prev, source: v }))}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MLS">MLS</SelectItem>
+                        <SelectItem value="County Records">County Records</SelectItem>
+                        <SelectItem value="Zillow">Zillow</SelectItem>
+                        <SelectItem value="Redfin">Redfin</SelectItem>
+                        <SelectItem value="Agent">Agent</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">City</Label>
+                    <Input
+                      value={newComp.city}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, city: e.target.value }))}
+                      className="mt-1"
+                      placeholder="Greenville"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">State</Label>
+                    <Input
+                      value={newComp.state}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, state: e.target.value }))}
+                      className="mt-1"
+                      placeholder="SC"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Sale Date</Label>
+                    <Input
+                      type="date"
+                      value={newComp.sale_date}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, sale_date: e.target.value }))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Sale Price ($)</Label>
+                    <Input
+                      type="number"
+                      value={newComp.sale_price}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, sale_price: e.target.value }))}
+                      className="mt-1"
+                      placeholder="185000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Square Footage</Label>
+                    <Input
+                      type="number"
+                      value={newComp.square_footage}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, square_footage: e.target.value }))}
+                      className="mt-1"
+                      placeholder="1450"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Lot Size (acres)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={newComp.lot_size_acres}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, lot_size_acres: e.target.value }))}
+                      className="mt-1"
+                      placeholder="0.25"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Bedrooms</Label>
+                    <Input
+                      type="number"
+                      value={newComp.bedrooms}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, bedrooms: e.target.value }))}
+                      className="mt-1"
+                      placeholder="3"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Bathrooms</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={newComp.bathrooms}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, bathrooms: e.target.value }))}
+                      className="mt-1"
+                      placeholder="2"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Year Built</Label>
+                    <Input
+                      type="number"
+                      value={newComp.year_built}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, year_built: e.target.value }))}
+                      className="mt-1"
+                      placeholder="2005"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Distance (miles)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={newComp.distance_miles}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, distance_miles: e.target.value }))}
+                      className="mt-1"
+                      placeholder="1.2"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <Label className="text-xs text-gray-500">Notes</Label>
+                    <Textarea
+                      value={newComp.notes}
+                      onChange={(e) => setNewComp(prev => ({ ...prev, notes: e.target.value }))}
+                      className="mt-1"
+                      rows={2}
+                      placeholder="Condition, adjustments, etc."
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setShowAddComp(false)}>Cancel</Button>
+                  <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleAddOppComp}>Add Comparable</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Comps Table */}
+            {oppCompsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-[#047857]" />
+                <span className="ml-2 text-gray-500">Loading comparables...</span>
+              </div>
+            ) : oppComps.length === 0 ? (
+              <div className="bg-white border rounded-lg p-12 text-center">
+                <TrendingUp className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">No comparable sales yet. Add your first comp above.</p>
+              </div>
+            ) : (
+              <div className="bg-white border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">$/SF</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Beds/Baths</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Distance</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-20"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {oppComps.map(comp => (
+                      <React.Fragment key={comp.id}>
+                        <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedCompId(expandedCompId === comp.id ? null : comp.id)}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <ChevronRight className={cn("w-3.5 h-3.5 text-gray-400 transition-transform", expandedCompId === comp.id && "rotate-90")} />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{comp.address}</p>
+                                <p className="text-xs text-gray-400">{comp.city}{comp.state ? `, ${comp.state}` : ''}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {comp.sale_date ? new Date(comp.sale_date).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 font-medium text-right">
+                            {comp.sale_price ? `$${parseFloat(comp.sale_price).toLocaleString()}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                            {comp.price_per_sqft ? `$${parseFloat(comp.price_per_sqft).toFixed(2)}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 text-center">
+                            {comp.bedrooms || '-'}/{comp.bathrooms || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                            {comp.distance_miles ? `${comp.distance_miles} mi` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteOppComp(comp.id); }}
+                              className="text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedCompId === comp.id && (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-3 bg-gray-50">
+                              <div className="grid grid-cols-4 gap-4 text-xs">
+                                <div>
+                                  <span className="text-gray-400">Square Footage:</span>
+                                  <span className="ml-1 font-medium">{comp.square_footage ? `${comp.square_footage.toLocaleString()} sf` : '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400">Lot Size:</span>
+                                  <span className="ml-1 font-medium">{comp.lot_size_acres ? `${comp.lot_size_acres} ac` : '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400">Year Built:</span>
+                                  <span className="ml-1 font-medium">{comp.year_built || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400">Source:</span>
+                                  <span className="ml-1 font-medium">{comp.source || '-'}</span>
+                                </div>
+                              </div>
+                              {comp.notes && (
+                                <div className="mt-2 text-xs">
+                                  <span className="text-gray-400">Notes:</span>
+                                  <p className="text-gray-600 mt-0.5">{comp.notes}</p>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      }
       
       case 'mailing':
         return (

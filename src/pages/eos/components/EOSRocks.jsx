@@ -292,11 +292,20 @@ const EOSRocks = ({ program }) => {
                     <div className="space-y-2">
                       {rock.milestones.map((milestone) => (
                         <div key={milestone.id} className="flex items-center gap-3 text-sm">
-                          <input 
-                            type="checkbox" 
-                            checked={milestone.done} 
+                          <input
+                            type="checkbox"
+                            checked={milestone.done}
                             className="w-4 h-4 rounded border-gray-300"
-                            onChange={() => {}}
+                            onChange={() => {
+                              setRocks(prev => prev.map(r => r.id === rock.id ? {
+                                ...r,
+                                milestones: r.milestones.map(m => m.id === milestone.id ? { ...m, done: !m.done } : m),
+                                progress: Math.round(
+                                  r.milestones.filter((m, i) => m.id === milestone.id ? !m.done : m.done).length /
+                                  r.milestones.length * 100
+                                ),
+                              } : r));
+                            }}
                           />
                           <span className={cn(milestone.done && "line-through text-gray-400")}>{milestone.text}</span>
                           <span className="text-xs text-gray-400 ml-auto">{milestone.dueDate}</span>

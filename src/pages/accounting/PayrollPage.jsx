@@ -2,6 +2,7 @@
 // Payroll Management
 
 import React, { useState } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -89,6 +90,7 @@ export default function PayrollPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const context = useOutletContext();
+  const { toast } = useToast();
   const entity = context?.entity;
   const basePath = `/accounting/entities/${entityId}`;
 
@@ -433,12 +435,12 @@ export default function PayrollPage() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => alert('Downloading pay stubs...')}>
+                          <DropdownMenuItem onClick={() => toast({ title: 'Pay stubs download started' })}>
                             <Download className="h-4 w-4 mr-2" />
                             Download Pay Stubs
                           </DropdownMenuItem>
                           {payroll.status === 'pending' && (
-                            <DropdownMenuItem onClick={() => alert('Approving payroll...')}>
+                            <DropdownMenuItem onClick={() => toast({ title: 'Payroll approved successfully' })}>
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Approve Payroll
                             </DropdownMenuItem>

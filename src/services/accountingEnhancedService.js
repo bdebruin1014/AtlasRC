@@ -576,10 +576,10 @@ export const createBill = async (billData) => {
     .eq('entity_id', billData.entity_id)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  const nextNumber = lastBill 
-    ? parseInt(lastBill.bill_number.replace(/\D/g, '')) + 1 
+  const nextNumber = lastBill
+    ? parseInt(lastBill.bill_number.replace(/\D/g, '')) + 1
     : 1001;
 
   // Calculate due date based on payment terms
