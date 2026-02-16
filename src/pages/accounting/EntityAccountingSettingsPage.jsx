@@ -2,7 +2,7 @@
 // Entity accounting settings with tabbed interface
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Settings, DollarSign, Calendar, Clock, AlertTriangle, CheckCircle2,
   Save, Building2, FileText, CreditCard, Percent, Bell, BookOpen,
@@ -13,12 +13,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 import {
   getEntityAccountingSettings,
   updateEntityAccountingSettings,
   ACCOUNTING_METHOD,
   PAYMENT_TERMS,
 } from '@/services/accountingEnhancedService';
+import { entityService } from '@/services/entityService';
+import { getChartOfAccounts } from '@/services/chartOfAccountsService';
+import { getBankAccounts } from '@/services/bankAccountsService';
+import { capitalService } from '@/services/capitalService';
 import ImportAccountsModal from '@/components/accounting/ImportAccountsModal';
 import AccountFormModal from '@/components/accounting/AccountFormModal';
 import OwnerFormModal from '@/components/accounting/OwnerFormModal';
@@ -34,6 +39,8 @@ const TABS = [
 
 const EntityAccountingSettingsPage = () => {
   const { entityId } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,33 +57,19 @@ const EntityAccountingSettingsPage = () => {
   const [selectedBankAccount, setSelectedBankAccount] = useState(null);
 
   // Chart of Accounts state
-  const [accounts, setAccounts] = useState([
-    { id: 1, number: '1000', name: 'Cash', type: 'Asset', subtype: 'Current Asset', balance: 125000 },
-    { id: 2, number: '1100', name: 'Accounts Receivable', type: 'Asset', subtype: 'Current Asset', balance: 45000 },
-    { id: 3, number: '1500', name: 'Fixed Assets', type: 'Asset', subtype: 'Non-Current Asset', balance: 850000 },
-    { id: 4, number: '2000', name: 'Accounts Payable', type: 'Liability', subtype: 'Current Liability', balance: 32000 },
-    { id: 5, number: '3000', name: 'Owners Equity', type: 'Equity', subtype: 'Retained Earnings', balance: 500000 },
-    { id: 6, number: '4000', name: 'Revenue', type: 'Revenue', subtype: 'Operating Revenue', balance: 250000 },
-    { id: 7, number: '5000', name: 'Cost of Goods Sold', type: 'Expense', subtype: 'Direct Costs', balance: 125000 },
-    { id: 8, number: '6000', name: 'Operating Expenses', type: 'Expense', subtype: 'Operating Expenses', balance: 75000 },
-  ]);
+  const [accounts, setAccounts] = useState([]);
 
   // Bank Accounts state
-  const [bankAccounts, setBankAccounts] = useState([
-    { id: 1, name: 'Operating Account', bank: 'Chase', accountNumber: '****4521', type: 'Checking', balance: 85000, connected: true },
-    { id: 2, name: 'Payroll Account', bank: 'Chase', accountNumber: '****4522', type: 'Checking', balance: 25000, connected: true },
-    { id: 3, name: 'Reserve Account', bank: 'Bank of America', accountNumber: '****7890', type: 'Savings', balance: 150000, connected: false },
-  ]);
+  const [bankAccounts, setBankAccounts] = useState([]);
 
   // Ownership state
-  const [owners, setOwners] = useState([
-    { id: 1, name: 'John Smith', ownership: 45, capitalAccount: 225000, email: 'john@example.com' },
-    { id: 2, name: 'Jane Doe', ownership: 35, capitalAccount: 175000, email: 'jane@example.com' },
-    { id: 3, name: 'ABC Holdings LLC', ownership: 20, capitalAccount: 100000, email: 'contact@abcholdings.com' },
-  ]);
+  const [owners, setOwners] = useState([]);
 
   useEffect(() => {
     loadSettings();
+    loadAccounts();
+    loadBankAccounts();
+    loadOwners();
   }, [entityId]);
 
   const loadSettings = async () => {
@@ -88,6 +81,112 @@ const EntityAccountingSettingsPage = () => {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const data = await getChartOfAccounts(entityId);
+      const mapped = (data || []).map(acct => ({
+        id: acct.id,
+        number: acct.account_number || '',
+        name: acct.account_name || acct.name || '',
+        type: acct.account_type
+          ? acct.account_type.charAt(0).toUpperCase() + acct.account_type.slice(1)
+          : '',
+        subtype: acct.account_subtype || acct.subtype || '',
+        balance: acct.balance || 0,
+      }));
+      setAccounts(mapped);
+    } catch (error) {
+      console.error('Error loading chart of accounts:', error);
+    }
+  };
+
+  const loadBankAccounts = async () => {
+    try {
+      const data = await getBankAccounts(entityId);
+      const mapped = (data || []).map(ba => ({
+        id: ba.id,
+        name: ba.account_name || ba.name || '',
+        bank: ba.institution_name || ba.bank_name || ba.plaid_connection?.institution_name || '',
+        accountNumber: ba.mask
+          ? `****${ba.mask}`
+          : ba.account_number_last4
+            ? `****${ba.account_number_last4}`
+            : '',
+        type: ba.account_type
+          ? ba.account_type.charAt(0).toUpperCase() + ba.account_type.slice(1)
+          : '',
+        balance: ba.current_balance || ba.available_balance || 0,
+        connected: ba.plaid_connection?.status === 'active' || ba.is_connected || false,
+      }));
+      setBankAccounts(mapped);
+    } catch (error) {
+      console.error('Error loading bank accounts:', error);
+    }
+  };
+
+  const loadOwners = async () => {
+    try {
+      const { data, error } = await capitalService.getMembers(entityId);
+      if (error) throw error;
+      const mapped = (data || []).map(member => ({
+        id: member.id,
+        name: member.name || '',
+        ownership: member.ownership_pct || 0,
+        capitalAccount: member.capital_account || 0,
+        email: member.email || '',
+      }));
+      setOwners(mapped);
+    } catch (error) {
+      console.error('Error loading owners:', error);
+    }
+  };
+
+  const handleArchiveEntity = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to archive this entity? It will be hidden from views but all data will be preserved.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await entityService.update(entityId, { status: 'archived' });
+      toast({
+        title: 'Entity archived',
+        description: 'The entity has been archived successfully.',
+      });
+      navigate('/accounting');
+    } catch (error) {
+      console.error('Error archiving entity:', error);
+      toast({
+        title: 'Archive failed',
+        description: error.message || 'Failed to archive entity. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteEntity = async () => {
+    const confirmed = window.confirm(
+      'WARNING: This action is irreversible.\n\nPermanently delete this entity and all associated data? This cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await entityService.delete(entityId);
+      toast({
+        title: 'Entity deleted',
+        description: 'The entity and all associated data have been permanently deleted.',
+      });
+      navigate('/accounting');
+    } catch (error) {
+      console.error('Error deleting entity:', error);
+      toast({
+        title: 'Delete failed',
+        description: error.message || 'Failed to delete entity. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -120,10 +219,10 @@ const EntityAccountingSettingsPage = () => {
       case 'admin':
         return (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => alert('Archive entity')}>
+            <Button variant="outline" size="sm" onClick={handleArchiveEntity}>
               <Archive className="w-4 h-4 mr-1" />Archive Entity
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => alert('Delete entity - this action is irreversible')}>
+            <Button variant="destructive" size="sm" onClick={handleDeleteEntity}>
               <Trash2 className="w-4 h-4 mr-1" />Delete Entity
             </Button>
           </div>
@@ -222,7 +321,11 @@ const EntityAccountingSettingsPage = () => {
           />
         )}
         {activeTab === 'admin' && (
-          <AdminTab entityId={entityId} />
+          <AdminTab
+            entityId={entityId}
+            onArchive={handleArchiveEntity}
+            onDelete={handleDeleteEntity}
+          />
         )}
       </div>
 
@@ -610,7 +713,9 @@ const ChartOfAccountsTab = ({ accounts, onImport, onAddAccount, onEditAccount })
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{account.subtype}</td>
-                    <td className="px-4 py-3 text-right font-medium">${account.balance.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-medium">
+                      ${(account.balance || 0).toLocaleString()}
+                    </td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="sm" onClick={() => onEditAccount(account)}>
                         <Edit2 className="h-4 w-4 mr-1" />
@@ -699,7 +804,7 @@ const BankSetupTab = ({ bankAccounts, onAddBankAccount, onEditBankAccount }) => 
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="font-semibold">${account.balance.toLocaleString()}</p>
+                  <p className="font-semibold">${(account.balance || 0).toLocaleString()}</p>
                   <span className={cn(
                     "text-xs px-2 py-0.5 rounded",
                     account.connected ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
@@ -869,7 +974,7 @@ const OwnershipTab = ({ owners, onAddOwner, onEditOwner }) => {
 };
 
 // Admin Tab Component
-const AdminTab = ({ entityId }) => (
+const AdminTab = ({ entityId, onArchive, onDelete }) => (
   <div className="space-y-6">
     <Card>
       <CardHeader>
@@ -961,7 +1066,7 @@ const AdminTab = ({ entityId }) => (
               Archive this entity. It will be hidden from views but data will be preserved.
             </p>
           </div>
-          <Button variant="outline" onClick={() => alert('Confirm archive?')}>
+          <Button variant="outline" onClick={onArchive}>
             <Archive className="w-4 h-4 mr-2" />Archive
           </Button>
         </div>
@@ -972,7 +1077,7 @@ const AdminTab = ({ entityId }) => (
               Permanently delete this entity and all associated data. This cannot be undone.
             </p>
           </div>
-          <Button variant="destructive" onClick={() => alert('This action cannot be undone. Are you sure?')}>
+          <Button variant="destructive" onClick={onDelete}>
             <Trash2 className="w-4 h-4 mr-2" />Delete
           </Button>
         </div>

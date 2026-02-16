@@ -259,7 +259,7 @@ const GlobalTasksPage = () => {
                     <div className="text-center">
                        <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
                        <h3 className="font-bold text-gray-900">Calendar View</h3>
-                       <p className="text-sm">Calendar visualization is not fully implemented in this demo.</p>
+                       <p className="text-sm">Calendar visualization coming soon</p>
                     </div>
                  </div>
               )}
@@ -269,7 +269,7 @@ const GlobalTasksPage = () => {
                     <div className="text-center">
                        <GanttChartSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
                        <h3 className="font-bold text-gray-900">Gantt Timeline</h3>
-                       <p className="text-sm">Project timeline visualization is not fully implemented in this demo.</p>
+                       <p className="text-sm">Timeline visualization coming soon</p>
                     </div>
                  </div>
               )}

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Search, ChevronRight, Home, Filter, Building2, Map, Hammer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import LoadingState from '@/components/LoadingState';
 import {
-  getHouses, getMilestoneSummary, MILESTONES, getMilestoneLabel,
+  getHouses, getMilestoneSummary, MILESTONES, getMilestoneLabel, createHouse,
 } from '@/services/constructionService';
 import { PROJECT_TYPES } from '@/hooks/useProjects';
 
@@ -39,10 +40,29 @@ const formatCurrency = (val) => {
 
 const ConstructionListPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [milestoneFilter, setMilestoneFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectTypeFilter, setProjectTypeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newHouse, setNewHouse] = useState({ house_name: '', address: '', plan_name: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleAddHouse = async () => {
+    if (!newHouse.house_name) return;
+    setSaving(true);
+    try {
+      await createHouse(newHouse);
+      queryClient.invalidateQueries({ queryKey: ['construction-houses'] });
+      setShowAddModal(false);
+      setNewHouse({ house_name: '', address: '', plan_name: '' });
+    } catch (err) {
+      console.error('Error creating house:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const filters = {};
   if (milestoneFilter !== 'all') filters.current_milestone = milestoneFilter;
@@ -89,7 +109,7 @@ const ConstructionListPage = () => {
         </div>
         <Button
           className="bg-[#047857] hover:bg-[#065f46]"
-          onClick={() => alert('Open Add House Modal')}
+          onClick={() => setShowAddModal(true)}
         >
           <Plus className="w-4 h-4 mr-2" />Add House
         </Button>
@@ -271,13 +291,54 @@ const ConstructionListPage = () => {
             </p>
             <Button
               className="bg-[#047857] hover:bg-[#065f46]"
-              onClick={() => alert('Open Add House Modal')}
+              onClick={() => setShowAddModal(true)}
             >
               <Plus className="w-4 h-4 mr-2" />Add House
             </Button>
           </div>
         )}
       </div>
+
+      {/* Add House Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add House</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">House Name *</label>
+              <Input
+                placeholder="e.g. Lot 12 - Highland Park"
+                value={newHouse.house_name}
+                onChange={(e) => setNewHouse(prev => ({ ...prev, house_name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Address</label>
+              <Input
+                placeholder="Street address"
+                value={newHouse.address}
+                onChange={(e) => setNewHouse(prev => ({ ...prev, address: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Plan Name</label>
+              <Input
+                placeholder="e.g. Oakwood"
+                value={newHouse.plan_name}
+                onChange={(e) => setNewHouse(prev => ({ ...prev, plan_name: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
+            <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleAddHouse} disabled={saving || !newHouse.house_name}>
+              {saving ? 'Adding...' : 'Add House'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

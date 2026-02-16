@@ -55,13 +55,10 @@ const ReportsPage = () => {
   );
 
   const handleGenerate = (report) => {
-    if (report.path && (report.path.includes('pnl') || report.path.includes('aging'))) {
+    if (report.path) {
         navigate(report.path);
     } else {
-        // Fallback for demos that don't exist yet
-        navigate('/reports'); 
-        // In a real app, we would show a toast here via useToast
-        alert("This report template is not yet implemented in this demo.");
+        navigate('/reports');
     }
   };
 

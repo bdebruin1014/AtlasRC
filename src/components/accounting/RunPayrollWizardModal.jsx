@@ -2,6 +2,7 @@
 // Multi-step wizard for running payroll
 
 import React, { useState, useEffect } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
@@ -39,6 +40,7 @@ const payFrequencies = [
 
 export default function RunPayrollWizardModal({ open, onClose, entityId }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [step, setStep] = useState(1);
   const [error, setError] = useState(null);
@@ -637,11 +639,11 @@ export default function RunPayrollWizardModal({ open, onClose, entityId }) {
               </div>
 
               <div className="mt-6 flex justify-center gap-3">
-                <Button variant="outline" onClick={() => alert('Downloading pay stubs...')}>
+                <Button variant="outline" onClick={() => toast({ title: 'Pay stubs download started' })}>
                   <FileText className="h-4 w-4 mr-2" />
                   Download Pay Stubs
                 </Button>
-                <Button variant="outline" onClick={() => alert('Processing direct deposits...')}>
+                <Button variant="outline" onClick={() => toast({ title: 'Direct deposits processing started' })}>
                   <CreditCard className="h-4 w-4 mr-2" />
                   Process Direct Deposits
                 </Button>

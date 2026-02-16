@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 const JobCostingReportPage = () => {
   const { entityId } = useParams();
   const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState('');
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('projects'); // projects or jobs
@@ -175,7 +176,8 @@ const JobCostingReportPage = () => {
           </div>
           <select
             className="px-3 py-1.5 border rounded-lg text-sm"
-            onChange={(e) => alert(`Selected project: ${e.target.value}`)}
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
           >
             <option value="">All Projects</option>
             <option value="proj-1">Highland Park Development</option>

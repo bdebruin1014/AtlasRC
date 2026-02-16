@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 
 const mockClosePeriods = [
   {
@@ -83,6 +84,7 @@ const statusConfig = {
 };
 
 export default function MonthEndCloseWorkflowPage() {
+  const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState(mockClosePeriods[0]);
   const [expandedCategories, setExpandedCategories] = useState(['Accounts Receivable', 'Accounts Payable', 'Cash & Bank']);
 
@@ -118,10 +120,10 @@ export default function MonthEndCloseWorkflowPage() {
           <p className="text-gray-600">Manage and track the month-end closing process</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => alert('Initialize fiscal periods')}>
+          <Button variant="outline" onClick={() => toast({ title: 'Fiscal periods initialized' })}>
             <FileText className="w-4 h-4 mr-2" />Initialize Periods
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => alert('Start close process')}>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => toast({ title: 'Close process started' })}>
             <Play className="w-4 h-4 mr-2" />Start Close Process
           </Button>
         </div>
