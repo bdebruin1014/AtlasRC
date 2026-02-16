@@ -773,13 +773,23 @@ const OpportunityDetailPage = () => {
         );
       
       case 'tasks':
-        return <OpportunityTasks opportunity={opportunity} />;
-      
+        return <OpportunityTasks opportunity={formData} />;
+
       case 'contacts':
-        return <OpportunityContacts opportunity={opportunity} />;
-      
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Contacts</h2>
+            <p className="text-gray-500">Contact management for this opportunity coming soon.</p>
+          </div>
+        );
+
       case 'comps':
-        return <OpportunityComparables opportunity={opportunity} />;
+        return (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Comparables</h2>
+            <p className="text-gray-500">Comparable property analysis coming soon.</p>
+          </div>
+        );
       
       case 'mailing':
         return (

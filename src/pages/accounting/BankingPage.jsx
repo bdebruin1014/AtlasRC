@@ -87,7 +87,7 @@ const BankingPage = () => {
     
     try {
       const accountData = {
-        entity_id: selectedEntity,
+        entity_id: entityId,
         name: formData.name,
         bank_name: formData.bank_name,
         account_number_last4: formData.account_number_last4,

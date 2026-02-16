@@ -225,7 +225,7 @@ const CapitalCallsPage = () => {
                                                       </Badge>
                                                    </td>
                                                    <td className="py-3 text-right">
-                                                      {inv.status === 'Pending' && (
+                                                      {contrib.status === 'Pending' && (
                                                          <Button size="sm" variant="ghost" className="h-6 text-emerald-600 hover:text-emerald-700">Record Payment</Button>
                                                       )}
                                                    </td>

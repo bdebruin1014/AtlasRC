@@ -1,25 +1,4 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useContacts } from '@/hooks/useContacts';
-import { Button } from '@/components/ui/button';
-
-export default function ContactSelector({ value, onChange, contactType, allowCreate = false }) {
-  const { contacts } = useContacts();
-  const filtered = contactType ? contacts.filter(c => c.contact_type === contactType) : contacts;
-
-  return (
-    <div className="flex gap-2 items-center">
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger><SelectValue placeholder="Select Contact" /></SelectTrigger>
-        <SelectContent>
-          {filtered.map(c => (
-            <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name} {c.company ? `(${c.company})` : ''}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {allowCreate && <Button size="sm" variant="outline">+ New</Button>}
-    </div>
-  );
-}import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import {
@@ -39,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, User, Search, Building, Phone, Mail } from 'lucide-react';
+import { Plus, User, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
