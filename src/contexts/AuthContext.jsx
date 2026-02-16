@@ -81,11 +81,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const sendMagicLink = async (email, redirectTo = `${window.location.origin}/dashboard`) => {
-    if (isDemoMode) {
-      // Demo mode - simulate magic link sent
-      return { success: true, message: 'Demo mode - no email sent' };
-    }
-
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -97,11 +92,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const sendPasswordResetEmail = async (email, redirectTo = `${window.location.origin}/reset-password`) => {
-    if (isDemoMode) {
-      // Demo mode - simulate reset email sent
-      return { success: true, message: 'Demo mode - no email sent' };
-    }
-
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     });
@@ -110,11 +100,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updatePassword = async (newPassword) => {
-    if (isDemoMode) {
-      // Demo mode - simulate password update
-      return { success: true, message: 'Demo mode - password not updated' };
-    }
-
     const { data, error } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -131,7 +116,6 @@ export const AuthProvider = ({ children }) => {
     sendMagicLink,
     sendPasswordResetEmail,
     updatePassword,
-    isDemoMode,
   };
 
   return (
