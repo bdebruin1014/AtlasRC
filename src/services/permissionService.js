@@ -365,8 +365,9 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.TASKS_CREATE,
     PERMISSIONS.TASKS_EDIT,
     PERMISSIONS.REPORTS_VIEW,
-    // Construction, Operations & Calendar
+    // Construction, Accounting, Operations & Calendar
     PERMISSIONS.CONSTRUCTION_VIEW,
+    PERMISSIONS.ACCOUNTING_VIEW,
     PERMISSIONS.OPERATIONS_VIEW,
     PERMISSIONS.CALENDAR_VIEW,
     PERMISSIONS.CALENDAR_CREATE,
@@ -686,9 +687,12 @@ export async function loadUserPermissions(userId = null) {
     return { permissions: allPermissions, role };
   } catch (error) {
     console.error('Error loading user permissions:', error);
-    currentUserPermissions = [];
-    currentUserRole = null;
-    return { permissions: [], role: null };
+    // Fall back to TEAM_MEMBER so the app is still usable
+    const fallbackRole = ROLES.TEAM_MEMBER;
+    const fallbackPermissions = ROLE_PERMISSIONS[fallbackRole] || [];
+    currentUserPermissions = fallbackPermissions;
+    currentUserRole = fallbackRole;
+    return { permissions: fallbackPermissions, role: fallbackRole };
   }
 }
 

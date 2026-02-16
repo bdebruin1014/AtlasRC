@@ -1,7 +1,7 @@
 // src/services/changeOrderService.js
 // Change Orders Module Service - CRUD, approval workflow, and budget integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 

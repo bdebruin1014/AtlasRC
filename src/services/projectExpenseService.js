@@ -1,7 +1,7 @@
 // src/services/projectExpenseService.js
 // Project-level expense tracking with approval workflow and budget integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // --- Constants ----------------------------------------------------------------
 

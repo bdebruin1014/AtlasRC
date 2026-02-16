@@ -1,7 +1,7 @@
 // src/services/opportunityTasksService.js
 // Opportunity Task Management Service — connects to opportunity_tasks table
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // CONSTANTS

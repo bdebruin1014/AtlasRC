@@ -2,7 +2,7 @@
 // Routine Meetings (Team Cadence) Service
 // Manages recurring team meetings with EOS integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 /*
  * ROUTINE MEETINGS SERVICE

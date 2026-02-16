@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { isDemoMode } from '@/lib/utils';
+
 import { sessionDataService } from '@/services/sessionDataService';
 import { useUserActivityDashboard, useModuleStats, useHourlyStats, useRecentActivities } from '@/hooks/useSessionData';
 import {

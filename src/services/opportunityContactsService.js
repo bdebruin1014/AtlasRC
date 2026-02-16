@@ -1,7 +1,7 @@
 // src/services/opportunityContactsService.js
 // Opportunity Contacts Service — connects to opportunity_contacts table
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // CONSTANTS

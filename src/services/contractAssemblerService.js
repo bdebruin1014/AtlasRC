@@ -1,7 +1,7 @@
 // src/services/contractAssemblerService.js
 // Service layer for the Contract Assembler wizard — builds Red Cedar Homes construction contracts
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── Default Draw Schedule ───────────────────────────────────────────────────
 

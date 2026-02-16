@@ -1,6 +1,13 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+// Stub: always returns false. Components still referencing isDemoMode()
+// will hit the non-demo code path. Will be fully removed once all
+// isDemoMode call sites are cleaned up.
+export function isDemoMode() {
+  return false;
+}
+
 /**
  * Merge Tailwind CSS classes with clsx
  */

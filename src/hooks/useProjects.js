@@ -2,7 +2,7 @@
 // React hooks for Projects - connects to Supabase projects table
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { projectService } from '@/services/projectService';
 import { activityService } from '@/services/activityService';
 
@@ -22,65 +22,6 @@ export const PROJECT_TYPES = [
   { key: 'community-development', label: 'Community Development' },
 ];
 
-// Fallback data when Supabase is unreachable (demo/dev only)
-const FALLBACK_PROJECTS = [
-  {
-    id: 'demo-1',
-    name: 'Driftwood',
-    address: '100 Driftwood Lane, Greenville, SC 29601',
-    status: 'active',
-    project_type: 'scattered-lot',
-    budget: 385000,
-    start_date: '2025-01-15',
-    target_completion_date: '2025-07-01',
-    notes: 'Scattered lot spec home',
-    entity: { id: 'ent-1', name: 'Red Cedar Homes LLC', type: 'project' },
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-2',
-    name: 'Ambleside',
-    address: 'Ambleside Drive, Simpsonville, SC 29680',
-    status: 'active',
-    project_type: 'community-development',
-    budget: 12500000,
-    start_date: '2024-06-01',
-    target_completion_date: '2027-12-31',
-    units_to_develop: 48,
-    notes: '48-lot community development',
-    entity: { id: 'ent-2', name: 'VanRock Holdings LLC', type: 'operating' },
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-3',
-    name: 'Magnolia Lots',
-    address: 'Magnolia Road, Travelers Rest, SC 29690',
-    status: 'active',
-    project_type: 'lot-development',
-    budget: 2800000,
-    start_date: '2024-09-01',
-    target_completion_date: '2025-10-31',
-    units_to_develop: 22,
-    notes: '22-lot horizontal development',
-    entity: { id: 'ent-3', name: 'VanRock Holdings LLC', type: 'operating' },
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'demo-4',
-    name: 'Palmetto Ridge',
-    address: '450 Palmetto Blvd, Greer, SC 29650',
-    status: 'active',
-    project_type: 'lot-purchase-development',
-    budget: 4200000,
-    start_date: '2025-02-01',
-    target_completion_date: '2026-06-30',
-    units_to_develop: 8,
-    notes: 'Buy 8 finished lots, build spec homes',
-    entity: { id: 'ent-4', name: 'Red Cedar Homes LLC', type: 'project' },
-    created_at: new Date().toISOString(),
-  },
-];
-
 // Hook to fetch all projects
 export function useProjects() {
   const [projects, setProjects] = useState([]);
@@ -97,10 +38,6 @@ export function useProjects() {
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError(err.message);
-      // Fallback only when Supabase is truly unreachable
-      if (isDemoMode) {
-        setProjects(FALLBACK_PROJECTS);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -135,10 +72,6 @@ export function useProject(projectId) {
     } catch (err) {
       console.error('Error fetching project:', err);
       setError(err.message);
-      if (isDemoMode) {
-        const fallback = FALLBACK_PROJECTS.find(p => p.id === projectId);
-        setProject(fallback || null);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +103,6 @@ export function useProjectActions() {
       return result;
     } catch (err) {
       console.error('Create project failed:', err);
-      if (isDemoMode) return { ...data, id: `demo-${Date.now()}` };
       throw err;
     } finally {
       setIsLoading(false);
@@ -184,7 +116,6 @@ export function useProjectActions() {
       return result;
     } catch (err) {
       console.error('Update project failed:', err);
-      if (isDemoMode) return { id, ...data };
       throw err;
     } finally {
       setIsLoading(false);
@@ -203,7 +134,6 @@ export function useProjectActions() {
       return result;
     } catch (err) {
       console.error('Delete project failed:', err);
-      if (isDemoMode) return true;
       throw err;
     } finally {
       setIsLoading(false);
@@ -285,8 +215,6 @@ export function useProjectSummary(projects) {
 // Hook for real-time subscription to projects
 export function useProjectSubscription(onUpdate) {
   useEffect(() => {
-    if (isDemoMode) return;
-
     const subscription = supabase
       .channel('projects-changes')
       .on(

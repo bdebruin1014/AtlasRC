@@ -1,7 +1,7 @@
 // src/services/projectContactsService.js
 // Project Contacts Service with 12 categories
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export const CONTACT_CATEGORIES = [
   { id: 'architect', label: 'Architect', icon: '🏛️' },

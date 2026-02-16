@@ -1,7 +1,7 @@
 // src/services/drawRequestService.js
 // Draw Requests Module Service - CRUD and budget integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 

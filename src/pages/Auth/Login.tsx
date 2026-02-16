@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Email validation pattern
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -143,14 +143,6 @@ const Login: React.FC = () => {
     const emailError = validateEmail(email);
     if (emailError) {
       setErrors({ email: emailError });
-      return;
-    }
-
-    if (isDemoMode) {
-      toast({
-        title: 'Demo Mode',
-        description: 'Magic link is not available in demo mode. Please use password sign in.',
-      });
       return;
     }
 
@@ -399,14 +391,6 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        {/* Demo Mode Indicator */}
-        {isDemoMode && (
-          <div className="mt-4 text-center">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-              Demo Mode - Use any credentials to sign in
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

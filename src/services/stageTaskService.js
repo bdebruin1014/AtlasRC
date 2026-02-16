@@ -1,7 +1,7 @@
 // src/services/stageTaskService.js
 // CRUD service for opportunity stage tasks (persistent per-stage checklists)
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Mock task data matching the seed templates from 20260216_opportunity_enhancements.sql
 const mockTemplates = [
