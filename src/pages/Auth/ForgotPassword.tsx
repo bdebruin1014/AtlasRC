@@ -4,7 +4,7 @@ import { Building2, Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 
 // Email validation pattern
@@ -71,17 +71,6 @@ const ForgotPassword: React.FC = () => {
       return;
     }
 
-    if (isDemoMode) {
-      // In demo mode, simulate success
-      setSent(true);
-      setCountdown(RESEND_COUNTDOWN);
-      toast({
-        title: 'Demo Mode',
-        description: 'In production, a password reset link would be sent to your email.',
-      });
-      return;
-    }
-
     setLoading(true);
     setErrors({});
 
@@ -120,16 +109,6 @@ const ForgotPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      if (isDemoMode) {
-        setCountdown(RESEND_COUNTDOWN);
-        toast({
-          title: 'Demo Mode',
-          description: 'In production, a new password reset link would be sent.',
-        });
-        setLoading(false);
-        return;
-      }
-
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -330,14 +309,6 @@ const ForgotPassword: React.FC = () => {
           )}
         </div>
 
-        {/* Demo Mode Indicator */}
-        {isDemoMode && (
-          <div className="mt-4 text-center">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-              Demo Mode - No emails will be sent
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

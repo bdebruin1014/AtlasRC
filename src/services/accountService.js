@@ -1,4 +1,4 @@
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { coaTemplateService } from './coaTemplateService';
 
 // Mock accounts for demo mode (keyed by entity ID)

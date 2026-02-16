@@ -1,7 +1,7 @@
 // src/services/scheduleService.js
 // Schedule Module Service - project schedules, phases, tasks, and templates
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── DEMO DATA ───────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 // src/services/userService.js
 // User Management Service with Supabase Integration
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { ROLES, ROLE_LABELS, setUserRole, logPermissionChange } from './permissionService';
 import { upsertTeamMember, deleteTeamMember } from './chatService';
 

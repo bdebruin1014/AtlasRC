@@ -2,7 +2,7 @@
 // Workflow Template Service — Templates with milestones, task groups, and tasks
 // Tables: workflow_templates, workflow_template_milestones, workflow_template_task_groups, workflow_template_tasks
 
-import { supabase, isDemoMode } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // CONSTANTS

@@ -2,7 +2,7 @@
 // Centralized notification management service for Atlas
 
 import { supabase } from '@/lib/supabase';
-import { isDemoMode } from '@/lib/utils';
+
 
 // ============================================
 // DEMO DATA
