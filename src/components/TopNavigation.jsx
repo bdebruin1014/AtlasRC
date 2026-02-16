@@ -4,7 +4,8 @@ import {
   Home, Building2, FolderKanban, Users, Calendar, Settings, DollarSign,
   Cog, ChevronDown, ClipboardList, CheckSquare, FileText, Layers, Users2,
   BarChart3, Target, TrendingUp, Clock, BookOpen, Receipt, Plus,
-  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw
+  FileSignature, FolderOpen, Calculator, GitBranch, Flag, RefreshCw,
+  HardHat, Hammer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import NotificationCenter from './NotificationCenter';
@@ -15,14 +16,12 @@ const TopNavigation = () => {
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home },
-    { label: 'Executive', path: '/executive', icon: BarChart3 },
     // Projects Dropdown
     {
       label: 'Projects',
       icon: Building2,
       dropdown: [
         { label: 'All Projects', path: '/projects', icon: Building2, description: 'View all projects' },
-        { label: 'KPI Dashboard', path: '/projects/kpi', icon: BarChart3, description: 'Project performance metrics' },
         { label: 'Resource Allocation', path: '/projects/resources', icon: Users2, description: 'Team utilization & capacity' },
       ]
     },
@@ -34,9 +33,6 @@ const TopNavigation = () => {
       dropdown: [
         { label: 'Opportunities', path: '/opportunities', icon: FolderKanban, description: 'All pipeline opportunities' },
         { label: 'Pipeline Analytics', path: '/opportunities/analytics', icon: BarChart3, description: 'Pipeline performance metrics' },
-        { label: 'Compare Opportunities', path: '/opportunities/compare', icon: Layers, description: 'Side-by-side comparison' },
-        { label: 'Pipeline Dashboard', path: '/acquisition', icon: TrendingUp, description: 'Acquisition pipeline analytics' },
-        { label: 'Deal Analyzer', path: '/deal-analyzer', icon: Calculator, description: 'Quick property analysis tool' },
       ]
     },
     
@@ -51,9 +47,6 @@ const TopNavigation = () => {
         { label: 'Entities', path: '/accounting/entities', icon: Building2, description: 'Manage entities & accounting' },
         { label: 'Dashboard', path: '/accounting/dashboard', icon: BarChart3, description: 'Financial overview' },
         { label: 'Chart of Accounts', path: '/accounting/chart-of-accounts', icon: BookOpen, description: 'Account structure' },
-        { label: 'Transactions', path: '', isHeader: true },
-        { label: 'All Transactions', path: '/accounting/transactions', icon: Receipt, description: 'View all transactions' },
-        { label: 'New Transaction', path: '/accounting/transactions/new', icon: Plus, description: 'Record a transaction' },
         { label: 'Planning & Investors', path: '', isHeader: true },
         { label: 'Financial Forecasting', path: '/accounting/forecasting', icon: TrendingUp, description: 'Cash flow projections' },
         { label: 'Investor Portal', path: '/accounting/investor-portal', icon: Users, description: 'Investor management' },
@@ -89,8 +82,9 @@ const TopNavigation = () => {
     // Construction Dropdown
     {
       label: 'Construction',
-      icon: Building2,
+      icon: HardHat,
       dropdown: [
+        { label: 'Houses', path: '/construction', icon: Hammer, description: 'Construction management' },
         { label: 'Tools', path: '', isHeader: true },
         { label: 'Contract Assembler', path: '/construction/contract-assembler', icon: FileSignature, description: 'Build contract packages' },
       ]

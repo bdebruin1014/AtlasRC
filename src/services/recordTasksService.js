@@ -559,8 +559,6 @@ export async function createRecordTask(module, recordId, taskData) {
     const now = new Date().toISOString();
     const newTask = {
       id: `rt-${Date.now()}`,
-      module,
-      record_id: recordId,
       status: 'todo',
       priority: 'medium',
       sort_order: 0,

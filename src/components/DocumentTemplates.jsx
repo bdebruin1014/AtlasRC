@@ -50,12 +50,12 @@ PROPERTY: {{PROPERTY_ADDRESS}}
 The lease term shall begin on {{LEASE_START_DATE}} and end on {{LEASE_END_DATE}}.
 
 2. RENT
-Monthly rent: ${{MONTHLY_RENT}}
+Monthly rent: \${{MONTHLY_RENT}}
 Due date: {{RENT_DUE_DAY}} of each month
-Late fee: ${{LATE_FEE}} after {{GRACE_PERIOD}} days
+Late fee: \${{LATE_FEE}} after {{GRACE_PERIOD}} days
 
 3. SECURITY DEPOSIT
-Amount: ${{SECURITY_DEPOSIT}}
+Amount: \${{SECURITY_DEPOSIT}}
 
 [Additional terms and conditions...]`,
     variables: [
@@ -92,9 +92,9 @@ SELLER: {{SELLER_NAME}}
 
 PROPERTY: {{PROPERTY_ADDRESS}}
 
-PURCHASE PRICE: ${{PURCHASE_PRICE}}
+PURCHASE PRICE: \${{PURCHASE_PRICE}}
 
-EARNEST MONEY: ${{EARNEST_MONEY}}
+EARNEST MONEY: \${{EARNEST_MONEY}}
 
 CLOSING DATE: {{CLOSING_DATE}}
 
@@ -137,7 +137,7 @@ SCOPE OF SERVICES:
 {{SCOPE_OF_WORK}}
 
 COMPENSATION:
-Total Amount: ${{CONTRACT_AMOUNT}}
+Total Amount: \${{CONTRACT_AMOUNT}}
 Payment Terms: {{PAYMENT_TERMS}}
 
 START DATE: {{START_DATE}}

@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -26,7 +26,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/Auth/ResetPassword'));
 const SharePointCallback = lazy(() => import('@/pages/auth/SharePointCallback'));
 const OutlookCallback = lazy(() => import('@/pages/auth/OutlookCallback'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
-const ExecutiveDashboard = lazy(() => import('@/pages/ExecutiveDashboard'));
+// ExecutiveDashboard - available but not currently routed
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage'));
 const EntitiesPage = lazy(() => import('@/pages/EntitiesPage'));
@@ -45,10 +45,9 @@ const PlaceholderPage = lazy(() => import('@/pages/accounting/entity/Placeholder
 const AccountingEntitiesListPage = lazy(() => import('@/pages/accounting/AccountingEntitiesListPage'));
 const EntityOwnershipHierarchyPage = lazy(() => import('@/pages/accounting/EntityOwnershipHierarchyPage'));
 const EntityDashboardPage = lazy(() => import('@/pages/accounting/EntityDashboardPage'));
-const EntityChartOfAccountsPage = lazy(() => import('@/pages/accounting/EntityChartOfAccountsPage'));
+// EntityChartOfAccountsPage - available but not currently routed
 const EntityTransactionsPage = lazy(() => import('@/pages/accounting/TransactionsPage'));
-const EntityBankingPage = lazy(() => import('@/pages/accounting/BankingPage'));
-const EntityReconciliationPage = lazy(() => import('@/pages/accounting/ReconciliationPage'));
+// EntityBankingPage and EntityReconciliationPage - available but not currently routed
 const EntityInvoicesPage = lazy(() => import('@/pages/accounting/InvoicesPage'));
 const EntityBillsPage = lazy(() => import('@/pages/accounting/BillsPage'));
 const EntityReportsPage = lazy(() => import('@/pages/accounting/FinancialReportsPage'));
@@ -57,7 +56,7 @@ const EntityOwnershipPage = lazy(() => import('@/pages/accounting/EntityOwnershi
 const EntityTasksPage = lazy(() => import('@/pages/accounting/EntityTasksPage'));
 const CustomersPage = lazy(() => import('@/pages/accounting/CustomersPage'));
 const AccountingVendorsPage = lazy(() => import('@/pages/accounting/VendorsPage'));
-const JournalEntriesPage = lazy(() => import('@/pages/accounting/JournalEntriesPage'));
+// JournalEntriesPage duplicate removed - use EntityJournalEntriesPage
 
 // Accounting Enhancements (Phase 7)
 const Vendors1099Page = lazy(() => import('@/pages/accounting/Vendors1099Page'));
@@ -101,7 +100,7 @@ const ChartOfAccountsPage = lazy(() => import('@/pages/Accounting/ChartOfAccount
 // ============================================
 const AdminSidebar = lazy(() => import('@/components/AdminSidebar'));
 const AdminOverviewPage = lazy(() => import('@/pages/admin/AdminOverviewPage'));
-const AdminPage = lazy(() => import('@/pages/admin/AdminPage'));
+// AdminPage - available but not currently routed
 const FloorPlansPage = lazy(() => import('@/pages/admin/FloorPlansPage'));
 const PricingLibraryPage = lazy(() => import('@/pages/admin/PricingLibraryPage'));
 const PlanPricingMatrixPage = lazy(() => import('@/pages/admin/PlanPricingMatrixPage'));
@@ -133,7 +132,7 @@ const UserPermissionsMatrixPage = lazy(() => import('@/pages/admin/UserPermissio
 
 // Opportunities Module Enhancements (Phase 11)
 const PipelineAnalyticsDashboardPage = lazy(() => import('@/pages/opportunities/PipelineAnalyticsDashboardPage'));
-const OpportunityComparisonPage = lazy(() => import('@/pages/opportunities/OpportunityComparisonPage'));
+// OpportunityComparisonPage - available but not currently routed
 
 // Projects Module Enhancements (Phase 11)
 const ResourceAllocationDashboardPage = lazy(() => import('@/pages/projects/ResourceAllocationDashboardPage'));
@@ -166,35 +165,26 @@ const DocumentExpirationTracker = lazy(() => import('@/components/DocumentExpira
 const GanttChart = lazy(() => import('@/components/GanttChart'));
 const AuditTrail = lazy(() => import('@/components/AuditTrail'));
 const ProjectActivityFeed = lazy(() => import('@/components/ProjectActivityFeed'));
-const VendorPerformanceTracker = lazy(() => import('@/components/VendorPerformanceTracker'));
-const ProjectHealthDashboard = lazy(() => import('@/components/ProjectHealthDashboard'));
-const RecurringTasksManager = lazy(() => import('@/components/RecurringTasksManager'));
-const RFITracker = lazy(() => import('@/components/RFITracker'));
+// VendorPerformanceTracker, ProjectHealthDashboard, RecurringTasksManager, RFITracker
+// - available as standalone components but not currently routed
 const PunchList = lazy(() => import('@/components/PunchList'));
-const MeetingMinutes = lazy(() => import('@/components/MeetingMinutes'));
+// MeetingMinutes - available but not currently routed
 const PhotoProgressTracker = lazy(() => import('@/components/PhotoProgressTracker'));
 const ContactTimeline = lazy(() => import('@/components/ContactTimeline'));
 const DocumentTemplates = lazy(() => import('@/components/DocumentTemplates'));
-const ApprovalWorkflow = lazy(() => import('@/components/ApprovalWorkflow'));
+// ApprovalWorkflow - available but not currently routed
 const AdvancedSearch = lazy(() => import('@/components/AdvancedSearch'));
-const EmailDashboard = lazy(() => import('@/components/EmailDashboard'));
-const DashboardBuilder = lazy(() => import('@/components/DashboardBuilder'));
-const DataImportExport = lazy(() => import('@/components/DataImportExport'));
+// EmailDashboard, DashboardBuilder, DataImportExport - available but not currently routed
 const NotificationPreferences = lazy(() => import('@/components/NotificationPreferences'));
-const ReportScheduler = lazy(() => import('@/components/ReportScheduler'));
+// ReportScheduler - available but not currently routed
 const TagManager = lazy(() => import('@/components/TagManager'));
 const BulkActions = lazy(() => import('@/components/BulkActions'));
 const UserActivityAnalytics = lazy(() => import('@/components/UserActivityAnalytics'));
 const CustomFieldsManager = lazy(() => import('@/components/CustomFieldsManager'));
 const WebhookManager = lazy(() => import('@/components/WebhookManager'));
-const CommentsNotes = lazy(() => import('@/components/CommentsNotes'));
-const ContractManagement = lazy(() => import('@/components/ContractManagement'));
-const ComparativeMarketAnalysis = lazy(() => import('@/components/ComparativeMarketAnalysis'));
-const DealPipelineKanban = lazy(() => import('@/components/DealPipelineKanban'));
-const TeamWorkloadDashboard = lazy(() => import('@/components/TeamWorkloadDashboard'));
-const PropertyComparisonTool = lazy(() => import('@/components/PropertyComparisonTool'));
-const SavedViewsManager = lazy(() => import('@/components/SavedViewsManager'));
-const UserActivityTimeTracker = lazy(() => import('@/components/UserActivityTimeTracker'));
+// CommentsNotes, ContractManagement, ComparativeMarketAnalysis, DealPipelineKanban,
+// TeamWorkloadDashboard, PropertyComparisonTool, SavedViewsManager, UserActivityTimeTracker
+// - available but not currently routed
 const MilestoneTracker = lazy(() => import('@/components/MilestoneTracker'));
 
 // ============================================
@@ -239,7 +229,7 @@ const MeetingInstancePage = lazy(() => import('@/pages/eos/MeetingInstancePage')
 // PROJECT MODULE - Focused Pages
 // ============================================
 // Overview Section
-const ProjectOverviewPage = lazy(() => import('@/pages/projects/ProjectOverviewPage'));
+// ProjectOverviewPage - available but not currently routed
 const PropertyDetailsPage = lazy(() => import('@/pages/projects/PropertyDetailsPage'));
 const ProjectContactsPage = lazy(() => import('@/pages/projects/ContactsPage'));
 
@@ -319,6 +309,38 @@ const ContactDetailPageEnhanced = lazy(() => import('@/pages/Contacts/ContactDet
 const ContactFormPageEnhanced = lazy(() => import('@/pages/Contacts/ContactForm'));
 
 const BudgetModuleRouter = lazy(() => import('@/features/budgets/components/BudgetModuleRouter'));
+
+// ============================================
+// 404 NOT FOUND PAGE
+// ============================================
+const NotFoundPage = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+      <div className="text-center max-w-md">
+        <div className="text-6xl font-bold text-gray-300 mb-4">404</div>
+        <h1 className="text-xl font-bold text-gray-900 mb-2">Page Not Found</h1>
+        <p className="text-gray-500 mb-6">
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="px-4 py-2 text-sm font-medium text-white bg-emerald-700 rounded-md hover:bg-emerald-800"
+          >
+            Go Home
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ============================================
 // PROTECTED ROUTE & LAYOUTS
@@ -882,13 +904,7 @@ const AppContent = () => (
     {/* Budget Tools */}
     <Route path="/budgets/*" element={<ProtectedRoute><AppLayout><BudgetModuleRouter /></AppLayout></ProtectedRoute>} />
 
-    {/* ============================================ */}
-    {/* CONSTRUCTION MODULE */}
-    {/* ============================================ */}
-    <Route path="/construction/contract-assembler" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
-    <Route path="/construction/contract-assembler/:houseId" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
-
-    <Route path="*" element={<Navigate to="/" replace />} />
+    <Route path="*" element={<NotFoundPage />} />
   </Routes>
 );
 

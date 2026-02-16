@@ -25,6 +25,19 @@ export default function LoanDetail({ open, loan: initialLoan, onClose, onUpdated
   const [drawDate, setDrawDate] = useState(new Date().toISOString().split('T')[0]);
 
   const displayLoan = loan || initialLoan;
+
+  // Amortization schedule (must be called before any conditional return)
+  const amortSchedule = useMemo(() => {
+    if (!displayLoan?.interest_rate || !displayLoan?.term_months) return [];
+    const principal = displayLoan.funded_amount || displayLoan.commitment_amount;
+    return calculateAmortizationSchedule(
+      principal,
+      displayLoan.interest_rate,
+      displayLoan.term_months,
+      displayLoan.io_period_months || 0
+    );
+  }, [displayLoan]);
+
   if (!displayLoan) return null;
 
   const statusConfig = getStatusConfig(displayLoan.status);
@@ -35,18 +48,6 @@ export default function LoanDetail({ open, loan: initialLoan, onClose, onUpdated
   const utilization = displayLoan.commitment_amount > 0
     ? (displayLoan.funded_amount / displayLoan.commitment_amount) * 100
     : 0;
-
-  // Amortization schedule
-  const amortSchedule = useMemo(() => {
-    if (!displayLoan.interest_rate || !displayLoan.term_months) return [];
-    const principal = displayLoan.funded_amount || displayLoan.commitment_amount;
-    return calculateAmortizationSchedule(
-      principal,
-      displayLoan.interest_rate,
-      displayLoan.term_months,
-      displayLoan.io_period_months || 0
-    );
-  }, [displayLoan]);
 
   const totalInterest = amortSchedule.reduce((s, p) => s + p.interest, 0);
 

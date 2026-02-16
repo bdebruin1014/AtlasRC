@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Play, Pause, Settings, MoreVertical,
   Star, TrendingUp, MessageSquare, Award, Flag, FileText, Edit2,
   Trash2, CheckCircle, Circle, ArrowRight, Video, ExternalLink,
-  Filter, Search, Download, RefreshCw, Bell, History, Lightbulb
+  Filter, Search, Download, RefreshCw, Bell, History, Lightbulb, BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -6,4 +6,5 @@ export { HorizontalLotDevelopmentBudget } from './components/HorizontalLotDevelo
 export { BuildToRentBudget } from './components/BuildToRentBudget';
 export { BuildToSellBudget } from './components/BuildToSellBudget';
 export { PipelineDealAnalyzer } from './components/PipelineDealAnalyzer';
-export default { BudgetModuleRouter };
+// Default export is the BudgetModuleRouter component
+export { BudgetModuleRouter as default } from './components/BudgetModuleRouter';
