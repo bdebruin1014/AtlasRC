@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams, useOutletContext } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -270,7 +271,7 @@ export default function ARAgingReportPage() {
     `;
 
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
+    printWindow.document.write(DOMPurify.sanitize(printContent, { WHOLE_DOCUMENT: true }));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();

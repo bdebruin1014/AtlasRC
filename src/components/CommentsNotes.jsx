@@ -1,5 +1,6 @@
 import { isDemoMode } from '@/lib/utils';
 import React, { useState, useEffect, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { supabase } from '@/lib/supabase';
 
 
@@ -529,7 +530,7 @@ export default function CommentsNotes() {
                 {/* Content */}
                 <div
                   className="text-gray-700 mb-3"
-                  dangerouslySetInnerHTML={{ __html: highlightMentions(comment.content) }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightMentions(comment.content)) }}
                 />
 
                 {/* Attachments */}

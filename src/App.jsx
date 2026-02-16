@@ -39,7 +39,6 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 // ============================================
 // ACCOUNTING MODULE
 // ============================================
-const AccountingSidebar = lazy(() => import('@/components/AccountingSidebar'));
 const EntityAccountingSidebar = lazy(() => import('@/components/accounting/EntityAccountingSidebar'));
 const EntityAccountingLayoutNew = lazy(() => import('@/layouts/EntityAccountingLayout'));
 const PlaceholderPage = lazy(() => import('@/pages/accounting/entity/PlaceholderPage'));
@@ -56,6 +55,9 @@ const EntityReportsPage = lazy(() => import('@/pages/accounting/FinancialReports
 const EntityJournalEntriesPage = lazy(() => import('@/pages/accounting/JournalEntriesPage'));
 const EntityOwnershipPage = lazy(() => import('@/pages/accounting/EntityOwnershipPage'));
 const EntityTasksPage = lazy(() => import('@/pages/accounting/EntityTasksPage'));
+const CustomersPage = lazy(() => import('@/pages/accounting/CustomersPage'));
+const AccountingVendorsPage = lazy(() => import('@/pages/accounting/VendorsPage'));
+const JournalEntriesPage = lazy(() => import('@/pages/accounting/JournalEntriesPage'));
 
 // Accounting Enhancements (Phase 7)
 const Vendors1099Page = lazy(() => import('@/pages/accounting/Vendors1099Page'));
@@ -92,9 +94,6 @@ const BankReconciliationPage = lazy(() => import('@/pages/accounting/BankReconci
 // New Accounting Pages (TypeScript)
 const AccountingDashboardPage = lazy(() => import('@/pages/Accounting/AccountingDashboard'));
 const TransactionFormPage = lazy(() => import('@/pages/Accounting/TransactionForm'));
-const TransactionDetailPage = lazy(() => import('@/pages/Accounting/TransactionDetail'));
-const EntityLedgerPage = lazy(() => import('@/pages/Accounting/EntityLedger'));
-const ProjectLedgerPage = lazy(() => import('@/pages/Accounting/ProjectLedger'));
 const ChartOfAccountsPage = lazy(() => import('@/pages/Accounting/ChartOfAccounts'));
 
 // ============================================
@@ -156,10 +155,8 @@ const TaxTrackingPage = lazy(() => import('@/pages/accounting/TaxTrackingPage'))
 const FixedAssetManagementPage = lazy(() => import('@/pages/accounting/FixedAssetManagementPage'));
 const BudgetVsActualPage = lazy(() => import('@/pages/accounting/BudgetVsActualPage'));
 const FinancialRatiosDashboardPage = lazy(() => import('@/pages/accounting/FinancialRatiosDashboardPage'));
-const CustomersPage = lazy(() => import('@/pages/accounting/CustomersPage'));
 const CreditCardsPage = lazy(() => import('@/pages/accounting/CreditCardsPage'));
 const RecurringJournalEntriesPage = lazy(() => import('@/pages/accounting/RecurringJournalEntriesPage'));
-const AccountingVendorsPage = lazy(() => import('@/pages/accounting/VendorsPage'));
 
 // ============================================
 // OPERATIONS ENHANCEMENTS
@@ -885,30 +882,38 @@ const AppContent = () => (
     {/* Budget Tools */}
     <Route path="/budgets/*" element={<ProtectedRoute><AppLayout><BudgetModuleRouter /></AppLayout></ProtectedRoute>} />
 
+    {/* ============================================ */}
+    {/* CONSTRUCTION MODULE */}
+    {/* ============================================ */}
+    <Route path="/construction/contract-assembler" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
+    <Route path="/construction/contract-assembler/:houseId" element={<ProtectedRoute><AppLayout><ContractAssemblerPage /></AppLayout></ProtectedRoute>} />
+
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
 );
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Helmet><title>Atlas | Real Estate Development Platform</title></Helmet>
-        <AuthProvider>
-          <PermissionProvider>
-            <ErrorBoundary>
-              <AppContent />
-            </ErrorBoundary>
-            <Toaster />
-          </PermissionProvider>
-        </AuthProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
+          <Helmet><title>Atlas | Real Estate Development Platform</title></Helmet>
+          <AuthProvider>
+            <PermissionProvider>
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
+              <Toaster />
+            </PermissionProvider>
+          </AuthProvider>
         </Router>
       </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

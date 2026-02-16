@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
   ClipboardList, MapPin, Calculator, TrendingUp, Target, ArrowRight, Mail, MessageSquare,
   FileSignature, CheckCircle, Send, FileCheck, Plus, Calendar, Clock, Eye, Download,
-  Phone, ExternalLink, Loader2, RefreshCw, Trash2, Star, X, ChevronRight, AlertCircle,
-  BarChart3, Home
+  Phone, ExternalLink, Loader2, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,57 +18,35 @@ import { cn } from '@/lib/utils';
 import { useOpportunity, useOpportunityActions, OPPORTUNITY_STAGES } from '@/hooks/useOpportunities';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
 
-// Stage task service
-import { getStageTasks, toggleTask, getStageProgress } from '@/services/stageTaskService';
-
-// Opportunity section services
-import { getTasks as getOppTasks, createTask as createOppTask, updateTask as updateOppTask, deleteTask as deleteOppTask, toggleTask as toggleOppTask, TASK_PRIORITIES as OPP_TASK_PRIORITIES, TASK_CATEGORIES as OPP_TASK_CATEGORIES, TASK_STATUSES as OPP_TASK_STATUSES } from '@/services/opportunityTasksService';
-import { getContacts as getOppContacts, createContact as createOppContact, updateContact as updateOppContact, deleteContact as deleteOppContact, CONTACT_ROLES } from '@/services/opportunityContactsService';
-import { getComparables as getOppComparables, createComparable as createOppComparable, updateComparable as updateOppComparable, deleteComparable as deleteOppComparable } from '@/services/opportunityComparablesService';
-
 // Import Deal Analyzer
 import PipelineDealAnalyzer from '@/features/budgets/components/PipelineDealAnalyzer';
 
-// Record Tasks Panel (workflow-based tasks with template support)
-import RecordTasksPanel from '@/components/RecordTasksPanel';
+// Import Tasks
+import OpportunityTasks from '@/pages/pipeline/OpportunityTasks';
 
 // E-Sign and Document Components
 import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
 import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
 import ConvertToProjectModal from '@/components/ConvertToProjectModal';
-import { OPPORTUNITY_TYPES } from '@/lib/constants';
+
+const OPPORTUNITY_TYPES = [
+  { value: 'vacant-lot', label: 'Vacant Lot' },
+  { value: 'flip-property', label: 'Flip Property' },
+  { value: 'development-lot-sale', label: 'Development Lot Sale' },
+  { value: 'development-for-sale', label: 'Development For Sale' },
+  { value: 'development-btr', label: 'Development BTR' },
+  { value: 'scattered-lot', label: 'Scattered Lot' },
+];
 
 const OpportunityDetailPage = () => {
   const { toast } = useToast();
   const { opportunityId } = useParams();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
-  const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'management', 'documents']);
+  const [expandedGroups, setExpandedGroups] = useState(['overview', 'stage-tracker', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [stageTasks, setStageTasks] = useState({});
-  const [stageProgress, setStageProgress] = useState({});
-
-  // --- Opportunity Tasks state ---
-  const [oppTasks, setOppTasks] = useState([]);
-  const [oppTasksLoading, setOppTasksLoading] = useState(false);
-  const [oppTaskFilter, setOppTaskFilter] = useState('all');
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', category: 'due-diligence', priority: 'medium', status: 'todo', due_date: '', assigned_to: '', description: '' });
-
-  // --- Opportunity Contacts state ---
-  const [oppContacts, setOppContacts] = useState([]);
-  const [oppContactsLoading, setOppContactsLoading] = useState(false);
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [newContact, setNewContact] = useState({ name: '', role: 'Seller', company: '', phone: '', email: '', notes: '', is_primary: false });
-
-  // --- Opportunity Comparables state ---
-  const [oppComps, setOppComps] = useState([]);
-  const [oppCompsLoading, setOppCompsLoading] = useState(false);
-  const [showAddComp, setShowAddComp] = useState(false);
-  const [expandedCompId, setExpandedCompId] = useState(null);
-  const [newComp, setNewComp] = useState({ address: '', city: '', state: '', sale_date: '', sale_price: '', square_footage: '', price_per_sqft: '', lot_size_acres: '', bedrooms: '', bathrooms: '', year_built: '', distance_miles: '', notes: '', source: 'MLS' });
 
   // Fetch opportunity from database
   const { opportunity: rawOpportunity, isLoading, error } = useOpportunity(opportunityId);
@@ -92,12 +69,23 @@ const OpportunityDetailPage = () => {
     1500
   );
 
-  // Document management state — starts empty, populated from database
-  const [mailingRecords, setMailingRecords] = useState([]);
+  // Document management state
+  const [mailingRecords, setMailingRecords] = useState([
+    { id: '1', type: 'Letter', template: 'Initial Contact Letter', sentDate: '2024-12-15', status: 'delivered', trackingId: 'USPS-123456789' },
+    { id: '2', type: 'Postcard', template: 'Follow-up Postcard', sentDate: '2024-12-28', status: 'in-transit', trackingId: 'USPS-987654321' },
+    { id: '3', type: 'Letter', template: 'Offer Letter', sentDate: '2025-01-05', status: 'pending', trackingId: null },
+  ]);
 
-  const [communications, setCommunications] = useState([]);
+  const [communications, setCommunications] = useState([
+    { id: '1', type: 'phone', direction: 'outbound', date: '2025-01-08 10:30 AM', contact: 'James Wilson', summary: 'Initial call to discuss property. Seller interested in offer.', duration: '12 min' },
+    { id: '2', type: 'email', direction: 'inbound', date: '2025-01-09 2:15 PM', contact: 'James Wilson', summary: 'Seller sent property documents including survey and deed.', attachments: 2 },
+    { id: '3', type: 'phone', direction: 'outbound', date: '2025-01-10 9:00 AM', contact: 'James Wilson', summary: 'Discussed offer terms. Seller agreed to $2M purchase price.', duration: '18 min' },
+  ]);
 
-  const [esignedDocs, setEsignedDocs] = useState([]);
+  const [esignedDocs, setEsignedDocs] = useState([
+    { id: '1', name: 'Purchase Agreement - 600 Heritage Way', status: 'completed', sentDate: '2025-01-10', completedDate: '2025-01-11', signers: [{ name: 'James Wilson', status: 'signed' }, { name: 'VanRock Holdings', status: 'signed' }] },
+    { id: '2', name: 'Due Diligence Extension', status: 'pending', sentDate: '2025-01-12', completedDate: null, signers: [{ name: 'James Wilson', status: 'pending' }, { name: 'VanRock Holdings', status: 'signed' }] },
+  ]);
 
   const [showMailingDialog, setShowMailingDialog] = useState(false);
   const [showCommDialog, setShowCommDialog] = useState(false);
@@ -117,191 +105,6 @@ const OpportunityDetailPage = () => {
     { id: 'Negotiating', label: 'Negotiating', color: '#8B5CF6' },
     { id: 'Under Contract', label: 'Under Contract', color: '#10B981' },
   ];
-
-  // Load stage tasks when a stage section is viewed
-  useEffect(() => {
-    if (activeSection.startsWith('stage-') && opportunityId) {
-      const stageId = activeSection.replace('stage-', '');
-      const stageMap = {
-        'prospecting': 'Prospecting',
-        'contacted': 'Contacted',
-        'qualified': 'Qualified',
-        'negotiating': 'Negotiating',
-        'under-contract': 'Under Contract'
-      };
-      const stage = stageMap[stageId];
-      if (stage) loadStageTasks(stage);
-    }
-  }, [activeSection, opportunityId]);
-
-  const loadStageTasks = async (stage) => {
-    try {
-      const tasks = await getStageTasks(opportunityId, stage);
-      const progress = await getStageProgress(opportunityId, stage);
-      setStageTasks(prev => ({ ...prev, [stage]: tasks }));
-      setStageProgress(prev => ({ ...prev, [stage]: progress }));
-    } catch (err) {
-      console.error('Failed to load stage tasks:', err);
-    }
-  };
-
-  const handleToggleTask = async (taskId, currentState, stage) => {
-    try {
-      await toggleTask(taskId, !currentState);
-      loadStageTasks(stage);
-    } catch (err) {
-      console.error('Failed to toggle task:', err);
-    }
-  };
-
-  // --- Load opportunity tasks, contacts, comps when their sections become active ---
-  useEffect(() => {
-    if (activeSection === 'tasks' && opportunityId) loadOppTasks();
-  }, [activeSection, opportunityId]);
-
-  useEffect(() => {
-    if (activeSection === 'contacts' && opportunityId) loadOppContacts();
-  }, [activeSection, opportunityId]);
-
-  useEffect(() => {
-    if (activeSection === 'comps' && opportunityId) loadOppComps();
-  }, [activeSection, opportunityId]);
-
-  const loadOppTasks = async () => {
-    setOppTasksLoading(true);
-    try {
-      const data = await getOppTasks(opportunityId);
-      setOppTasks(data);
-    } catch (err) {
-      console.error('Failed to load opportunity tasks:', err);
-    } finally {
-      setOppTasksLoading(false);
-    }
-  };
-
-  const loadOppContacts = async () => {
-    setOppContactsLoading(true);
-    try {
-      const data = await getOppContacts(opportunityId);
-      setOppContacts(data);
-    } catch (err) {
-      console.error('Failed to load opportunity contacts:', err);
-    } finally {
-      setOppContactsLoading(false);
-    }
-  };
-
-  const loadOppComps = async () => {
-    setOppCompsLoading(true);
-    try {
-      const data = await getOppComparables(opportunityId);
-      setOppComps(data);
-    } catch (err) {
-      console.error('Failed to load opportunity comparables:', err);
-    } finally {
-      setOppCompsLoading(false);
-    }
-  };
-
-  const handleAddOppTask = async () => {
-    if (!newTask.title.trim()) {
-      toast({ title: 'Error', description: 'Task title is required.', variant: 'destructive' });
-      return;
-    }
-    try {
-      const created = await createOppTask(opportunityId, newTask);
-      setOppTasks(prev => [...prev, created]);
-      setNewTask({ title: '', category: 'due-diligence', priority: 'medium', status: 'todo', due_date: '', assigned_to: '', description: '' });
-      setShowAddTask(false);
-      toast({ title: 'Task Added', description: 'New task has been created.' });
-    } catch (err) {
-      console.error('Failed to create task:', err);
-      toast({ title: 'Error', description: 'Failed to create task.', variant: 'destructive' });
-    }
-  };
-
-  const handleToggleOppTask = async (taskId, currentStatus) => {
-    try {
-      const updated = await toggleOppTask(taskId, currentStatus);
-      setOppTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: updated.status } : t));
-    } catch (err) {
-      console.error('Failed to toggle task:', err);
-    }
-  };
-
-  const handleDeleteOppTask = async (taskId) => {
-    try {
-      await deleteOppTask(taskId);
-      setOppTasks(prev => prev.filter(t => t.id !== taskId));
-      toast({ title: 'Task Deleted', description: 'Task has been removed.' });
-    } catch (err) {
-      console.error('Failed to delete task:', err);
-    }
-  };
-
-  const handleAddOppContact = async () => {
-    if (!newContact.name.trim()) {
-      toast({ title: 'Error', description: 'Contact name is required.', variant: 'destructive' });
-      return;
-    }
-    try {
-      const created = await createOppContact(opportunityId, newContact);
-      setOppContacts(prev => [...prev, created]);
-      setNewContact({ name: '', role: 'Seller', company: '', phone: '', email: '', notes: '', is_primary: false });
-      setShowAddContact(false);
-      toast({ title: 'Contact Added', description: 'New contact has been created.' });
-    } catch (err) {
-      console.error('Failed to create contact:', err);
-      toast({ title: 'Error', description: 'Failed to create contact.', variant: 'destructive' });
-    }
-  };
-
-  const handleDeleteOppContact = async (contactId) => {
-    try {
-      await deleteOppContact(contactId);
-      setOppContacts(prev => prev.filter(c => c.id !== contactId));
-      toast({ title: 'Contact Deleted', description: 'Contact has been removed.' });
-    } catch (err) {
-      console.error('Failed to delete contact:', err);
-    }
-  };
-
-  const handleAddOppComp = async () => {
-    if (!newComp.address.trim()) {
-      toast({ title: 'Error', description: 'Address is required.', variant: 'destructive' });
-      return;
-    }
-    try {
-      const compData = {
-        ...newComp,
-        sale_price: newComp.sale_price ? parseFloat(newComp.sale_price) : null,
-        square_footage: newComp.square_footage ? parseFloat(newComp.square_footage) : null,
-        lot_size_acres: newComp.lot_size_acres ? parseFloat(newComp.lot_size_acres) : null,
-        bedrooms: newComp.bedrooms ? parseInt(newComp.bedrooms) : null,
-        bathrooms: newComp.bathrooms ? parseFloat(newComp.bathrooms) : null,
-        year_built: newComp.year_built ? parseInt(newComp.year_built) : null,
-        distance_miles: newComp.distance_miles ? parseFloat(newComp.distance_miles) : null,
-      };
-      const created = await createOppComparable(opportunityId, compData);
-      setOppComps(prev => [...prev, created]);
-      setNewComp({ address: '', city: '', state: '', sale_date: '', sale_price: '', square_footage: '', price_per_sqft: '', lot_size_acres: '', bedrooms: '', bathrooms: '', year_built: '', distance_miles: '', notes: '', source: 'MLS' });
-      setShowAddComp(false);
-      toast({ title: 'Comparable Added', description: 'New comparable sale has been added.' });
-    } catch (err) {
-      console.error('Failed to create comparable:', err);
-      toast({ title: 'Error', description: 'Failed to create comparable.', variant: 'destructive' });
-    }
-  };
-
-  const handleDeleteOppComp = async (compId) => {
-    try {
-      await deleteOppComparable(compId);
-      setOppComps(prev => prev.filter(c => c.id !== compId));
-      toast({ title: 'Comparable Deleted', description: 'Comparable has been removed.' });
-    } catch (err) {
-      console.error('Failed to delete comparable:', err);
-    }
-  };
 
   // Loading state
   if (isLoading) {
@@ -338,6 +141,13 @@ const OpportunityDetailPage = () => {
       ]
     },
     {
+      id: 'tasks',
+      label: 'Tasks',
+      items: [
+        { id: 'tasks', label: 'All Tasks', icon: ClipboardList },
+      ]
+    },
+    {
       id: 'stage-tracker',
       label: 'Stage Tracker',
       items: [
@@ -346,15 +156,6 @@ const OpportunityDetailPage = () => {
         { id: 'stage-qualified', label: 'Qualified', icon: CheckCircle },
         { id: 'stage-negotiating', label: 'Negotiating', icon: FileSignature },
         { id: 'stage-under-contract', label: 'Under Contract', icon: FileCheck },
-      ]
-    },
-    {
-      id: 'management',
-      label: 'Management',
-      items: [
-        { id: 'tasks', label: 'Tasks', icon: ClipboardList },
-        { id: 'contacts', label: 'Contacts', icon: Users },
-        { id: 'comps', label: 'Comparables', icon: TrendingUp },
       ]
     },
     {
@@ -702,17 +503,15 @@ const OpportunityDetailPage = () => {
 
       case 'property-details':
         return (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Property Details</h2>
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
-
-            {/* Location & Identification */}
             <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Location & Identification</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Location</h3>
                   <div>
                     <Label className="text-xs text-gray-500">Address *</Label>
                     <Input
@@ -751,28 +550,27 @@ const OpportunityDetailPage = () => {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-gray-500">County</Label>
-                      <Input
-                        value={formData?.county || ''}
-                        onChange={(e) => setField('county', e.target.value)}
-                        className="mt-1"
-                        placeholder="Greenville"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-500">Parcel ID / TMS#</Label>
-                      <Input
-                        value={formData?.parcel_id || ''}
-                        onChange={(e) => setField('parcel_id', e.target.value)}
-                        className="mt-1"
-                        placeholder="0234-56-78-9012"
-                      />
-                    </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">County</Label>
+                    <Input
+                      value={formData?.county || ''}
+                      onChange={(e) => setField('county', e.target.value)}
+                      className="mt-1"
+                      placeholder="Greenville"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Parcel ID</Label>
+                    <Input
+                      value={formData?.parcel_id || ''}
+                      onChange={(e) => setField('parcel_id', e.target.value)}
+                      className="mt-1"
+                      placeholder="0234-56-78-9012"
+                    />
                   </div>
                 </div>
                 <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Property Info</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-gray-500">Acres</Label>
@@ -802,7 +600,7 @@ const OpportunityDetailPage = () => {
                       value={formData?.zoning || ''}
                       onChange={(e) => setField('zoning', e.target.value)}
                       className="mt-1"
-                      placeholder="R-S, R-6, PD, etc."
+                      placeholder="R-1 Residential"
                     />
                   </div>
                   <div>
@@ -814,200 +612,6 @@ const OpportunityDetailPage = () => {
                       placeholder="Direct Mail, Referral, etc."
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Legal Description</Label>
-                    <Textarea
-                      value={formData?.legal_description || ''}
-                      onChange={(e) => setField('legal_description', e.target.value)}
-                      className="mt-1"
-                      rows={2}
-                      placeholder="Lot 5, Block A, Heritage Subdivision..."
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Land & Zoning — shown for lot/development types */}
-            {(formData?.property_type || '').match(/lot|development/i) && (
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium text-gray-900 mb-4">Land & Zoning</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Municipality</Label>
-                    <Select value={formData?.municipality || ''} onValueChange={(v) => setField('municipality', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="City of Greenville">City of Greenville</SelectItem>
-                        <SelectItem value="Greenville County">Greenville County</SelectItem>
-                        <SelectItem value="City of Greer">City of Greer</SelectItem>
-                        <SelectItem value="City of Simpsonville">City of Simpsonville</SelectItem>
-                        <SelectItem value="City of Mauldin">City of Mauldin</SelectItem>
-                        <SelectItem value="City of Travelers Rest">City of Travelers Rest</SelectItem>
-                        <SelectItem value="Spartanburg County">Spartanburg County</SelectItem>
-                        <SelectItem value="Anderson County">Anderson County</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Lot Size (sf)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.lot_size_sf || ''}
-                      onChange={(e) => setField('lot_size_sf', e.target.value)}
-                      className="mt-1"
-                      placeholder="10890"
-                    />
-                    {formData?.lot_size_sf > 0 && (
-                      <p className="text-xs text-gray-400 mt-1">{(formData.lot_size_sf / 43560).toFixed(2)} acres</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Flood Zone</Label>
-                    <Select value={formData?.flood_zone || ''} onValueChange={(v) => setField('flood_zone', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="X - Minimal">X - Minimal</SelectItem>
-                        <SelectItem value="A - Moderate">A - Moderate</SelectItem>
-                        <SelectItem value="AE - High">AE - High</SelectItem>
-                        <SelectItem value="VE - Coastal">VE - Coastal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Topography</Label>
-                    <Select value={formData?.topography || ''} onValueChange={(v) => setField('topography', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Flat">Flat</SelectItem>
-                        <SelectItem value="Gentle Slope">Gentle Slope</SelectItem>
-                        <SelectItem value="Moderate Slope">Moderate Slope</SelectItem>
-                        <SelectItem value="Steep">Steep</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Tree Coverage</Label>
-                    <Select value={formData?.tree_coverage || ''} onValueChange={(v) => setField('tree_coverage', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="None">None</SelectItem>
-                        <SelectItem value="Light">Light</SelectItem>
-                        <SelectItem value="Moderate">Moderate</SelectItem>
-                        <SelectItem value="Heavy">Heavy</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Road Access</Label>
-                    <Select value={formData?.road_access || ''} onValueChange={(v) => setField('road_access', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Public">Public</SelectItem>
-                        <SelectItem value="Private">Private</SelectItem>
-                        <SelectItem value="Easement">Easement</SelectItem>
-                        <SelectItem value="None">None</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Utilities Available */}
-                <div className="mt-4">
-                  <Label className="text-xs text-gray-500 mb-2 block">Utilities Available</Label>
-                  <div className="flex flex-wrap gap-4">
-                    {['Water', 'Sewer', 'Electric', 'Gas'].map((util) => {
-                      const current = formData?.utilities_available || [];
-                      const isChecked = current.includes(util);
-                      return (
-                        <label key={util} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              const updated = isChecked
-                                ? current.filter(u => u !== util)
-                                : [...current, util];
-                              setField('utilities_available', updated);
-                            }}
-                            className="rounded border-gray-300 text-emerald-600"
-                          />
-                          <span className="text-sm">{util}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">School District</Label>
-                    <Input
-                      value={formData?.school_district || ''}
-                      onChange={(e) => setField('school_district', e.target.value)}
-                      className="mt-1"
-                      placeholder="Greenville County Schools"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">HOA Amount ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.hoa_amount || ''}
-                      onChange={(e) => setField('hoa_amount', e.target.value)}
-                      className="mt-1"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Wetlands %</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={formData?.wetlands_pct || ''}
-                      onChange={(e) => setField('wetlands_pct', e.target.value)}
-                      className="mt-1"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tax & Valuation */}
-            <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Tax & Valuation</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs text-gray-500">Tax Assessed Value ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.tax_assessed_value || ''}
-                    onChange={(e) => setField('tax_assessed_value', e.target.value)}
-                    className="mt-1"
-                    placeholder="150000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Annual Property Taxes ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.annual_taxes || ''}
-                    onChange={(e) => setField('annual_taxes', e.target.value)}
-                    className="mt-1"
-                    placeholder="2400"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Estimated Value ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.estimated_value || ''}
-                    onChange={(e) => setField('estimated_value', e.target.value)}
-                    className="mt-1"
-                    placeholder="250000"
-                  />
                 </div>
               </div>
             </div>
@@ -1016,17 +620,15 @@ const OpportunityDetailPage = () => {
 
       case 'seller-info':
         return (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Seller Information</h2>
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
-
-            {/* Contact & Seller Details */}
             <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Seller Details</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Contact Details</h3>
                   <div>
                     <Label className="text-xs text-gray-500">Seller Name</Label>
                     <Input
@@ -1047,16 +649,6 @@ const OpportunityDetailPage = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-gray-500">Secondary Phone</Label>
-                    <Input
-                      type="tel"
-                      value={formData?.seller_phone_2 || ''}
-                      onChange={(e) => setField('seller_phone_2', e.target.value)}
-                      className="mt-1"
-                      placeholder="(864) 555-4567"
-                    />
-                  </div>
-                  <div>
                     <Label className="text-xs text-gray-500">Email</Label>
                     <Input
                       type="email"
@@ -1066,75 +658,19 @@ const OpportunityDetailPage = () => {
                       placeholder="seller@email.com"
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Seller Address (if different)</Label>
-                    <Input
-                      value={formData?.seller_address || ''}
-                      onChange={(e) => setField('seller_address', e.target.value)}
-                      className="mt-1"
-                      placeholder="456 Other St, City, ST 12345"
-                    />
-                  </div>
                 </div>
                 <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Additional Info</h3>
                   <div>
-                    <Label className="text-xs text-gray-500">Seller Type</Label>
-                    <Select value={formData?.seller_type || ''} onValueChange={(v) => setField('seller_type', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Owner Occupant">Owner Occupant</SelectItem>
-                        <SelectItem value="Absentee Owner">Absentee Owner</SelectItem>
-                        <SelectItem value="Estate/Probate">Estate/Probate</SelectItem>
-                        <SelectItem value="Bank/REO">Bank/REO</SelectItem>
-                        <SelectItem value="Government">Government</SelectItem>
-                        <SelectItem value="Corporate">Corporate</SelectItem>
-                        <SelectItem value="Trust">Trust</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Ownership Duration (years)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.ownership_duration_years || ''}
-                      onChange={(e) => setField('ownership_duration_years', e.target.value)}
+                    <Label className="text-xs text-gray-500">Motivation</Label>
+                    <Textarea
+                      value={formData?.seller_motivation || ''}
+                      onChange={(e) => setField('seller_motivation', e.target.value)}
                       className="mt-1"
-                      placeholder="5"
+                      rows={3}
+                      placeholder="Why is the seller selling? Timeline, situation, etc."
                     />
                   </div>
-                  <div>
-                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData?.agent_involved || false}
-                        onChange={(e) => setField('agent_involved', e.target.checked)}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className="text-sm text-gray-700">Agent Involved</span>
-                    </label>
-                  </div>
-                  {formData?.agent_involved && (
-                    <>
-                      <div>
-                        <Label className="text-xs text-gray-500">Agent Name</Label>
-                        <Input
-                          value={formData?.agent_name || ''}
-                          onChange={(e) => setField('agent_name', e.target.value)}
-                          className="mt-1"
-                          placeholder="Agent name"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-500">Agent Company</Label>
-                        <Input
-                          value={formData?.agent_company || ''}
-                          onChange={(e) => setField('agent_company', e.target.value)}
-                          className="mt-1"
-                          placeholder="Brokerage name"
-                        />
-                      </div>
-                    </>
-                  )}
                   <div>
                     <Label className="text-xs text-gray-500">Contact Notes</Label>
                     <Textarea
@@ -1148,390 +684,83 @@ const OpportunityDetailPage = () => {
                 </div>
               </div>
             </div>
-
-            {/* Motivation Assessment */}
-            <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Motivation Assessment</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-gray-500 mb-2 block">Motivation Level (1-10)</Label>
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
-                        <button
-                          key={level}
-                          onClick={() => setField('motivation_level', level)}
-                          className={cn(
-                            "w-9 h-9 rounded-lg text-sm font-medium transition-colors",
-                            formData?.motivation_level === level
-                              ? level >= 7 ? "bg-emerald-600 text-white" : level >= 4 ? "bg-yellow-500 text-white" : "bg-red-500 text-white"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                          )}
-                        >
-                          {level}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-gray-500 mb-2 block">Motivation Types</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        'Financial Distress', 'Divorce', 'Probate/Inherited', 'Relocating',
-                        'Tired Landlord', 'Tax Liens', 'Code Violations', 'Vacant/Abandoned',
-                        'Downsizing', 'Health Issues', 'Behind on Payments'
-                      ].map((mtype) => {
-                        const current = formData?.motivation_types || [];
-                        const isChecked = current.includes(mtype);
-                        return (
-                          <label key={mtype} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                const updated = isChecked
-                                  ? current.filter(m => m !== mtype)
-                                  : [...current, mtype];
-                                setField('motivation_types', updated);
-                              }}
-                              className="rounded border-gray-300 text-emerald-600"
-                            />
-                            <span className="text-xs">{mtype}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Mortgage Balance ($)</Label>
-                    <Input
-                      type="number"
-                      value={formData?.mortgage_balance || ''}
-                      onChange={(e) => setField('mortgage_balance', e.target.value)}
-                      className="mt-1"
-                      placeholder="120000"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Timeline to Sell</Label>
-                    <Select value={formData?.timeline_to_sell || ''} onValueChange={(v) => setField('timeline_to_sell', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Immediately">Immediately</SelectItem>
-                        <SelectItem value="1-2 Weeks">1-2 Weeks</SelectItem>
-                        <SelectItem value="1 Month">1 Month</SelectItem>
-                        <SelectItem value="2-3 Months">2-3 Months</SelectItem>
-                        <SelectItem value="Flexible">Flexible</SelectItem>
-                        <SelectItem value="Unknown">Unknown</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Asking Price Firm or Flexible</Label>
-                    <Select value={formData?.price_flexibility || ''} onValueChange={(v) => setField('price_flexibility', v)}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Firm">Firm</SelectItem>
-                        <SelectItem value="Somewhat Flexible">Somewhat Flexible</SelectItem>
-                        <SelectItem value="Very Flexible">Very Flexible</SelectItem>
-                        <SelectItem value="Unknown">Unknown</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Competing Offers</Label>
-                    <Input
-                      type="number"
-                      value={formData?.competing_offers || ''}
-                      onChange={(e) => setField('competing_offers', e.target.value)}
-                      className="mt-1"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Seller Motivation Notes</Label>
-                    <Textarea
-                      value={formData?.seller_motivation || ''}
-                      onChange={(e) => setField('seller_motivation', e.target.value)}
-                      className="mt-1"
-                      rows={3}
-                      placeholder="Why is the seller selling? Situation details..."
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         );
 
       case 'deal-terms':
         return (
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Deal Terms</h2>
               <SaveStatusIndicator status={saveStatus} lastSaved={lastSaved} error={saveError} />
             </div>
-
-            {/* Pricing */}
             <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Pricing</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs text-gray-500">Asking Price ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.asking_price || ''}
-                    onChange={(e) => setField('asking_price', e.target.value)}
-                    className="mt-1"
-                    placeholder="200000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Our Offer / MAO ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.initial_offer || ''}
-                    onChange={(e) => setField('initial_offer', e.target.value)}
-                    className="mt-1"
-                    placeholder="175000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Counter Offer ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.counter_offer || ''}
-                    onChange={(e) => setField('counter_offer', e.target.value)}
-                    className="mt-1"
-                    placeholder="185000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Final Agreed Price ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.final_price || ''}
-                    onChange={(e) => setField('final_price', e.target.value)}
-                    className="mt-1"
-                    placeholder="180000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Assignment Fee ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.assignment_fee || ''}
-                    onChange={(e) => setField('assignment_fee', e.target.value)}
-                    className="mt-1"
-                    placeholder="10000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">ARV / After Developed Value ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.estimated_value || ''}
-                    onChange={(e) => setField('estimated_value', e.target.value)}
-                    className="mt-1"
-                    placeholder="250000"
-                  />
-                </div>
-              </div>
-
-              {/* 70% Rule Check */}
-              {(formData?.estimated_value > 0) && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1 font-medium">70% Rule Check</p>
-                  {(() => {
-                    const arv = parseFloat(formData?.estimated_value) || 0;
-                    const repair = parseFloat(formData?.repair_estimate) || 0;
-                    const mao = arv * 0.7 - repair;
-                    const offer = parseFloat(formData?.initial_offer) || parseFloat(formData?.asking_price) || 0;
-                    const isGood = offer <= mao;
-                    return (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600">
-                          ${arv.toLocaleString()} x 0.70 - ${repair.toLocaleString()} = <span className="font-semibold">${mao.toLocaleString()}</span> MAO
-                        </span>
-                        <Badge className={isGood ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {isGood ? 'Good' : 'Over MAO'}
-                        </Badge>
-                        {offer > 0 && (
-                          <span className="text-xs text-gray-400">
-                            (Offer: ${offer.toLocaleString()}, {isGood ? 'under' : 'over'} by ${Math.abs(mao - offer).toLocaleString()})
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-
-            {/* Deal Structure */}
-            <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Deal Structure</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs text-gray-500">Deal Type</Label>
-                  <Select value={formData?.deal_type || 'assignment'} onValueChange={(v) => setField('deal_type', v)}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="assignment">Assignment</SelectItem>
-                      <SelectItem value="double_close">Double Close</SelectItem>
-                      <SelectItem value="novation">Novation</SelectItem>
-                      <SelectItem value="subject_to">Subject-To</SelectItem>
-                      <SelectItem value="seller_finance">Seller Finance</SelectItem>
-                      <SelectItem value="cash_purchase">Cash Purchase</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.earnest_money || ''}
-                    onChange={(e) => setField('earnest_money', e.target.value)}
-                    className="mt-1"
-                    placeholder="5000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Due Diligence Period (days)</Label>
-                  <Input
-                    type="number"
-                    value={formData?.dd_period_days || ''}
-                    onChange={(e) => setField('dd_period_days', e.target.value)}
-                    className="mt-1"
-                    placeholder="14"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">DD Deadline</Label>
-                  <Input
-                    type="date"
-                    value={formData?.dd_deadline ? formData.dd_deadline.split('T')[0] : ''}
-                    onChange={(e) => setField('dd_deadline', e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Target Close Date</Label>
-                  <Input
-                    type="date"
-                    value={formData?.closing_date ? formData.closing_date.split('T')[0] : ''}
-                    onChange={(e) => setField('closing_date', e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Contract Date</Label>
-                  <Input
-                    type="date"
-                    value={formData?.contract_date ? formData.contract_date.split('T')[0] : ''}
-                    onChange={(e) => setField('contract_date', e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Title Company</Label>
-                  <Input
-                    value={formData?.title_company || ''}
-                    onChange={(e) => setField('title_company', e.target.value)}
-                    className="mt-1"
-                    placeholder="ABC Title Company"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-500">Closing Attorney</Label>
-                  <Input
-                    value={formData?.closing_attorney || ''}
-                    onChange={(e) => setField('closing_attorney', e.target.value)}
-                    className="mt-1"
-                    placeholder="Attorney name"
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center gap-2 mt-6 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData?.financing_contingency || false}
-                      onChange={(e) => setField('financing_contingency', e.target.checked)}
-                      className="rounded border-gray-300 text-emerald-600"
-                    />
-                    <span className="text-sm text-gray-700">Financing Contingency</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Wholesale / Assignment — shown for assignment or double_close */}
-            {(formData?.deal_type === 'assignment' || formData?.deal_type === 'double_close') && (
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium text-gray-900 mb-4">Wholesale / Assignment</h3>
-                <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Pricing</h3>
                   <div>
-                    <Label className="text-xs text-gray-500">End Buyer</Label>
-                    <Input
-                      value={formData?.end_buyer_name || ''}
-                      onChange={(e) => setField('end_buyer_name', e.target.value)}
-                      className="mt-1"
-                      placeholder="Buyer name or company"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">End Buyer Offer ($)</Label>
+                    <Label className="text-xs text-gray-500">Asking Price ($)</Label>
                     <Input
                       type="number"
-                      value={formData?.end_buyer_offer || ''}
-                      onChange={(e) => setField('end_buyer_offer', e.target.value)}
+                      value={formData?.asking_price || ''}
+                      onChange={(e) => setField('asking_price', e.target.value)}
                       className="mt-1"
-                      placeholder="195000"
+                      placeholder="200000"
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-gray-500">B-to-C Contract Date</Label>
+                    <Label className="text-xs text-gray-500">Estimated Value ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.estimated_value || ''}
+                      onChange={(e) => setField('estimated_value', e.target.value)}
+                      className="mt-1"
+                      placeholder="250000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Assignment Fee ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.assignment_fee || ''}
+                      onChange={(e) => setField('assignment_fee', e.target.value)}
+                      className="mt-1"
+                      placeholder="10000"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Contract Terms</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500">Earnest Money ($)</Label>
+                    <Input
+                      type="number"
+                      value={formData?.earnest_money || ''}
+                      onChange={(e) => setField('earnest_money', e.target.value)}
+                      className="mt-1"
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">DD Deadline</Label>
                     <Input
                       type="date"
-                      value={formData?.btoc_contract_date ? formData.btoc_contract_date.split('T')[0] : ''}
-                      onChange={(e) => setField('btoc_contract_date', e.target.value)}
+                      value={formData?.dd_deadline ? formData.dd_deadline.split('T')[0] : ''}
+                      onChange={(e) => setField('dd_deadline', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Target Close Date</Label>
+                    <Input
+                      type="date"
+                      value={formData?.close_date ? formData.close_date.split('T')[0] : ''}
+                      onChange={(e) => setField('close_date', e.target.value)}
                       className="mt-1"
                     />
                   </div>
                 </div>
-                {/* Auto-calculated assignment fee */}
-                {(parseFloat(formData?.end_buyer_offer) > 0 && parseFloat(formData?.final_price || formData?.initial_offer || formData?.asking_price) > 0) && (
-                  <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-emerald-700 font-medium">Assignment Fee (calculated)</span>
-                      <span className="text-lg font-semibold text-emerald-700">
-                        ${(
-                          (parseFloat(formData?.end_buyer_offer) || 0) -
-                          (parseFloat(formData?.final_price) || parseFloat(formData?.initial_offer) || parseFloat(formData?.asking_price) || 0)
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-emerald-600 mt-1">
-                      End Buyer Offer (${(parseFloat(formData?.end_buyer_offer) || 0).toLocaleString()})
-                      {' '}- Contract Price (${(parseFloat(formData?.final_price) || parseFloat(formData?.initial_offer) || parseFloat(formData?.asking_price) || 0).toLocaleString()})
-                    </p>
-                  </div>
-                )}
               </div>
-            )}
-
-            {/* Negotiation Notes */}
-            <div className="bg-white border rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-4">Negotiation Notes</h3>
-              <Textarea
-                value={formData?.negotiation_notes || ''}
-                onChange={(e) => setField('negotiation_notes', e.target.value)}
-                rows={4}
-                placeholder="Track negotiation details, seller concerns, terms discussed..."
-              />
             </div>
           </div>
         );
@@ -1544,475 +773,13 @@ const OpportunityDetailPage = () => {
         );
       
       case 'tasks':
-        return (
-          <div className="p-6">
-            <RecordTasksPanel
-              module="opportunities"
-              recordId={opportunityId}
-              recordName={formData?.address || formData?.property_address || 'Opportunity'}
-            />
-          </div>
-        );
-
-      case 'contacts': {
-        return (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Contacts</h2>
-                <p className="text-sm text-gray-500">{oppContacts.length} contact{oppContacts.length !== 1 ? 's' : ''} for this opportunity</p>
-              </div>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowAddContact(true)}>
-                <Plus className="w-4 h-4 mr-1" /> Add Contact
-              </Button>
-            </div>
-
-            {/* Add Contact Form */}
-            {showAddContact && (
-              <div className="bg-white border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium text-gray-900">New Contact</h3>
-                  <button onClick={() => setShowAddContact(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-gray-500">Name *</Label>
-                    <Input
-                      value={newContact.name}
-                      onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
-                      className="mt-1"
-                      placeholder="Full name"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Role</Label>
-                    <Select value={newContact.role} onValueChange={(v) => setNewContact(prev => ({ ...prev, role: v }))}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CONTACT_ROLES.map(r => (
-                          <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Company</Label>
-                    <Input
-                      value={newContact.company}
-                      onChange={(e) => setNewContact(prev => ({ ...prev, company: e.target.value }))}
-                      className="mt-1"
-                      placeholder="Company name"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Phone</Label>
-                    <Input
-                      value={newContact.phone}
-                      onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
-                      className="mt-1"
-                      placeholder="(864) 555-0100"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Email</Label>
-                    <Input
-                      value={newContact.email}
-                      onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
-                      className="mt-1"
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div className="flex items-end pb-1">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newContact.is_primary}
-                        onChange={(e) => setNewContact(prev => ({ ...prev, is_primary: e.target.checked }))}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className="text-sm text-gray-600">Primary contact</span>
-                    </label>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-gray-500">Notes</Label>
-                    <Textarea
-                      value={newContact.notes}
-                      onChange={(e) => setNewContact(prev => ({ ...prev, notes: e.target.value }))}
-                      className="mt-1"
-                      rows={2}
-                      placeholder="Additional notes..."
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setShowAddContact(false)}>Cancel</Button>
-                  <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleAddOppContact}>Add Contact</Button>
-                </div>
-              </div>
-            )}
-
-            {/* Contact Cards Grid */}
-            {oppContactsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-[#047857]" />
-                <span className="ml-2 text-gray-500">Loading contacts...</span>
-              </div>
-            ) : oppContacts.length === 0 ? (
-              <div className="bg-white border rounded-lg p-12 text-center">
-                <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No contacts yet. Add your first contact above.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {oppContacts.map(contact => {
-                  const roleMeta = CONTACT_ROLES.find(r => r.id === contact.role);
-                  return (
-                    <div key={contact.id} className="bg-white border rounded-lg p-5 hover:shadow-sm transition-shadow relative">
-                      {contact.is_primary && (
-                        <Star className="w-4 h-4 text-amber-400 fill-amber-400 absolute top-3 right-3" />
-                      )}
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-medium text-gray-600">
-                            {contact.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-medium text-sm text-gray-900 truncate">{contact.name}</h4>
-                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] font-medium mt-1", roleMeta?.color || 'bg-gray-100 text-gray-700')}>
-                            {roleMeta?.label || contact.role}
-                          </span>
-                        </div>
-                      </div>
-                      {contact.company && (
-                        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                          <Building2 className="w-3 h-3" /> {contact.company}
-                        </p>
-                      )}
-                      <div className="space-y-1.5">
-                        {contact.phone && (
-                          <a href={`tel:${contact.phone}`} className="text-xs text-gray-600 flex items-center gap-1.5 hover:text-[#047857]">
-                            <Phone className="w-3 h-3" /> {contact.phone}
-                          </a>
-                        )}
-                        {contact.email && (
-                          <a href={`mailto:${contact.email}`} className="text-xs text-gray-600 flex items-center gap-1.5 hover:text-[#047857]">
-                            <Mail className="w-3 h-3" /> {contact.email}
-                          </a>
-                        )}
-                      </div>
-                      {contact.notes && (
-                        <p className="text-xs text-gray-400 mt-3 line-clamp-2 border-t pt-2">{contact.notes}</p>
-                      )}
-                      <div className="flex justify-end mt-3">
-                        <button
-                          onClick={() => handleDeleteOppContact(contact.id)}
-                          className="text-gray-300 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      case 'comps': {
-        const compStats = oppComps.length > 0 ? {
-          avgPrice: oppComps.reduce((s, c) => s + (c.sale_price || 0), 0) / oppComps.length,
-          avgPsf: oppComps.filter(c => c.price_per_sqft).length > 0
-            ? oppComps.filter(c => c.price_per_sqft).reduce((s, c) => s + c.price_per_sqft, 0) / oppComps.filter(c => c.price_per_sqft).length
-            : 0,
-          count: oppComps.length,
-        } : { avgPrice: 0, avgPsf: 0, count: 0 };
-        return (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Comparable Sales</h2>
-                <p className="text-sm text-gray-500">Analyze nearby property sales to determine value</p>
-              </div>
-              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setShowAddComp(true)}>
-                <Plus className="w-4 h-4 mr-1" /> Add Comp
-              </Button>
-            </div>
-
-            {/* Summary Stats */}
-            {oppComps.length > 0 && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white border rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">Avg Sale Price</p>
-                  <p className="text-xl font-semibold">${compStats.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                </div>
-                <div className="bg-white border rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">Avg $/SF</p>
-                  <p className="text-xl font-semibold">${compStats.avgPsf.toFixed(2)}</p>
-                </div>
-                <div className="bg-white border rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1"># Comps</p>
-                  <p className="text-xl font-semibold">{compStats.count}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Add Comp Form */}
-            {showAddComp && (
-              <div className="bg-white border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium text-gray-900">New Comparable</h3>
-                  <button onClick={() => setShowAddComp(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2">
-                    <Label className="text-xs text-gray-500">Address *</Label>
-                    <Input
-                      value={newComp.address}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, address: e.target.value }))}
-                      className="mt-1"
-                      placeholder="123 Main St"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Source</Label>
-                    <Select value={newComp.source} onValueChange={(v) => setNewComp(prev => ({ ...prev, source: v }))}>
-                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MLS">MLS</SelectItem>
-                        <SelectItem value="County Records">County Records</SelectItem>
-                        <SelectItem value="Zillow">Zillow</SelectItem>
-                        <SelectItem value="Redfin">Redfin</SelectItem>
-                        <SelectItem value="Agent">Agent</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">City</Label>
-                    <Input
-                      value={newComp.city}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, city: e.target.value }))}
-                      className="mt-1"
-                      placeholder="Greenville"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">State</Label>
-                    <Input
-                      value={newComp.state}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, state: e.target.value }))}
-                      className="mt-1"
-                      placeholder="SC"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Sale Date</Label>
-                    <Input
-                      type="date"
-                      value={newComp.sale_date}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, sale_date: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Sale Price ($)</Label>
-                    <Input
-                      type="number"
-                      value={newComp.sale_price}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, sale_price: e.target.value }))}
-                      className="mt-1"
-                      placeholder="185000"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Square Footage</Label>
-                    <Input
-                      type="number"
-                      value={newComp.square_footage}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, square_footage: e.target.value }))}
-                      className="mt-1"
-                      placeholder="1450"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Lot Size (acres)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={newComp.lot_size_acres}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, lot_size_acres: e.target.value }))}
-                      className="mt-1"
-                      placeholder="0.25"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Bedrooms</Label>
-                    <Input
-                      type="number"
-                      value={newComp.bedrooms}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, bedrooms: e.target.value }))}
-                      className="mt-1"
-                      placeholder="3"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Bathrooms</Label>
-                    <Input
-                      type="number"
-                      step="0.5"
-                      value={newComp.bathrooms}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, bathrooms: e.target.value }))}
-                      className="mt-1"
-                      placeholder="2"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Year Built</Label>
-                    <Input
-                      type="number"
-                      value={newComp.year_built}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, year_built: e.target.value }))}
-                      className="mt-1"
-                      placeholder="2005"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Distance (miles)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={newComp.distance_miles}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, distance_miles: e.target.value }))}
-                      className="mt-1"
-                      placeholder="1.2"
-                    />
-                  </div>
-                  <div className="col-span-3">
-                    <Label className="text-xs text-gray-500">Notes</Label>
-                    <Textarea
-                      value={newComp.notes}
-                      onChange={(e) => setNewComp(prev => ({ ...prev, notes: e.target.value }))}
-                      className="mt-1"
-                      rows={2}
-                      placeholder="Condition, adjustments, etc."
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setShowAddComp(false)}>Cancel</Button>
-                  <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={handleAddOppComp}>Add Comparable</Button>
-                </div>
-              </div>
-            )}
-
-            {/* Comps Table */}
-            {oppCompsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-[#047857]" />
-                <span className="ml-2 text-gray-500">Loading comparables...</span>
-              </div>
-            ) : oppComps.length === 0 ? (
-              <div className="bg-white border rounded-lg p-12 text-center">
-                <TrendingUp className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No comparable sales yet. Add your first comp above.</p>
-              </div>
-            ) : (
-              <div className="bg-white border rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sale Date</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">$/SF</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Beds/Baths</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Distance</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase w-20"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {oppComps.map(comp => (
-                      <React.Fragment key={comp.id}>
-                        <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpandedCompId(expandedCompId === comp.id ? null : comp.id)}>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <ChevronRight className={cn("w-3.5 h-3.5 text-gray-400 transition-transform", expandedCompId === comp.id && "rotate-90")} />
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{comp.address}</p>
-                                <p className="text-xs text-gray-400">{comp.city}{comp.state ? `, ${comp.state}` : ''}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {comp.sale_date ? new Date(comp.sale_date).toLocaleDateString() : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 font-medium text-right">
-                            {comp.sale_price ? `$${parseFloat(comp.sale_price).toLocaleString()}` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                            {comp.price_per_sqft ? `$${parseFloat(comp.price_per_sqft).toFixed(2)}` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-center">
-                            {comp.bedrooms || '-'}/{comp.bathrooms || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                            {comp.distance_miles ? `${comp.distance_miles} mi` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteOppComp(comp.id); }}
-                              className="text-gray-300 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                        {expandedCompId === comp.id && (
-                          <tr>
-                            <td colSpan={7} className="px-4 py-3 bg-gray-50">
-                              <div className="grid grid-cols-4 gap-4 text-xs">
-                                <div>
-                                  <span className="text-gray-400">Square Footage:</span>
-                                  <span className="ml-1 font-medium">{comp.square_footage ? `${comp.square_footage.toLocaleString()} sf` : '-'}</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-400">Lot Size:</span>
-                                  <span className="ml-1 font-medium">{comp.lot_size_acres ? `${comp.lot_size_acres} ac` : '-'}</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-400">Year Built:</span>
-                                  <span className="ml-1 font-medium">{comp.year_built || '-'}</span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-400">Source:</span>
-                                  <span className="ml-1 font-medium">{comp.source || '-'}</span>
-                                </div>
-                              </div>
-                              {comp.notes && (
-                                <div className="mt-2 text-xs">
-                                  <span className="text-gray-400">Notes:</span>
-                                  <p className="text-gray-600 mt-0.5">{comp.notes}</p>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      }
+        return <OpportunityTasks opportunity={opportunity} />;
+      
+      case 'contacts':
+        return <OpportunityContacts opportunity={opportunity} />;
+      
+      case 'comps':
+        return <OpportunityComparables opportunity={opportunity} />;
       
       case 'mailing':
         return (
@@ -2345,48 +1112,24 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Prospecting Stage</h2>
-              <Button
-                className="bg-[#047857] hover:bg-[#065f46]"
-                onClick={() => {
-                  const progress = stageProgress['Prospecting'];
-                  if (progress?.requiredCompleted < progress?.requiredTotal) {
-                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
-                  }
-                  setField('stage', 'Contacted');
-                }}
-              >
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Contacted')}>
                 Move to Contacted
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Prospecting Checklist</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-emerald-600 h-2 rounded-full transition-all"
-                        style={{ width: `${stageProgress['Prospecting']?.pct || 0}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {stageProgress['Prospecting']?.completed || 0}/{stageProgress['Prospecting']?.total || 0}
-                    </span>
-                  </div>
-                  {(stageTasks['Prospecting'] || []).map((task) => (
-                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={task.is_complete}
-                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Prospecting')}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
-                        {task.task_text}
-                      </span>
-                      {task.is_required && (
-                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
-                      )}
+                <div className="space-y-3">
+                  {[
+                    'Property details verified',
+                    'Ownership confirmed',
+                    'Initial property research complete',
+                    'Comparable sales reviewed',
+                    'Potential value estimated',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
                     </label>
                   ))}
                 </div>
@@ -2417,48 +1160,24 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Contacted Stage</h2>
-              <Button
-                className="bg-[#047857] hover:bg-[#065f46]"
-                onClick={() => {
-                  const progress = stageProgress['Contacted'];
-                  if (progress?.requiredCompleted < progress?.requiredTotal) {
-                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
-                  }
-                  setField('stage', 'Qualified');
-                }}
-              >
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Qualified')}>
                 Move to Qualified
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Contact Checklist</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-emerald-600 h-2 rounded-full transition-all"
-                        style={{ width: `${stageProgress['Contacted']?.pct || 0}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {stageProgress['Contacted']?.completed || 0}/{stageProgress['Contacted']?.total || 0}
-                    </span>
-                  </div>
-                  {(stageTasks['Contacted'] || []).map((task) => (
-                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={task.is_complete}
-                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Contacted')}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
-                        {task.task_text}
-                      </span>
-                      {task.is_required && (
-                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
-                      )}
+                <div className="space-y-3">
+                  {[
+                    'Initial contact made',
+                    'Seller motivation discussed',
+                    'Property condition reviewed',
+                    'Timeline established',
+                    'Follow-up scheduled',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
                     </label>
                   ))}
                 </div>
@@ -2490,48 +1209,25 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Qualified Stage</h2>
-              <Button
-                className="bg-[#047857] hover:bg-[#065f46]"
-                onClick={() => {
-                  const progress = stageProgress['Qualified'];
-                  if (progress?.requiredCompleted < progress?.requiredTotal) {
-                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
-                  }
-                  setField('stage', 'Negotiating');
-                }}
-              >
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Negotiating')}>
                 Move to Negotiating
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Qualification Checklist</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-emerald-600 h-2 rounded-full transition-all"
-                        style={{ width: `${stageProgress['Qualified']?.pct || 0}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {stageProgress['Qualified']?.completed || 0}/{stageProgress['Qualified']?.total || 0}
-                    </span>
-                  </div>
-                  {(stageTasks['Qualified'] || []).map((task) => (
-                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={task.is_complete}
-                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Qualified')}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
-                        {task.task_text}
-                      </span>
-                      {task.is_required && (
-                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
-                      )}
+                <div className="space-y-3">
+                  {[
+                    'Seller is motivated',
+                    'Price expectations are reasonable',
+                    'Property meets investment criteria',
+                    'Clear title (preliminary)',
+                    'No major property issues',
+                    'Financing path identified',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
                     </label>
                   ))}
                 </div>
@@ -2562,52 +1258,11 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Negotiating Stage</h2>
-              <Button
-                className="bg-[#047857] hover:bg-[#065f46]"
-                onClick={() => {
-                  const progress = stageProgress['Negotiating'];
-                  if (progress?.requiredCompleted < progress?.requiredTotal) {
-                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Advance anyway?`)) return;
-                  }
-                  setField('stage', 'Under Contract');
-                }}
-              >
+              <Button className="bg-[#047857] hover:bg-[#065f46]" onClick={() => setField('stage', 'Under Contract')}>
                 Move to Under Contract
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Negotiation Checklist</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-emerald-600 h-2 rounded-full transition-all"
-                        style={{ width: `${stageProgress['Negotiating']?.pct || 0}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {stageProgress['Negotiating']?.completed || 0}/{stageProgress['Negotiating']?.total || 0}
-                    </span>
-                  </div>
-                  {(stageTasks['Negotiating'] || []).map((task) => (
-                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={task.is_complete}
-                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Negotiating')}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
-                        {task.task_text}
-                      </span>
-                      {task.is_required && (
-                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Negotiation Tracker</h3>
                 <div className="space-y-4">
@@ -2641,17 +1296,16 @@ const OpportunityDetailPage = () => {
                       placeholder="Agreed price"
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Negotiation Notes</Label>
-                    <Textarea
-                      value={formData?.negotiation_notes || ''}
-                      onChange={(e) => setField('negotiation_notes', e.target.value)}
-                      className="mt-1"
-                      rows={4}
-                      placeholder="Track negotiation details, seller concerns, terms discussed..."
-                    />
-                  </div>
                 </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Negotiation Notes</h3>
+                <Textarea
+                  value={formData?.negotiation_notes || ''}
+                  onChange={(e) => setField('negotiation_notes', e.target.value)}
+                  rows={8}
+                  placeholder="Track negotiation details, seller concerns, terms discussed..."
+                />
               </div>
             </div>
           </div>
@@ -2662,52 +1316,11 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Under Contract</h2>
-              <Button
-                className="bg-[#047857] hover:bg-[#065f46]"
-                onClick={() => {
-                  const progress = stageProgress['Under Contract'];
-                  if (progress?.requiredCompleted < progress?.requiredTotal) {
-                    if (!confirm(`${progress.requiredTotal - progress.requiredCompleted} required tasks are incomplete. Convert anyway?`)) return;
-                  }
-                  handleConvertToProject();
-                }}
-              >
+              <Button className="bg-[#047857] hover:bg-[#065f46]">
                 Convert to Project
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white border rounded-lg p-6">
-                <h3 className="font-medium mb-4">Under Contract Checklist</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-emerald-600 h-2 rounded-full transition-all"
-                        style={{ width: `${stageProgress['Under Contract']?.pct || 0}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {stageProgress['Under Contract']?.completed || 0}/{stageProgress['Under Contract']?.total || 0}
-                    </span>
-                  </div>
-                  {(stageTasks['Under Contract'] || []).map((task) => (
-                    <label key={task.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={task.is_complete}
-                        onChange={() => handleToggleTask(task.id, task.is_complete, 'Under Contract')}
-                        className="rounded border-gray-300 text-emerald-600"
-                      />
-                      <span className={cn("text-sm", task.is_complete && "line-through text-gray-400")}>
-                        {task.task_text}
-                      </span>
-                      {task.is_required && (
-                        <Badge variant="outline" className="text-[10px] ml-auto">Required</Badge>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
               <div className="bg-white border rounded-lg p-6">
                 <h3 className="font-medium mb-4">Contract Details</h3>
                 <div className="space-y-4">
@@ -2747,6 +1360,25 @@ const OpportunityDetailPage = () => {
                       className="mt-1"
                     />
                   </div>
+                </div>
+              </div>
+              <div className="bg-white border rounded-lg p-6">
+                <h3 className="font-medium mb-4">Closing Checklist</h3>
+                <div className="space-y-3">
+                  {[
+                    'Title search ordered',
+                    'Survey completed',
+                    'Inspections done',
+                    'Financing approved',
+                    'Insurance obtained',
+                    'Closing scheduled',
+                    'Funds wired',
+                  ].map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                      <span className="text-sm">{item}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>

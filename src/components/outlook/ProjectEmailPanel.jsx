@@ -2,6 +2,7 @@
 // Qualia-style Email Panel for Project Portal
 
 import React, { useState, useEffect, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import {
   Mail, Send, Reply, ReplyAll, Forward, Trash2, Paperclip, Search,
   RefreshCw, Star, AlertCircle, Check, ChevronDown, X, Plus, Link2,
@@ -474,7 +475,7 @@ const ProjectEmailPanel = ({
               ) : emailContent.bodyType === 'HTML' ? (
                 <div
                   className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: emailContent.body }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(emailContent.body) }}
                 />
               ) : (
                 <pre className="whitespace-pre-wrap font-sans text-sm">{emailContent.body}</pre>

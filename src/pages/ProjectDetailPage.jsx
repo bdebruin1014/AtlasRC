@@ -3,9 +3,9 @@ import ProjectContactsSection from '@/pages/projects/ContactsPage';
 import BasicInfoPage from '@/pages/projects/BasicInfoPage';
 import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import TasksPage from '@/pages/projects/TasksPage';
-import RecordTasksPanel from '@/components/RecordTasksPanel';
+import ProjectMilestonesPage from '@/pages/projects/ProjectMilestonesPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, FileCheck, Receipt, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, CheckSquare, Hammer, Home, Map, ShoppingBag, FileBarChart, Layers, Shield } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, Truck, FileCheck, Receipt, Shield, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useProject, useProjectActions, useProjectFinancials, PROJECT_TYPES, PROJECT_STATUSES } from '@/hooks/useProjects';
 import { useAutoSave, SaveStatusIndicator } from '@/hooks/useAutoSave';
-import { PROJECT_TYPE_CONFIG } from '@/lib/constants';
 
 // E-Sign and Document Components
 import ESignButton from '@/components/esign/ESignButton';
@@ -28,68 +27,11 @@ import BuildToRentBudget from '@/features/budgets/components/BuildToRentBudget';
 import BuildToSellBudget from '@/features/budgets/components/BuildToSellBudget';
 import { budgetTypes } from '@/features/budgets/components/BudgetModuleRouter';
 
-// Entitlement Section Components
-import ZoningEntitlementsSection from '@/pages/projects/sections/ZoningEntitlementsSection';
-import PlatSubdivisionSection from '@/pages/projects/sections/PlatSubdivisionSection';
-import SitePermitsSection from '@/pages/projects/sections/SitePermitsSection';
-
-// Construction Section Components
-import HousesSection from '@/pages/projects/sections/HousesSection';
-import VerticalBudgetSection from '@/pages/projects/sections/VerticalBudgetSection';
-import VerticalScheduleSection from '@/pages/projects/sections/VerticalScheduleSection';
-import VerticalDrawsSection from '@/pages/projects/sections/VerticalDrawsSection';
-
-// Calendar Section
-import ProjectCalendarSection from '@/pages/projects/sections/ProjectCalendarSection';
-
-// Sales & Disposition Section Components
-import LotInventorySection from '@/pages/projects/sections/LotInventorySection';
-import LotSalesSection from '@/pages/projects/sections/LotSalesSection';
-import SalesPipelineSection from '@/pages/projects/sections/SalesPipelineSection';
-import ClosingsSection from '@/pages/projects/sections/ClosingsSection';
-
-// Icon map for sidebar item overrides
-const SIDEBAR_ICONS = {
-  'purchase-contract': FileCheck,
-  'due-diligence': ClipboardList,
-  'closing': Landmark,
-  'zoning': Shield,
-  'plat': Map,
-  'permits-site': FileBarChart,
-  'budget': Calculator,
-  'schedule': Calendar,
-  'draws': Receipt,
-  'change-orders': FileCheck,
-  'houses': Home,
-  'lot-inventory': Layers,
-  'lot-sales': ShoppingBag,
-  'sales-pipeline': TrendingUp,
-  'closings': Landmark,
-  'vertical-budget': Calculator,
-  'vertical-schedule': Calendar,
-  'vertical-draws': Receipt,
-  'project-calendar': Calendar,
-};
-
-// Icon map for sidebar group headers
-const GROUP_HEADER_ICONS = {
-  overview: Home,
-  acquisition: Landmark,
-  entitlements: Shield,
-  horizontal: Layers,
-  construction: Hammer,
-  lotSales: ShoppingBag,
-  'lot-sales': ShoppingBag,
-  disposition: TrendingUp,
-  finance: DollarSign,
-  documents: FolderOpen,
-};
-
 const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('basic-info');
-  const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'entitlements', 'horizontal', 'lot-sales', 'disposition', 'finance', 'documents']);
+  const [expandedGroups, setExpandedGroups] = useState(['overview', 'acquisition', 'construction', 'finance', 'tasks', 'documents']);
   const [showContractModal, setShowContractModal] = useState(false);
 
   // Properties linked to purchase contract
@@ -146,118 +88,51 @@ const ProjectDetailPage = () => {
     }
   };
 
-  // Dynamically build sidebar groups based on project type
-  const projectType = formData?.project_type || rawProject?.project_type || 'scattered-lot';
-  const typeConfig = PROJECT_TYPE_CONFIG[projectType];
-  const typeLabel = typeConfig?.label || 'Project';
-
-  const sidebarGroups = useMemo(() => {
-    const groups = [];
-
-    // Overview -- always visible
-    groups.push({
+  const sidebarGroups = [
+    {
       id: 'overview',
       label: 'Overview',
       items: [
         { id: 'basic-info', label: 'Basic Info', icon: FileText },
         { id: 'property', label: 'Property Details', icon: MapPin },
         { id: 'contacts', label: 'Contacts', icon: Users },
-        { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-        { id: 'project-calendar', label: 'Calendar', icon: Calendar },
       ]
-    });
-
-    if (!typeConfig) {
-      // Fallback to generic sidebar when no config found
-      groups.push(
-        {
-          id: 'acquisition',
-          label: 'Acquisition',
-          items: [
-            { id: 'purchase-contract', label: 'Contract', icon: FileCheck },
-            { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
-            { id: 'closing', label: 'Closing', icon: Landmark },
-          ]
-        },
-        {
-          id: 'construction',
-          label: 'Construction',
-          items: [
-            { id: 'budget', label: 'Budget', icon: Calculator },
-            { id: 'schedule', label: 'Schedule', icon: Calendar },
-            { id: 'draws', label: 'Build / Draw', icon: Receipt },
-            { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
-          ]
-        }
-      );
-    } else {
-      // Build from type config sections and overrides
-      const overrides = typeConfig.sidebarOverrides || {};
-      const sections = typeConfig.sections || {};
-
-      if (sections.acquisition && overrides.acquisition) {
-        groups.push({
-          id: 'acquisition',
-          label: 'Acquisition',
-          items: overrides.acquisition.map(item => ({
-            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
-          })),
-        });
-      }
-      if (sections.entitlements && overrides.entitlements) {
-        groups.push({
-          id: 'entitlements',
-          label: 'Entitlements',
-          items: overrides.entitlements.map(item => ({
-            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
-          })),
-        });
-      }
-      if (sections.horizontal && overrides.horizontal) {
-        groups.push({
-          id: 'horizontal',
-          label: 'Horizontal',
-          items: overrides.horizontal.map(item => ({
-            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
-          })),
-        });
-      }
-      if (sections.construction && overrides.construction) {
-        groups.push({
-          id: 'construction',
-          label: 'Construction',
-          items: overrides.construction.map(item => ({
-            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
-          })),
-        });
-      }
-      if (sections.lotSales && overrides.lotSales) {
-        groups.push({
-          id: 'lot-sales',
-          label: 'Lot Sales',
-          items: overrides.lotSales.map(item => ({
-            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
-          })),
-        });
-      }
-      if (sections.disposition && overrides.disposition) {
-        groups.push({
-          id: 'disposition',
-          label: 'Disposition',
-          items: overrides.disposition.map(item => ({
-            ...item, icon: SIDEBAR_ICONS[item.id] || FileText
-          })),
-        });
-      }
-    }
-
-    // Finance -- always visible
-    groups.push({
+    },
+    {
+      id: 'tasks',
+      label: 'Tasks',
+      items: [
+        { id: 'tasks', label: 'All Tasks', icon: ClipboardList },
+        { id: 'milestones', label: 'Milestones', icon: Calendar },
+      ]
+    },
+    {
+      id: 'acquisition',
+      label: 'Acquisition',
+      items: [
+        { id: 'purchase-contract', label: 'Purchase Contract', icon: FileCheck },
+        { id: 'due-diligence', label: 'Due Diligence', icon: ClipboardList },
+        { id: 'closing', label: 'Closing', icon: Landmark },
+      ]
+    },
+    {
+      id: 'construction',
+      label: 'Construction',
+      items: [
+        { id: 'budget', label: 'Budget', icon: Calculator },
+        { id: 'schedule', label: 'Schedule', icon: Calendar },
+        { id: 'draws', label: 'Draw Requests', icon: Receipt },
+        { id: 'change-orders', label: 'Change Orders', icon: FileCheck },
+        { id: 'permits', label: 'Permits', icon: Shield },
+        { id: 'bids', label: 'Bids', icon: Truck },
+      ]
+    },
+    {
       id: 'finance',
       label: 'Finance',
       items: [
         { id: 'finance-summary', label: 'Summary', icon: PieChart },
-        { id: 'pro-forma', label: 'Pro Forma', icon: Calculator },
+        { id: 'pro-forma', label: 'Pro Forma', icon: FileText },
         { id: 'budget-vs-actual', label: 'Budget vs Actual', icon: TrendingUp },
         { id: 'expenses', label: 'Expenses', icon: CreditCard },
         { id: 'revenue', label: 'Revenue & Sales', icon: DollarSign },
@@ -265,10 +140,8 @@ const ProjectDetailPage = () => {
         { id: 'draws-finance', label: 'Draw Schedule', icon: Receipt },
         { id: 'cash-flow', label: 'Cash Flow', icon: TrendingUp },
       ]
-    });
-
-    // Documents -- always visible
-    groups.push({
+    },
+    {
       id: 'documents',
       label: 'Documents',
       items: [
@@ -276,10 +149,8 @@ const ProjectDetailPage = () => {
         { id: 'mailing', label: 'Mailing', icon: Mail },
         { id: 'communications', label: 'Communications', icon: MessageSquare },
       ]
-    });
-
-    return groups;
-  }, [projectType, typeConfig]);
+    },
+  ];
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev =>
@@ -798,15 +669,10 @@ const ProjectDetailPage = () => {
         return <ProjectContactsSection projectId={projectId} />;
 
       case 'tasks':
-        return (
-          <div className="p-6">
-            <RecordTasksPanel
-              module="projects"
-              recordId={projectId}
-              recordName={formData?.name || 'Project'}
-            />
-          </div>
-        );
+        return <TasksPage projectId={projectId} />;
+
+      case 'milestones':
+        return <ProjectMilestonesPage projectId={projectId} />;
 
       case 'files':
         return (
@@ -854,21 +720,63 @@ const ProjectDetailPage = () => {
         );
 
       case 'permits':
+        return (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Permits & Inspections</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Add Permit</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Permits</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Approved</p>
+                <p className="text-2xl font-semibold text-green-600">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-semibold text-amber-600">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Inspections Due</p>
+                <p className="text-2xl font-semibold text-blue-600">0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No permits tracked yet. Click "Add Permit" to add one.</p>
+            </div>
+          </div>
+        );
+
       case 'bids':
         return (
           <div className="p-6">
-            <div className="bg-white border rounded-lg p-8 text-center">
-              <Hammer className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Moved to Construction Management</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Permits and Purchase Orders are now managed per-house in the Construction Management module.
-              </p>
-              <Button
-                onClick={() => navigate('/construction')}
-                className="bg-[#047857] hover:bg-[#065f46]"
-              >
-                Go to Construction Management
-              </Button>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Bids & Subcontracts</h2>
+              <Button className="bg-[#047857] hover:bg-[#065f46]">Create Bid Package</Button>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Bid Packages</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Bids Received</p>
+                <p className="text-2xl font-semibold">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Awarded</p>
+                <p className="text-2xl font-semibold text-green-600">0</p>
+              </div>
+              <div className="bg-white border rounded-lg p-4">
+                <p className="text-sm text-gray-500">Total Contract Value</p>
+                <p className="text-2xl font-semibold">$0</p>
+              </div>
+            </div>
+            <div className="bg-white border rounded-lg p-6">
+              <p className="text-gray-500 text-center py-8">No bid packages yet. Click "Create Bid Package" to start.</p>
             </div>
           </div>
         );
@@ -1076,50 +984,6 @@ const ProjectDetailPage = () => {
           </div>
         );
 
-      // -- Entitlement sections --
-
-      case 'zoning':
-        return <ZoningEntitlementsSection projectId={projectId} />;
-
-      case 'plat':
-        return <PlatSubdivisionSection projectId={projectId} />;
-
-      case 'permits-site':
-        return <SitePermitsSection projectId={projectId} />;
-
-      // -- Construction sections --
-
-      case 'houses':
-        return <HousesSection projectId={projectId} />;
-
-      case 'vertical-budget':
-        return <VerticalBudgetSection projectId={projectId} />;
-
-      case 'vertical-schedule':
-        return <VerticalScheduleSection projectId={projectId} />;
-
-      case 'vertical-draws':
-        return <VerticalDrawsSection projectId={projectId} />;
-
-      // -- Lot Sales sections --
-
-      case 'lot-inventory':
-        return <LotInventorySection projectId={projectId} />;
-
-      case 'lot-sales':
-        return <LotSalesSection projectId={projectId} />;
-
-      // -- Disposition sections --
-
-      case 'sales-pipeline':
-        return <SalesPipelineSection projectId={projectId} />;
-
-      case 'closings':
-        return <ClosingsSection projectId={projectId} />;
-
-      case 'project-calendar':
-        return <ProjectCalendarSection projectId={projectId} />;
-
       default:
         return (
           <div className="p-6">
@@ -1149,7 +1013,7 @@ const ProjectDetailPage = () => {
               <p className="text-gray-500 text-xs">{rawProject?.entity?.name || 'No Entity'}</p>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <div className="mt-2 flex items-center gap-2">
             <span className={cn("text-xs px-2 py-0.5 rounded",
               formData?.status === 'active' ? 'bg-emerald-500 text-white' :
               formData?.status === 'completed' ? 'bg-blue-500 text-white' :
@@ -1159,34 +1023,30 @@ const ProjectDetailPage = () => {
             {budgetTypeInfo && (
               <span className="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded">{budgetTypeInfo.name}</span>
             )}
-            <span className="text-xs bg-indigo-600 text-indigo-100 px-2 py-0.5 rounded">{typeLabel}</span>
           </div>
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto">
-          {(sidebarGroups || []).map((group) => {
-            const GroupHeaderIcon = GROUP_HEADER_ICONS[group.id] || Building2;
-            return (
-              <div key={group.id} className="mb-1">
-                <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
-                  <div className="flex items-center gap-2">
-                    <GroupHeaderIcon className="w-4 h-4" />
-                    {group.label}
-                  </div>
-                  <ChevronDown className={cn("w-4 h-4 transition-transform", expandedGroups.includes(group.id) ? "" : "-rotate-90")} />
-                </button>
-                {expandedGroups.includes(group.id) && (
-                  <div className="ml-4 border-l border-gray-700 space-y-0.5">
-                    {(group.items || []).map((item) => (
-                      <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {(sidebarGroups || []).map((group) => (
+            <div key={group.id} className="mb-1">
+              <button onClick={() => toggleGroup(group.id)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  {group.label}
+                </div>
+                <ChevronDown className={cn("w-4 h-4 transition-transform", expandedGroups.includes(group.id) ? "" : "-rotate-90")} />
+              </button>
+              {expandedGroups.includes(group.id) && (
+                <div className="ml-4 border-l border-gray-700 space-y-0.5">
+                  {(group.items || []).map((item) => (
+                    <button key={item.id} onClick={() => setActiveSection(item.id)} className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-r transition-colors", activeSection === item.id ? "bg-[#047857] text-white" : "text-gray-400 hover:text-white hover:bg-white/5")}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </nav>
       </div>
 

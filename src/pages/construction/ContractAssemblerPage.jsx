@@ -1,37 +1,37 @@
-// src/pages/construction/ContractAssemblerPage.jsx
-// 5-step wizard for assembling Red Cedar Homes construction contracts
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Home, FileText, MapPin, Eye, Send, ChevronLeft, ChevronRight,
-  Check, AlertTriangle, Search, Building2, User, DollarSign, Ruler,
-  FileDown, FileSignature, Save, Loader2, X, Camera, Plus, Trash2,
-  Info, CheckCircle2, Circle
+  Home, FileText, MapPin, Eye, Send, Check, ChevronRight, ChevronLeft,
+  Search, AlertTriangle, Building2, Users, DollarSign, Ruler, FileDown,
+  Upload, Trash2, Plus, ChevronDown, ChevronUp, Loader2, CheckCircle2,
+  Clock, Circle, X
 } from 'lucide-react';
-import { contractAssemblerService } from '@/services/contractAssemblerService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  assembleContractData,
+  getEligibleHouses,
+  saveContractDraft,
+  getDraftContract,
+  generateContract,
+  calculateDrawSchedule,
+  getDefaultTerms,
+  updateContractStatus,
+} from '@/services/contractAssemblerService';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const fmt = (n) => {
-  if (n == null) return '$0';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
-};
-
-const fmtCents = (n) => {
-  if (n == null) return '$0.00';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n);
-};
-
-const addDays = (dateStr, days) => {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-};
-
+// =====================================================
+// HELPERS
+// =====================================================
+const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v || 0);
+const fmtFull = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v || 0);
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r.toISOString().split('T')[0]; };
 const today = () => new Date().toISOString().split('T')[0];
-
-// ─── Step Definitions ────────────────────────────────────────────────────────
 
 const STEPS = [
   { num: 1, label: 'Select House', icon: Home },
@@ -41,1434 +41,1108 @@ const STEPS = [
   { num: 5, label: 'Generate', icon: Send },
 ];
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+const SectionHeader = ({ children }) => (
+  <h3 className="text-sm font-semibold uppercase text-gray-500 tracking-wide mb-3 mt-6 first:mt-0">{children}</h3>
+);
 
-export default function ContractAssemblerPage() {
+const FieldRow = ({ label, children, className = '' }) => (
+  <div className={`flex flex-col gap-1.5 ${className}`}>
+    <Label className="text-sm text-gray-700">{label}</Label>
+    {children}
+  </div>
+);
+
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
+const ContractAssemblerPage = () => {
   const { houseId: houseIdParam } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  // Wizard state
+  // ---- state ----
   const [step, setStep] = useState(1);
   const [selectedHouseId, setSelectedHouseId] = useState(houseIdParam || null);
   const [houseData, setHouseData] = useState(null);
   const [eligibleHouses, setEligibleHouses] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [houseSearch, setHouseSearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingHouses, setLoadingHouses] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Step 2 — Contract terms
   const [contractTerms, setContractTerms] = useState({
     contract_date: today(),
-    estimated_start_date: addDays(today(), 30),
-    build_duration_days: 180,
-    warranty_period_months: 12,
-    structural_warranty_years: 0,
-    change_order_policy: 'Written approval required before work begins',
-    dispute_resolution: 'Mediation then Litigation',
-    jurisdiction: 'Greenville County, South Carolina',
-    builders_risk: 'Included by Builder',
-    permit_responsibility: 'Builder obtains all permits',
-    allowances: { lighting: 0, appliance: 0, landscaping: 0, flooring: 0 },
+    estimated_start: addDays(new Date(), 30),
+    build_duration: 180,
+    warranty_period: '1 year',
+    structural_warranty: 'None',
+    change_order_policy: 'Written approval required',
+    dispute_resolution: 'Mediation then arbitration',
+    jurisdiction: 'Greenville County, SC',
+    builders_risk_insurance: 'Builder provides',
+    permit_responsibility: 'Builder',
+    allowance_lighting: 0,
+    allowance_appliance: 0,
+    allowance_landscaping: 0,
+    allowance_flooring: 0,
+    terms_and_conditions: '',
   });
-  const [drawSchedule, setDrawSchedule] = useState(
-    contractAssemblerService.getDefaultDrawSchedule()
-  );
 
-  // Step 3 — Lot condition
   const [lotCondition, setLotCondition] = useState({
-    access_road_type: '',
-    driveway_cut_required: false,
-    temp_access_needed: false,
+    access_road_type: 'paved',
+    driveway_cut: false,
+    temp_access: false,
     temp_access_notes: '',
-    distance_from_road: '',
-    lot_condition: '',
-    topography: '',
-    fill_dirt_required: false,
-    fill_dirt_yards: '',
-    cut_required: false,
-    cut_yards: '',
-    retaining_wall_required: false,
-    retaining_wall_lf: '',
-    erosion_control_required: false,
-    water: '',
-    sewer: '',
-    electric: '',
-    gas: '',
-    water_distance: '',
-    sewer_distance: '',
-    electric_distance: '',
-    wetlands_present: false,
-    wetlands_pct: '',
-    flood_zone: 'X - None',
+    distance_from_road: 0,
+    lot_condition: 'cleared',
+    topography: 'level',
+    fill_dirt: false,
+    fill_dirt_yards: 0,
+    cut: false,
+    cut_yards: 0,
+    retaining_wall: false,
+    retaining_wall_lf: 0,
+    erosion_control: false,
+    water: 'available_at_lot',
+    water_distance: 0,
+    sewer: 'available_at_lot',
+    sewer_distance: 0,
+    electric: 'available_at_lot',
+    electric_distance: 0,
+    gas: 'available_at_lot',
+    gas_distance: 0,
+    wetlands: false,
+    flood_zone: 'None',
     soil_issues: false,
-    soil_notes: '',
-    environmental_notes: '',
-    tree_removal: 'None',
-    tree_save_required: false,
+    soil_issues_notes: '',
+    tree_removal: false,
+    tree_removal_count: 0,
     existing_structures: false,
-    demo_required: false,
-    demo_description: '',
+    existing_structures_desc: '',
     demo_cost: 0,
     site_cost_adjustment: 0,
-    site_cost_adjustment_reason: '',
+    site_cost_reason: '',
+    photos: [],
   });
-  const [lotPhotos, setLotPhotos] = useState([]);
 
-  // Step 5 — Generation state
+  const [drawSchedule, setDrawSchedule] = useState([
+    { draw: 1, milestone: 'Pre-Construction / Deposit', pct: 10 },
+    { draw: 2, milestone: 'Foundation Complete', pct: 20 },
+    { draw: 3, milestone: 'Framing / Dried In', pct: 25 },
+    { draw: 4, milestone: 'Drywall / Interior Trim', pct: 25 },
+    { draw: 5, milestone: 'Final / Certificate of Occupancy', pct: 20 },
+  ]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContract, setGeneratedContract] = useState(null);
-  const [savingDraft, setSavingDraft] = useState(false);
+  const [showAllowances, setShowAllowances] = useState(false);
 
-  // ─── Derived values ──────────────────────────────────────────────────────
-
-  const contractPrice = useMemo(() => {
-    if (!houseData?.house) return 0;
-    const h = houseData.house;
-    const base = (h.base_build_cost || 0) + (h.lot_prep_cost || 0) + (h.soft_costs || 0) + (h.upgrade_cost || 0) + (h.lot_premium || 0);
-    return base + (lotCondition.site_cost_adjustment || 0);
+  // ---- derived ----
+  const totalContractPrice = useMemo(() => {
+    if (!houseData) return 0;
+    return (houseData.totalContractPrice || 0) + (lotCondition.site_cost_adjustment || 0);
   }, [houseData, lotCondition.site_cost_adjustment]);
 
-  const drawAmounts = useMemo(() => {
-    return contractAssemblerService.calculateDrawSchedule(contractPrice, drawSchedule);
-  }, [contractPrice, drawSchedule]);
+  const drawTotal = useMemo(() => drawSchedule.reduce((s, d) => s + d.pct, 0), [drawSchedule]);
 
-  const drawPctTotal = useMemo(() => {
-    return drawSchedule.reduce((sum, d) => sum + (d.pct || 0), 0);
-  }, [drawSchedule]);
+  const drawAmounts = useMemo(
+    () => drawSchedule.map(d => ({ ...d, amount: Math.round((totalContractPrice * d.pct) / 100 * 100) / 100 })),
+    [drawSchedule, totalContractPrice]
+  );
 
   const estimatedCompletion = useMemo(() => {
-    if (!contractTerms.estimated_start_date || !contractTerms.build_duration_days) return '';
-    return addDays(contractTerms.estimated_start_date, contractTerms.build_duration_days);
-  }, [contractTerms.estimated_start_date, contractTerms.build_duration_days]);
+    if (!contractTerms.estimated_start || !contractTerms.build_duration) return '';
+    return addDays(new Date(contractTerms.estimated_start), Number(contractTerms.build_duration));
+  }, [contractTerms.estimated_start, contractTerms.build_duration]);
 
-  const hasBuyer = !!houseData?.house?.buyer_name || !!houseData?.buyer;
-  const hasPlan = !!houseData?.house?.plan_name || !!houseData?.plan;
+  const hasBuyer = !!houseData?.buyer;
+  const hasPlan = !!houseData?.plan;
+  const canProceed = selectedHouseId && houseData && hasBuyer && hasPlan;
 
-  // ─── Load eligible houses ────────────────────────────────────────────────
+  // ---- budget categories ----
+  const budgetByCategory = useMemo(() => {
+    if (!houseData?.budgetItems) return {};
+    return houseData.budgetItems.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {});
+  }, [houseData]);
 
+  // ---- load eligible houses ----
   useEffect(() => {
-    async function load() {
-      setLoadingHouses(true);
+    (async () => {
       try {
-        const houses = await contractAssemblerService.getEligibleHouses();
-        setEligibleHouses(houses);
-      } catch (err) {
-        console.error('Failed to load eligible houses:', err);
-      }
-      setLoadingHouses(false);
-    }
-    load();
+        const houses = await getEligibleHouses();
+        setEligibleHouses(houses || []);
+      } catch (e) { console.error('Failed to load houses:', e); }
+    })();
   }, []);
 
-  // ─── Auto-load house data when selected ──────────────────────────────────
-
+  // ---- auto-load if URL param ----
   useEffect(() => {
-    if (!selectedHouseId) return;
-    async function loadHouse() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await contractAssemblerService.assembleContractData(selectedHouseId);
-        setHouseData(data);
-        // Try to load default terms
-        const terms = await contractAssemblerService.getDefaultTerms();
-        setContractTerms(prev => ({ ...prev, ...terms }));
-        // Check for existing draft
-        const draft = await contractAssemblerService.getDraftContract(selectedHouseId);
-        if (draft) {
-          if (draft.draw_schedule?.length) setDrawSchedule(draft.draw_schedule);
-          if (draft.lot_condition_report) setLotCondition(prev => ({ ...prev, ...draft.lot_condition_report }));
-          if (draft.change_order_policy) setContractTerms(prev => ({
-            ...prev,
-            contract_date: draft.contract_date || prev.contract_date,
-            estimated_start_date: draft.estimated_start_date || prev.estimated_start_date,
-            build_duration_days: draft.build_duration_days || prev.build_duration_days,
-            warranty_period_months: draft.warranty_period_months || prev.warranty_period_months,
-            structural_warranty_years: draft.structural_warranty_years ?? prev.structural_warranty_years,
-            change_order_policy: draft.change_order_policy || prev.change_order_policy,
-            dispute_resolution: draft.dispute_resolution || prev.dispute_resolution,
-            jurisdiction: draft.jurisdiction || prev.jurisdiction,
-            builders_risk: draft.builders_risk || prev.builders_risk,
-            permit_responsibility: draft.permit_responsibility || prev.permit_responsibility,
-            allowances: draft.allowances || prev.allowances,
-          }));
-        }
-      } catch (err) {
-        setError(err.message);
-      }
-      setLoading(false);
-    }
-    loadHouse();
-  }, [selectedHouseId]);
+    if (houseIdParam && !houseData) handleSelectHouse(houseIdParam);
+  }, [houseIdParam]);
 
-  // ─── Actions ─────────────────────────────────────────────────────────────
+  // ---- load default terms on mount ----
+  useEffect(() => {
+    (async () => {
+      try {
+        const defaults = await getDefaultTerms();
+        setContractTerms(prev => ({
+          ...prev,
+          terms_and_conditions: defaults.terms_and_conditions || prev.terms_and_conditions,
+        }));
+      } catch (e) { /* ignore */ }
+    })();
+  }, []);
+
+  // ---- handlers ----
+  const handleSelectHouse = useCallback(async (id) => {
+    setSelectedHouseId(id);
+    setLoading(true);
+    try {
+      const data = await assembleContractData(id);
+      setHouseData(data);
+      // try to load existing draft
+      const draft = await getDraftContract(id);
+      if (draft) {
+        if (draft.terms_and_conditions) setContractTerms(prev => ({ ...prev, terms_and_conditions: draft.terms_and_conditions }));
+        if (draft.lot_condition_report && Object.keys(draft.lot_condition_report).length) setLotCondition(prev => ({ ...prev, ...draft.lot_condition_report }));
+        if (draft.draw_schedule?.length) {
+          setDrawSchedule(draft.draw_schedule.map(d => ({ draw: d.draw, milestone: d.milestone, pct: d.pct })));
+        }
+      }
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to load house data.', variant: 'destructive' });
+    }
+    setLoading(false);
+  }, [toast]);
 
   const handleSaveDraft = useCallback(async () => {
-    if (!selectedHouseId) return;
-    setSavingDraft(true);
+    if (!selectedHouseId || !houseData) return;
     try {
-      await contractAssemblerService.saveContractDraft(selectedHouseId, {
-        contract_date: contractTerms.contract_date,
-        estimated_start_date: contractTerms.estimated_start_date,
-        estimated_completion_date: estimatedCompletion,
-        build_duration_days: contractTerms.build_duration_days,
-        contract_price: contractPrice,
+      await saveContractDraft(selectedHouseId, {
+        buyer_contact_id: houseData.buyer?.id,
+        plan_id: houseData.plan?.id,
+        upgrade_package_id: houseData.upgradePackage?.id,
+        project_id: houseData.house?.project_id,
+        base_price: houseData.basePrice,
+        upgrade_total: houseData.upgradeTotal,
+        lot_premium: houseData.lotPremium,
+        total_contract_price: totalContractPrice,
         draw_schedule: drawAmounts,
-        warranty_period_months: contractTerms.warranty_period_months,
-        structural_warranty_years: contractTerms.structural_warranty_years,
-        allowances: contractTerms.allowances,
-        change_order_policy: contractTerms.change_order_policy,
-        dispute_resolution: contractTerms.dispute_resolution,
-        jurisdiction: contractTerms.jurisdiction,
-        builders_risk: contractTerms.builders_risk,
-        permit_responsibility: contractTerms.permit_responsibility,
         lot_condition_report: lotCondition,
-        site_cost_adjustment: lotCondition.site_cost_adjustment,
-        site_cost_adjustment_reason: lotCondition.site_cost_adjustment_reason,
+        terms_and_conditions: contractTerms.terms_and_conditions,
+        warranty_terms: contractTerms.warranty_period,
+        special_provisions: contractTerms.jurisdiction,
+        internal_notes: contractTerms.notes,
       });
-    } catch (err) {
-      console.error('Failed to save draft:', err);
+      toast({ title: 'Draft Saved', description: 'Contract draft has been saved.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to save draft.', variant: 'destructive' });
     }
-    setSavingDraft(false);
-  }, [selectedHouseId, contractTerms, estimatedCompletion, contractPrice, drawAmounts, lotCondition]);
+  }, [selectedHouseId, houseData, totalContractPrice, drawAmounts, lotCondition, contractTerms, toast]);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedHouseId || !houseData) return;
     setIsGenerating(true);
     try {
-      const result = await contractAssemblerService.generateContract(selectedHouseId, {
-        contract_date: contractTerms.contract_date,
-        estimated_start_date: contractTerms.estimated_start_date,
-        estimated_completion_date: estimatedCompletion,
-        build_duration_days: contractTerms.build_duration_days,
-        contract_price: contractPrice,
+      const result = await generateContract(selectedHouseId, {
         draw_schedule: drawAmounts,
-        warranty_period_months: contractTerms.warranty_period_months,
-        structural_warranty_years: contractTerms.structural_warranty_years,
-        allowances: contractTerms.allowances,
-        change_order_policy: contractTerms.change_order_policy,
-        dispute_resolution: contractTerms.dispute_resolution,
-        jurisdiction: contractTerms.jurisdiction,
-        builders_risk: contractTerms.builders_risk,
-        permit_responsibility: contractTerms.permit_responsibility,
         lot_condition_report: lotCondition,
-        site_cost_adjustment: lotCondition.site_cost_adjustment,
-        site_cost_adjustment_reason: lotCondition.site_cost_adjustment_reason,
-        budget_snapshot: houseData.budgetItems,
-        selections_snapshot: houseData.selections,
+        terms_and_conditions: contractTerms.terms_and_conditions,
+        warranty_terms: contractTerms.warranty_period,
+        special_provisions: contractTerms.jurisdiction,
       });
       setGeneratedContract(result);
-    } catch (err) {
-      setError(err.message);
+      toast({ title: 'Contract Generated', description: `Contract ${result.contract_number || ''} has been generated.` });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to generate contract.', variant: 'destructive' });
     }
     setIsGenerating(false);
-  }, [selectedHouseId, houseData, contractTerms, estimatedCompletion, contractPrice, drawAmounts, lotCondition]);
+  }, [selectedHouseId, houseData, drawAmounts, lotCondition, contractTerms, toast]);
 
-  // ─── Step validation ─────────────────────────────────────────────────────
+  const updateDraw = (idx, field, value) => {
+    setDrawSchedule(prev => prev.map((d, i) => i === idx ? { ...d, [field]: field === 'pct' ? Number(value) || 0 : value } : d));
+  };
 
-  const canAdvance = useMemo(() => {
-    switch (step) {
-      case 1: return !!selectedHouseId && !!houseData && hasBuyer && hasPlan;
-      case 2: return drawPctTotal === 100 && contractTerms.contract_date;
-      case 3: return true; // Lot condition is optional
-      case 4: return true;
-      case 5: return true;
-      default: return false;
-    }
-  }, [step, selectedHouseId, houseData, hasBuyer, hasPlan, drawPctTotal, contractTerms]);
-
-  // ─── Filtered houses ─────────────────────────────────────────────────────
+  const updateTerms = (field, value) => setContractTerms(prev => ({ ...prev, [field]: value }));
+  const updateLot = (field, value) => setLotCondition(prev => ({ ...prev, [field]: value }));
 
   const filteredHouses = useMemo(() => {
-    if (!searchQuery) return eligibleHouses;
-    const q = searchQuery.toLowerCase();
+    if (!houseSearch) return eligibleHouses;
+    const q = houseSearch.toLowerCase();
     return eligibleHouses.filter(h =>
-      h.house_name?.toLowerCase().includes(q) ||
-      h.plan_name?.toLowerCase().includes(q) ||
-      h.project?.name?.toLowerCase().includes(q)
+      (h.lot_label || h.lot_number || '').toLowerCase().includes(q) ||
+      (h.subdivision || '').toLowerCase().includes(q) ||
+      (h.plan_id || '').toLowerCase().includes(q)
     );
-  }, [eligibleHouses, searchQuery]);
+  }, [eligibleHouses, houseSearch]);
 
-  // ─── Budget grouped by category ──────────────────────────────────────────
+  // ---- step validation ----
+  const canNext = useMemo(() => {
+    if (step === 1) return canProceed;
+    if (step === 2) return drawTotal === 100;
+    if (step === 3) return true;
+    if (step === 4) return true;
+    return false;
+  }, [step, canProceed, drawTotal]);
 
-  const groupedBudget = useMemo(() => {
-    if (!houseData?.budgetItems) return {};
-    const groups = {};
-    for (const item of houseData.budgetItems) {
-      const cat = item.category || 'Other';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
-    }
-    return groups;
-  }, [houseData]);
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  return (
-    <div className="flex h-[calc(100vh-40px)] bg-gray-50">
-      {/* ─── Left Step Indicator ───────────────────────────────────────────── */}
-      <div className="w-[200px] bg-[#1a1f2e] flex flex-col flex-shrink-0">
-        <div className="p-4 border-b border-gray-700">
-          <button
-            onClick={() => navigate('/construction')}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors mb-3"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            Back to Houses
-          </button>
-          <h2 className="text-white font-semibold text-sm">Contract Assembler</h2>
-          {houseData?.house && (
-            <p className="text-gray-400 text-xs mt-1 truncate">{houseData.house.house_name}</p>
-          )}
-          {contractPrice > 0 && (
-            <p className="text-emerald-400 text-sm font-semibold mt-1 tabular-nums">{fmt(contractPrice)}</p>
-          )}
-        </div>
-
-        <nav className="flex-1 p-3 space-y-1">
-          {STEPS.map((s) => {
-            const Icon = s.icon;
-            const isCurrent = step === s.num;
-            const isComplete = step > s.num;
-            const isDisabled = s.num > step + 1;
-            return (
-              <button
-                key={s.num}
-                onClick={() => !isDisabled && s.num <= step && setStep(s.num)}
-                disabled={isDisabled}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left text-xs transition-colors ${
-                  isCurrent
-                    ? 'bg-emerald-600/20 text-emerald-400'
-                    : isComplete
-                    ? 'text-gray-300 hover:bg-gray-700/50'
-                    : 'text-gray-500 cursor-default'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  isComplete ? 'bg-emerald-600' : isCurrent ? 'bg-emerald-600/30 ring-1 ring-emerald-500' : 'bg-gray-700'
-                }`}>
-                  {isComplete ? (
-                    <Check className="w-3 h-3 text-white" />
-                  ) : (
-                    <span className="text-[10px] font-medium">{s.num}</span>
-                  )}
-                </div>
-                {s.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* ─── Main Content ──────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white border-b px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <FileSignature className="w-4 h-4 text-emerald-600" />
-            <h1 className="text-sm font-semibold text-gray-900">
-              {STEPS[step - 1].label}
-            </h1>
-            <span className="text-xs text-gray-400">Step {step} of 5</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {/* Progress dots */}
-            {STEPS.map(s => (
-              <div
-                key={s.num}
-                className={`w-2 h-2 rounded-full ${
-                  s.num === step ? 'bg-emerald-600' : s.num < step ? 'bg-emerald-400' : 'bg-gray-300'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-red-700">{error}</div>
-              <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
-            </div>
-          )}
-
-          {step === 1 && <Step1SelectHouse
-            eligibleHouses={filteredHouses}
-            loadingHouses={loadingHouses}
-            selectedHouseId={selectedHouseId}
-            setSelectedHouseId={setSelectedHouseId}
-            houseData={houseData}
-            loading={loading}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            hasBuyer={hasBuyer}
-            hasPlan={hasPlan}
-            contractPrice={contractPrice}
-          />}
-          {step === 2 && <Step2ContractTerms
-            contractTerms={contractTerms}
-            setContractTerms={setContractTerms}
-            drawSchedule={drawSchedule}
-            setDrawSchedule={setDrawSchedule}
-            drawAmounts={drawAmounts}
-            drawPctTotal={drawPctTotal}
-            contractPrice={contractPrice}
-            estimatedCompletion={estimatedCompletion}
-          />}
-          {step === 3 && <Step3LotCondition
-            lotCondition={lotCondition}
-            setLotCondition={setLotCondition}
-            lotPhotos={lotPhotos}
-            setLotPhotos={setLotPhotos}
-            houseData={houseData}
-            contractPrice={contractPrice}
-          />}
-          {step === 4 && <Step4Review
-            houseData={houseData}
-            contractTerms={contractTerms}
-            drawAmounts={drawAmounts}
-            lotCondition={lotCondition}
-            contractPrice={contractPrice}
-            estimatedCompletion={estimatedCompletion}
-            groupedBudget={groupedBudget}
-          />}
-          {step === 5 && <Step5Generate
-            houseData={houseData}
-            isGenerating={isGenerating}
-            generatedContract={generatedContract}
-            onGenerate={handleGenerate}
-            contractPrice={contractPrice}
-          />}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-white border-t px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div>
-            {step > 1 && (
-              <button
-                onClick={() => setStep(step - 1)}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {step > 1 && step < 5 && (
-              <button
-                onClick={handleSaveDraft}
-                disabled={savingDraft}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                {savingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                Save Draft
-              </button>
-            )}
-            {step < 5 && (
-              <button
-                onClick={() => setStep(step + 1)}
-                disabled={!canAdvance}
-                className={`flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-md transition-colors ${
-                  canAdvance
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                Next Step
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-            {step === 5 && (
-              <button
-                onClick={() => navigate('/construction')}
-                className="px-5 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Close
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// STEP 1: SELECT HOUSE
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function Step1SelectHouse({ eligibleHouses, loadingHouses, selectedHouseId, setSelectedHouseId, houseData, loading, searchQuery, setSearchQuery, hasBuyer, hasPlan, contractPrice }) {
-  return (
-    <div className="max-w-4xl space-y-6">
+  // ==========================================================
+  // STEP 1 — SELECT HOUSE
+  // ==========================================================
+  const renderStep1 = () => (
+    <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Select House</h3>
+        <SectionHeader>Select a House</SectionHeader>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by house name, plan, or project..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+          <Input
+            placeholder="Search by lot, plan, or subdivision..."
+            value={houseSearch}
+            onChange={e => setHouseSearch(e.target.value)}
+            className="pl-10"
           />
         </div>
+        {filteredHouses.length > 0 && !houseData && (
+          <div className="mt-2 border rounded-lg divide-y max-h-56 overflow-y-auto">
+            {filteredHouses.map(h => (
+              <button
+                key={h.id}
+                onClick={() => handleSelectHouse(h.id)}
+                className="w-full text-left px-4 py-3 hover:bg-emerald-50 flex justify-between items-center text-sm"
+              >
+                <span className="font-medium text-gray-900">{h.lot_label || `Lot ${h.lot_number}`}</span>
+                <span className="text-gray-500 text-xs">{h.subdivision || ''}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {filteredHouses.length === 0 && !houseData && (
+          <p className="text-sm text-gray-500 mt-3">No eligible houses found. Houses must be at the "Pre-Contract" milestone with no active contract.</p>
+        )}
       </div>
 
-      {loadingHouses ? (
+      {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-          <span className="ml-2 text-sm text-gray-500">Loading eligible houses...</span>
-        </div>
-      ) : eligibleHouses.length === 0 ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-          <AlertTriangle className="w-4 h-4 inline mr-1.5" />
-          No houses at the pre-contract milestone. Houses must be in "Pre-Contract" status before a contract can be generated.
-        </div>
-      ) : (
-        <div className="grid gap-2">
-          {eligibleHouses.map(house => (
-            <button
-              key={house.id}
-              onClick={() => setSelectedHouseId(house.id)}
-              className={`w-full flex items-center gap-4 p-3 rounded-lg border text-left transition-colors ${
-                selectedHouseId === house.id
-                  ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                selectedHouseId === house.id ? 'bg-emerald-600' : 'bg-gray-100'
-              }`}>
-                <Home className={`w-4 h-4 ${selectedHouseId === house.id ? 'text-white' : 'text-gray-500'}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{house.house_name}</p>
-                <p className="text-xs text-gray-500">{house.plan_name} &middot; {house.plan_sqft} sf &middot; {house.project?.name || 'No Project'}</p>
-              </div>
-              {house.buyer_name ? (
-                <span className="text-xs text-gray-500 flex items-center gap-1"><User className="w-3 h-3" />{house.buyer_name}</span>
-              ) : (
-                <span className="text-xs text-amber-600 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />No buyer</span>
-              )}
-              {selectedHouseId === house.id && (
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Summary cards after selection */}
-      {loading && selectedHouseId && (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-          <span className="ml-2 text-sm text-gray-500">Loading house data...</span>
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mr-2" /> Loading house data...
         </div>
       )}
 
       {houseData && !loading && (
         <>
-          {/* Warnings */}
           {!hasBuyer && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-amber-800">
-                <strong>No buyer assigned.</strong> Complete the house record before generating a contract.
-                <button onClick={() => navigate(`/construction/${selectedHouseId}`)} className="ml-1 text-amber-600 underline hover:text-amber-700">
-                  Go to house record
-                </button>
-              </div>
-            </div>
-          )}
-          {!hasPlan && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-amber-800">
-                <strong>No floor plan selected.</strong> Assign a plan to this house before generating a contract.
-              </div>
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              No buyer assigned. Complete the house record before generating a contract.
             </div>
           )}
 
-          {/* Info cards */}
-          <div className="grid grid-cols-2 gap-4">
-            <SummaryCard icon={MapPin} title="Property" items={[
-              { label: 'Address', value: houseData.house.address },
-              { label: 'City/State', value: `${houseData.house.city || ''}, ${houseData.house.state || ''} ${houseData.house.zip_code || ''}` },
-              { label: 'County', value: houseData.house.county || '—' },
-              { label: 'Subdivision', value: houseData.house.subdivision || '—' },
-              { label: 'Lot Size', value: houseData.house.lot_size_acres ? `${houseData.house.lot_size_acres} acres` : '—' },
-              { label: 'Municipality', value: houseData.house.municipality || '—' },
-            ]} />
-            <SummaryCard icon={Ruler} title="Plan" items={[
-              { label: 'Plan', value: houseData.house.plan_name || houseData.plan?.plan_name || '—' },
-              { label: 'Elevation', value: houseData.house.elevation || '—' },
-              { label: 'SqFt', value: houseData.plan?.square_footage || houseData.house.plan_sqft || '—' },
-              { label: 'Beds / Baths', value: `${houseData.plan?.bedrooms || houseData.house.bedrooms || '?'} / ${houseData.plan?.bathrooms || houseData.house.bathrooms || '?'}` },
-              { label: 'Garage', value: houseData.plan?.garage_type || `${houseData.house.garage_spaces || 0}-Car` },
-              { label: 'Stories', value: houseData.plan?.stories || '—' },
-            ]} />
-            <SummaryCard icon={User} title="Buyer" items={[
-              { label: 'Name', value: houseData.buyer?.full_name || houseData.house.buyer_name || '—' },
-              { label: 'Phone', value: houseData.buyer?.phone || '—' },
-              { label: 'Email', value: houseData.buyer?.email || '—' },
-              { label: 'Address', value: houseData.buyer?.address || '—' },
-            ]} />
-            <SummaryCard icon={DollarSign} title="Budget Summary" highlight items={[
-              { label: 'Base Build', value: fmt(houseData.house.base_build_cost) },
-              { label: 'Lot Prep', value: fmt(houseData.house.lot_prep_cost) },
-              { label: 'Soft Costs', value: fmt(houseData.house.soft_costs) },
-              { label: 'Upgrades', value: fmt(houseData.house.upgrade_cost) },
-              { label: 'Lot Premium', value: fmt(houseData.house.lot_premium) },
-              { label: 'Total Contract', value: fmt(contractPrice), bold: true },
-            ]} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Property Card */}
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold text-sm text-gray-900">Property</span>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Lot</span><span className="font-medium">{houseData.house?.lot_label || `Lot ${houseData.house?.lot_number}`}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Subdivision</span><span className="font-medium">{houseData.house?.subdivision || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Address</span><span className="font-medium">{houseData.house?.street_address || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Lot Size</span><span className="font-medium">{houseData.house?.lot_size_sqft ? `${houseData.house.lot_size_sqft.toLocaleString()} sf` : '—'}</span></div>
+              </div>
+            </div>
+
+            {/* Plan Card */}
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Ruler className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold text-sm text-gray-900">Floor Plan</span>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Plan</span><span className="font-medium">{houseData.plan?.name || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Size</span><span className="font-medium">{houseData.plan?.sqft ? `${houseData.plan.sqft.toLocaleString()} sf` : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Beds / Baths</span><span className="font-medium">{houseData.plan?.bedrooms || '—'} / {houseData.plan?.bathrooms || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Base Price</span><span className="font-medium tabular-nums">{fmt(houseData.plan?.base_price)}</span></div>
+              </div>
+            </div>
+
+            {/* Buyer Card */}
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold text-sm text-gray-900">Buyer</span>
+              </div>
+              {hasBuyer ? (
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Name</span><span className="font-medium">{houseData.buyer.display_name || `${houseData.buyer.first_name} ${houseData.buyer.last_name}`}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Email</span><span className="font-medium">{houseData.buyer.email || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Phone</span><span className="font-medium">{houseData.buyer.phone || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Address</span><span className="font-medium truncate max-w-[180px]">{houseData.buyer.mailing_address || '—'}</span></div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic">No buyer assigned</p>
+              )}
+            </div>
+
+            {/* Budget Card */}
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold text-sm text-gray-900">Budget Summary</span>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Base Build</span><span className="font-medium tabular-nums">{fmt(houseData.budgetTotal)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Upgrades</span><span className="font-medium tabular-nums">{fmt(houseData.upgradeTotal)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Lot Premium</span><span className="font-medium tabular-nums">{fmt(houseData.lotPremium)}</span></div>
+                <div className="border-t pt-1.5 mt-1.5 flex justify-between">
+                  <span className="font-semibold text-emerald-700">TOTAL</span>
+                  <span className="font-bold text-emerald-700 tabular-nums">{fmt(houseData.totalContractPrice)}</span>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {houseData && (
+            <button onClick={() => { setHouseData(null); setSelectedHouseId(null); setHouseSearch(''); }} className="text-sm text-gray-500 hover:text-gray-700 underline">
+              Select a different house
+            </button>
+          )}
         </>
       )}
     </div>
   );
-}
 
-function SummaryCard({ icon: Icon, title, items, highlight }) {
-  return (
-    <div className={`rounded-lg border p-4 ${highlight ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-200'}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <Icon className={`w-4 h-4 ${highlight ? 'text-emerald-600' : 'text-gray-500'}`} />
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h4>
-      </div>
-      <dl className="space-y-1.5">
-        {items.map((item, idx) => (
-          <div key={idx} className="flex justify-between text-sm">
-            <dt className="text-gray-500">{item.label}</dt>
-            <dd className={`text-right tabular-nums ${item.bold ? 'font-semibold text-emerald-700 text-base' : 'text-gray-900'}`}>{item.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// STEP 2: CONTRACT TERMS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function Step2ContractTerms({ contractTerms, setContractTerms, drawSchedule, setDrawSchedule, drawAmounts, drawPctTotal, contractPrice, estimatedCompletion }) {
-  const setField = (field, value) => setContractTerms(prev => ({ ...prev, [field]: value }));
-  const setAllowance = (key, value) => setContractTerms(prev => ({
-    ...prev,
-    allowances: { ...prev.allowances, [key]: parseFloat(value) || 0 }
-  }));
-  const setDrawPct = (idx, pct) => {
-    setDrawSchedule(prev => prev.map((d, i) => i === idx ? { ...d, pct: parseFloat(pct) || 0 } : d));
-  };
-
-  return (
-    <div className="max-w-3xl space-y-8">
+  // ==========================================================
+  // STEP 2 — CONTRACT TERMS
+  // ==========================================================
+  const renderStep2 = () => (
+    <div className="space-y-6">
       {/* Contract Basics */}
-      <FormSection title="Contract Basics">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Contract Date">
-            <input type="date" value={contractTerms.contract_date} onChange={e => setField('contract_date', e.target.value)} className="input-field" />
-          </FormField>
-          <FormField label="Estimated Start Date">
-            <input type="date" value={contractTerms.estimated_start_date} onChange={e => setField('estimated_start_date', e.target.value)} className="input-field" />
-          </FormField>
-          <FormField label="Build Duration (days)">
-            <input type="number" value={contractTerms.build_duration_days} onChange={e => setField('build_duration_days', parseInt(e.target.value) || 0)} className="input-field" />
-          </FormField>
-          <FormField label="Estimated Completion">
-            <input type="date" value={estimatedCompletion} readOnly className="input-field bg-gray-50 text-gray-500" />
-          </FormField>
-          <FormField label="Contract Price" span2>
-            <div className="text-lg font-semibold text-emerald-700 tabular-nums bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
-              {fmt(contractPrice)}
-            </div>
-          </FormField>
-        </div>
-      </FormSection>
+      <SectionHeader>Contract Basics</SectionHeader>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FieldRow label="Contract Date">
+          <Input type="date" value={contractTerms.contract_date} onChange={e => updateTerms('contract_date', e.target.value)} />
+        </FieldRow>
+        <FieldRow label="Estimated Start Date">
+          <Input type="date" value={contractTerms.estimated_start} onChange={e => updateTerms('estimated_start', e.target.value)} />
+        </FieldRow>
+        <FieldRow label="Build Duration (days)">
+          <Input type="number" value={contractTerms.build_duration} onChange={e => updateTerms('build_duration', Number(e.target.value))} />
+        </FieldRow>
+        <FieldRow label="Estimated Completion">
+          <Input value={estimatedCompletion} readOnly className="bg-gray-50" />
+        </FieldRow>
+        <FieldRow label="Contract Price" className="md:col-span-2">
+          <Input value={fmtFull(totalContractPrice)} readOnly className="bg-gray-50 font-semibold tabular-nums text-emerald-700" />
+        </FieldRow>
+      </div>
 
-      {/* Payment Schedule */}
-      <FormSection title="Payment Schedule — 5 Draws">
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Draw</th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Milestone</th>
-                <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">%</th>
-                <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase w-32">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {drawAmounts.map((d, idx) => (
-                <tr key={d.draw} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium text-gray-700">Draw {d.draw}</td>
-                  <td className="px-3 py-2 text-gray-600">{d.milestone}</td>
-                  <td className="px-3 py-2 text-right">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={drawSchedule[idx].pct}
-                      onChange={e => setDrawPct(idx, e.target.value)}
-                      className="w-20 text-right px-2 py-1 border border-gray-300 rounded text-sm tabular-nums focus:ring-1 focus:ring-emerald-500 outline-none"
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-right font-medium tabular-nums text-gray-900">{fmtCents(d.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-gray-50 font-semibold">
-                <td colSpan="2" className="px-3 py-2 text-gray-700">Total</td>
-                <td className={`px-3 py-2 text-right tabular-nums ${drawPctTotal === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {drawPctTotal}%
+      {/* Draw Schedule */}
+      <SectionHeader>Payment Schedule — 5 Draws</SectionHeader>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="py-2 pr-3 font-medium text-gray-500 w-16">Draw</th>
+              <th className="py-2 pr-3 font-medium text-gray-500">Milestone</th>
+              <th className="py-2 pr-3 font-medium text-gray-500 w-24 text-right">%</th>
+              <th className="py-2 font-medium text-gray-500 w-32 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {drawSchedule.map((d, i) => (
+              <tr key={d.draw}>
+                <td className="py-2 pr-3 font-medium text-gray-700">{d.draw}</td>
+                <td className="py-2 pr-3">
+                  <Input value={d.milestone} onChange={e => updateDraw(i, 'milestone', e.target.value)} className="h-8 text-sm" />
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-900">{fmtCents(contractPrice)}</td>
+                <td className="py-2 pr-3">
+                  <Input type="number" value={d.pct} onChange={e => updateDraw(i, 'pct', e.target.value)} className="h-8 text-sm text-right w-20 ml-auto" min={0} max={100} />
+                </td>
+                <td className="py-2 text-right font-medium tabular-nums text-gray-700">{fmtFull(drawAmounts[i]?.amount)}</td>
               </tr>
-            </tfoot>
-          </table>
-        </div>
-        {drawPctTotal !== 100 && (
-          <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Draw percentages must total 100%. Currently: {drawPctTotal}%
-          </p>
-        )}
-      </FormSection>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 font-semibold">
+              <td className="py-2 pr-3" />
+              <td className="py-2 pr-3 text-gray-700">Total</td>
+              <td className={`py-2 pr-3 text-right tabular-nums ${drawTotal !== 100 ? 'text-red-600' : 'text-gray-700'}`}>
+                {drawTotal}%
+                {drawTotal !== 100 && <span className="block text-xs font-normal text-red-500">Must equal 100%</span>}
+              </td>
+              <td className="py-2 text-right tabular-nums text-emerald-700">{fmtFull(totalContractPrice)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
       {/* Warranty */}
-      <FormSection title="Warranty">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Builder's Warranty Period">
-            <select value={contractTerms.warranty_period_months} onChange={e => setField('warranty_period_months', parseInt(e.target.value))} className="input-field">
-              <option value={6}>6 Months</option>
-              <option value={12}>1 Year</option>
-              <option value={24}>2 Years</option>
-            </select>
-          </FormField>
-          <FormField label="Structural Warranty">
-            <select value={contractTerms.structural_warranty_years} onChange={e => setField('structural_warranty_years', parseInt(e.target.value))} className="input-field">
-              <option value={0}>None</option>
-              <option value={5}>5 Years</option>
-              <option value={10}>10 Years</option>
-            </select>
-          </FormField>
-        </div>
-      </FormSection>
-
-      {/* Allowances */}
-      <FormSection title="Allowances" collapsible>
-        <div className="grid grid-cols-2 gap-4">
-          {['lighting', 'appliance', 'landscaping', 'flooring'].map(key => (
-            <FormField key={key} label={`${key.charAt(0).toUpperCase() + key.slice(1)} Allowance`}>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input
-                  type="number"
-                  value={contractTerms.allowances[key] || ''}
-                  onChange={e => setAllowance(key, e.target.value)}
-                  placeholder="0"
-                  className="input-field pl-7 tabular-nums"
-                />
-              </div>
-            </FormField>
-          ))}
-        </div>
-      </FormSection>
-
-      {/* Terms & Conditions */}
-      <FormSection title="Terms & Conditions">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Change Order Policy">
-            <select value={contractTerms.change_order_policy} onChange={e => setField('change_order_policy', e.target.value)} className="input-field">
-              <option>Written approval required before work begins</option>
-              <option>Verbal OK with written follow-up within 48 hours</option>
-            </select>
-          </FormField>
-          <FormField label="Dispute Resolution">
-            <select value={contractTerms.dispute_resolution} onChange={e => setField('dispute_resolution', e.target.value)} className="input-field">
-              <option>Binding Arbitration</option>
-              <option>Mediation then Litigation</option>
-              <option>Litigation</option>
-            </select>
-          </FormField>
-          <FormField label="Jurisdiction">
-            <input type="text" value={contractTerms.jurisdiction} onChange={e => setField('jurisdiction', e.target.value)} className="input-field" />
-          </FormField>
-          <FormField label="Builder's Risk Insurance">
-            <select value={contractTerms.builders_risk} onChange={e => setField('builders_risk', e.target.value)} className="input-field">
-              <option>Included by Builder</option>
-              <option>Provided by Owner</option>
-            </select>
-          </FormField>
-          <FormField label="Permits" span2>
-            <select value={contractTerms.permit_responsibility} onChange={e => setField('permit_responsibility', e.target.value)} className="input-field">
-              <option>Builder obtains all permits</option>
-              <option>Owner responsible for permits</option>
-            </select>
-          </FormField>
-        </div>
-      </FormSection>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// STEP 3: LOT CONDITION REPORT
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function Step3LotCondition({ lotCondition, setLotCondition, lotPhotos, setLotPhotos, houseData, contractPrice }) {
-  const setField = (field, value) => setLotCondition(prev => ({ ...prev, [field]: value }));
-
-  const originalLotPrep = houseData?.house?.lot_prep_cost || 0;
-  const adjustedLotPrep = originalLotPrep + (lotCondition.site_cost_adjustment || 0);
-
-  return (
-    <div className="max-w-3xl space-y-8">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 flex items-start gap-2">
-        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <div>This becomes <strong>Exhibit C</strong> of the contract. It documents existing lot conditions and protects the builder from unforeseen site costs.</div>
+      <SectionHeader>Warranty</SectionHeader>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FieldRow label="Builder's Warranty Period">
+          <Select value={contractTerms.warranty_period} onValueChange={v => updateTerms('warranty_period', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="6 months">6 months</SelectItem>
+              <SelectItem value="1 year">1 year</SelectItem>
+              <SelectItem value="2 years">2 years</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+        <FieldRow label="Structural Warranty">
+          <Select value={contractTerms.structural_warranty} onValueChange={v => updateTerms('structural_warranty', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="None">None</SelectItem>
+              <SelectItem value="5 years">5 years</SelectItem>
+              <SelectItem value="10 years">10 years</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
       </div>
 
-      {/* Site Access */}
-      <FormSection title="Site Access">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Access Road Type">
-            <select value={lotCondition.access_road_type} onChange={e => setField('access_road_type', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>Paved Public</option>
-              <option>Paved Private</option>
-              <option>Gravel</option>
-              <option>Dirt</option>
-              <option>None</option>
-            </select>
-          </FormField>
-          <FormField label="Distance from Paved Road (ft)">
-            <input type="number" value={lotCondition.distance_from_road} onChange={e => setField('distance_from_road', e.target.value)} placeholder="0" className="input-field tabular-nums" />
-          </FormField>
-          <CheckboxField label="Driveway Cut Required" checked={lotCondition.driveway_cut_required} onChange={v => setField('driveway_cut_required', v)} />
-          <CheckboxField label="Temporary Construction Access Needed" checked={lotCondition.temp_access_needed} onChange={v => setField('temp_access_needed', v)} />
-          {lotCondition.temp_access_needed && (
-            <FormField label="Access Notes" span2>
-              <textarea value={lotCondition.temp_access_notes} onChange={e => setField('temp_access_notes', e.target.value)} rows={2} className="input-field" placeholder="Describe access requirements..." />
-            </FormField>
-          )}
+      {/* Allowances (collapsible) */}
+      <button onClick={() => setShowAllowances(!showAllowances)} className="flex items-center gap-2 text-sm font-semibold uppercase text-gray-500 tracking-wide mt-6 hover:text-gray-700">
+        {showAllowances ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        Allowances (Optional)
+      </button>
+      {showAllowances && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+          {['lighting', 'appliance', 'landscaping', 'flooring'].map(a => (
+            <FieldRow key={a} label={a.charAt(0).toUpperCase() + a.slice(1)}>
+              <Input type="number" value={contractTerms[`allowance_${a}`]} onChange={e => updateTerms(`allowance_${a}`, Number(e.target.value) || 0)} min={0} className="tabular-nums" placeholder="$0" />
+            </FieldRow>
+          ))}
         </div>
-      </FormSection>
+      )}
 
-      {/* Topography & Grading */}
-      <FormSection title="Topography & Grading">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Lot Condition">
-            <select value={lotCondition.lot_condition} onChange={e => setField('lot_condition', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>Cleared</option>
-              <option>Wooded</option>
-              <option>Partially Cleared</option>
-              <option>Previously Developed</option>
-            </select>
-          </FormField>
-          <FormField label="Topography">
-            <select value={lotCondition.topography} onChange={e => setField('topography', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>Flat</option>
-              <option>Gentle Slope (&lt;5%)</option>
-              <option>Moderate (5-15%)</option>
-              <option>Steep (&gt;15%)</option>
-            </select>
-          </FormField>
-          <CheckboxField label="Fill Dirt Required" checked={lotCondition.fill_dirt_required} onChange={v => setField('fill_dirt_required', v)} />
-          {lotCondition.fill_dirt_required && (
-            <FormField label="Estimated Cubic Yards">
-              <input type="number" value={lotCondition.fill_dirt_yards} onChange={e => setField('fill_dirt_yards', e.target.value)} className="input-field tabular-nums" />
-            </FormField>
-          )}
-          <CheckboxField label="Cut Required" checked={lotCondition.cut_required} onChange={v => setField('cut_required', v)} />
-          {lotCondition.cut_required && (
-            <FormField label="Estimated Cubic Yards">
-              <input type="number" value={lotCondition.cut_yards} onChange={e => setField('cut_yards', e.target.value)} className="input-field tabular-nums" />
-            </FormField>
-          )}
-          <CheckboxField label="Retaining Wall Required" checked={lotCondition.retaining_wall_required} onChange={v => setField('retaining_wall_required', v)} />
-          {lotCondition.retaining_wall_required && (
-            <FormField label="Estimated Linear Feet">
-              <input type="number" value={lotCondition.retaining_wall_lf} onChange={e => setField('retaining_wall_lf', e.target.value)} className="input-field tabular-nums" />
-            </FormField>
-          )}
-          <CheckboxField label="Erosion Control Plan Required" checked={lotCondition.erosion_control_required} onChange={v => setField('erosion_control_required', v)} />
-        </div>
-      </FormSection>
+      {/* Terms & Conditions */}
+      <SectionHeader>Terms &amp; Conditions</SectionHeader>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FieldRow label="Change Order Policy">
+          <Select value={contractTerms.change_order_policy} onValueChange={v => updateTerms('change_order_policy', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Written approval required">Written approval required</SelectItem>
+              <SelectItem value="Verbal with follow-up">Verbal with follow-up</SelectItem>
+              <SelectItem value="No changes after framing">No changes after framing</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+        <FieldRow label="Dispute Resolution">
+          <Select value={contractTerms.dispute_resolution} onValueChange={v => updateTerms('dispute_resolution', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Mediation then arbitration">Mediation then arbitration</SelectItem>
+              <SelectItem value="Binding arbitration">Binding arbitration</SelectItem>
+              <SelectItem value="Litigation">Litigation</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+        <FieldRow label="Jurisdiction">
+          <Input value={contractTerms.jurisdiction} onChange={e => updateTerms('jurisdiction', e.target.value)} />
+        </FieldRow>
+        <FieldRow label="Builder's Risk Insurance">
+          <Select value={contractTerms.builders_risk_insurance} onValueChange={v => updateTerms('builders_risk_insurance', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Builder provides">Builder provides</SelectItem>
+              <SelectItem value="Buyer provides">Buyer provides</SelectItem>
+              <SelectItem value="Shared responsibility">Shared responsibility</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+        <FieldRow label="Permit Responsibility">
+          <Select value={contractTerms.permit_responsibility} onValueChange={v => updateTerms('permit_responsibility', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Builder">Builder</SelectItem>
+              <SelectItem value="Buyer">Buyer</SelectItem>
+              <SelectItem value="Shared">Shared</SelectItem>
+            </SelectContent>
+          </Select>
+        </FieldRow>
+      </div>
+    </div>
+  );
 
-      {/* Utilities */}
-      <FormSection title="Utilities">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Water">
-            <select value={lotCondition.water} onChange={e => setField('water', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>City Water Available at Lot</option>
-              <option>City Water at Street — Extension Needed</option>
-              <option>Well Required</option>
-            </select>
-          </FormField>
-          <FormField label="Sewer">
-            <select value={lotCondition.sewer} onChange={e => setField('sewer', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>City Sewer Available at Lot</option>
-              <option>City Sewer at Street — Extension Needed</option>
-              <option>Septic Required</option>
-            </select>
-          </FormField>
-          <FormField label="Electric">
-            <select value={lotCondition.electric} onChange={e => setField('electric', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>Available at Lot</option>
-              <option>Service Drop Needed</option>
-              <option>Transformer Required</option>
-            </select>
-          </FormField>
-          <FormField label="Gas">
-            <select value={lotCondition.gas} onChange={e => setField('gas', e.target.value)} className="input-field">
-              <option value="">Select...</option>
-              <option>Available</option>
-              <option>Not Available</option>
-              <option>Not Required</option>
-            </select>
-          </FormField>
-          {(lotCondition.water?.includes('Extension') || lotCondition.sewer?.includes('Extension')) && (
-            <>
-              {lotCondition.water?.includes('Extension') && (
-                <FormField label="Water Extension Distance (ft)">
-                  <input type="number" value={lotCondition.water_distance} onChange={e => setField('water_distance', e.target.value)} className="input-field tabular-nums" />
-                </FormField>
-              )}
-              {lotCondition.sewer?.includes('Extension') && (
-                <FormField label="Sewer Extension Distance (ft)">
-                  <input type="number" value={lotCondition.sewer_distance} onChange={e => setField('sewer_distance', e.target.value)} className="input-field tabular-nums" />
-                </FormField>
-              )}
-            </>
-          )}
-        </div>
-      </FormSection>
+  // ==========================================================
+  // STEP 3 — LOT CONDITION
+  // ==========================================================
+  const renderStep3 = () => {
+    const originalLotPrep = houseData?.budgetItems?.filter(i => i.category === 'Site Work').reduce((s, i) => s + (i.amount || 0), 0) || 0;
+    const adjustedLotPrep = originalLotPrep + (lotCondition.site_cost_adjustment || 0);
+    const newTotal = totalContractPrice;
 
-      {/* Environmental */}
-      <FormSection title="Environmental">
-        <div className="grid grid-cols-2 gap-4">
-          <CheckboxField label="Wetlands Present" checked={lotCondition.wetlands_present} onChange={v => setField('wetlands_present', v)} />
-          {lotCondition.wetlands_present && (
-            <FormField label="% of Lot Affected">
-              <input type="number" value={lotCondition.wetlands_pct} onChange={e => setField('wetlands_pct', e.target.value)} className="input-field tabular-nums" />
-            </FormField>
-          )}
-          <FormField label="Flood Zone">
-            <select value={lotCondition.flood_zone} onChange={e => setField('flood_zone', e.target.value)} className="input-field">
-              <option>X - None</option>
-              <option>A</option>
-              <option>AE</option>
-              <option>VE</option>
-            </select>
-          </FormField>
-          <FormField label="Tree Removal">
-            <select value={lotCondition.tree_removal} onChange={e => setField('tree_removal', e.target.value)} className="input-field">
-              <option>None</option>
-              <option>Minimal (1-5 trees)</option>
-              <option>Moderate (6-15 trees)</option>
-              <option>Heavy (15+ trees)</option>
-            </select>
-          </FormField>
-          <CheckboxField label="Known Soil Issues" checked={lotCondition.soil_issues} onChange={v => setField('soil_issues', v)} />
-          {lotCondition.soil_issues && (
-            <FormField label="Soil Notes">
-              <input type="text" value={lotCondition.soil_notes} onChange={e => setField('soil_notes', e.target.value)} className="input-field" placeholder="e.g., heavy clay, rock shelf at 3ft" />
-            </FormField>
-          )}
-          <CheckboxField label="Tree Save Plan Required" checked={lotCondition.tree_save_required} onChange={v => setField('tree_save_required', v)} />
-          <FormField label="Environmental Concerns" span2>
-            <textarea value={lotCondition.environmental_notes} onChange={e => setField('environmental_notes', e.target.value)} rows={2} className="input-field" placeholder="Any additional environmental notes..." />
-          </FormField>
-        </div>
-      </FormSection>
-
-      {/* Existing Structures */}
-      <FormSection title="Existing Structures">
-        <div className="grid grid-cols-2 gap-4">
-          <CheckboxField label="Existing Structures on Lot" checked={lotCondition.existing_structures} onChange={v => setField('existing_structures', v)} />
-          {lotCondition.existing_structures && (
-            <>
-              <CheckboxField label="Demolition Required" checked={lotCondition.demo_required} onChange={v => setField('demo_required', v)} />
-              {lotCondition.demo_required && (
-                <>
-                  <FormField label="Demo Description">
-                    <input type="text" value={lotCondition.demo_description} onChange={e => setField('demo_description', e.target.value)} className="input-field" />
-                  </FormField>
-                  <FormField label="Estimated Demo Cost">
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                      <input type="number" value={lotCondition.demo_cost || ''} onChange={e => setField('demo_cost', parseFloat(e.target.value) || 0)} className="input-field pl-7 tabular-nums" />
-                    </div>
-                  </FormField>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      </FormSection>
-
-      {/* Site Cost Adjustment */}
-      <FormSection title="Site Cost Adjustment">
-        <div className="bg-gray-50 rounded-lg border p-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Additional Site Cost (+/-)">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                <input
-                  type="number"
-                  value={lotCondition.site_cost_adjustment || ''}
-                  onChange={e => setField('site_cost_adjustment', parseFloat(e.target.value) || 0)}
-                  className="input-field pl-7 tabular-nums"
-                  placeholder="0"
-                />
-              </div>
-            </FormField>
-            <FormField label="Reason for Adjustment">
-              <input type="text" value={lotCondition.site_cost_adjustment_reason} onChange={e => setField('site_cost_adjustment_reason', e.target.value)} className="input-field" placeholder="e.g., Extra fill dirt, tree removal" />
-            </FormField>
+    return (
+      <div className="space-y-6">
+        {/* Site Access */}
+        <SectionHeader>Site Access</SectionHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FieldRow label="Access Road Type">
+            <Select value={lotCondition.access_road_type} onValueChange={v => updateLot('access_road_type', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="paved">Paved</SelectItem>
+                <SelectItem value="gravel">Gravel</SelectItem>
+                <SelectItem value="dirt">Dirt</SelectItem>
+                <SelectItem value="none">No Road Access</SelectItem>
+              </SelectContent>
+            </Select>
+          </FieldRow>
+          <FieldRow label="Distance from Road (ft)">
+            <Input type="number" value={lotCondition.distance_from_road} onChange={e => updateLot('distance_from_road', Number(e.target.value) || 0)} min={0} />
+          </FieldRow>
+          <div className="flex items-center gap-3">
+            <Checkbox checked={lotCondition.driveway_cut} onCheckedChange={v => updateLot('driveway_cut', v)} id="driveway_cut" />
+            <Label htmlFor="driveway_cut">Driveway Cut Required</Label>
           </div>
-          {lotCondition.site_cost_adjustment !== 0 && (
-            <div className="flex items-center gap-6 pt-2 border-t text-sm">
-              <div><span className="text-gray-500">Original Lot Prep:</span> <span className="font-medium tabular-nums">{fmt(originalLotPrep)}</span></div>
-              <span className="text-gray-300">&rarr;</span>
-              <div><span className="text-gray-500">Adjusted:</span> <span className="font-medium tabular-nums text-emerald-700">{fmt(adjustedLotPrep)}</span></div>
-              <span className="text-gray-300">&rarr;</span>
-              <div><span className="text-gray-500">New Contract Total:</span> <span className="font-semibold tabular-nums text-emerald-700">{fmt(contractPrice)}</span></div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={lotCondition.temp_access} onCheckedChange={v => updateLot('temp_access', v)} id="temp_access" />
+              <Label htmlFor="temp_access">Temporary Access Needed</Label>
+            </div>
+            {lotCondition.temp_access && (
+              <Input placeholder="Temp access notes..." value={lotCondition.temp_access_notes} onChange={e => updateLot('temp_access_notes', e.target.value)} className="ml-7" />
+            )}
+          </div>
+        </div>
+
+        {/* Topography & Grading */}
+        <SectionHeader>Topography &amp; Grading</SectionHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FieldRow label="Lot Condition">
+            <Select value={lotCondition.lot_condition} onValueChange={v => updateLot('lot_condition', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cleared">Cleared</SelectItem>
+                <SelectItem value="wooded">Wooded</SelectItem>
+                <SelectItem value="partially_cleared">Partially Cleared</SelectItem>
+                <SelectItem value="rough_graded">Rough Graded</SelectItem>
+              </SelectContent>
+            </Select>
+          </FieldRow>
+          <FieldRow label="Topography">
+            <Select value={lotCondition.topography} onValueChange={v => updateLot('topography', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="level">Level</SelectItem>
+                <SelectItem value="gentle_slope">Gentle Slope</SelectItem>
+                <SelectItem value="moderate_slope">Moderate Slope</SelectItem>
+                <SelectItem value="steep">Steep</SelectItem>
+              </SelectContent>
+            </Select>
+          </FieldRow>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={lotCondition.fill_dirt} onCheckedChange={v => updateLot('fill_dirt', v)} id="fill_dirt" />
+              <Label htmlFor="fill_dirt">Fill Dirt Required</Label>
+            </div>
+            {lotCondition.fill_dirt && (
+              <FieldRow label="Cubic Yards"><Input type="number" value={lotCondition.fill_dirt_yards} onChange={e => updateLot('fill_dirt_yards', Number(e.target.value) || 0)} min={0} /></FieldRow>
+            )}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={lotCondition.cut} onCheckedChange={v => updateLot('cut', v)} id="cut" />
+              <Label htmlFor="cut">Cut Required</Label>
+            </div>
+            {lotCondition.cut && (
+              <FieldRow label="Cubic Yards"><Input type="number" value={lotCondition.cut_yards} onChange={e => updateLot('cut_yards', Number(e.target.value) || 0)} min={0} /></FieldRow>
+            )}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={lotCondition.retaining_wall} onCheckedChange={v => updateLot('retaining_wall', v)} id="retaining_wall" />
+              <Label htmlFor="retaining_wall">Retaining Wall</Label>
+            </div>
+            {lotCondition.retaining_wall && (
+              <FieldRow label="Linear Feet"><Input type="number" value={lotCondition.retaining_wall_lf} onChange={e => updateLot('retaining_wall_lf', Number(e.target.value) || 0)} min={0} /></FieldRow>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Checkbox checked={lotCondition.erosion_control} onCheckedChange={v => updateLot('erosion_control', v)} id="erosion_control" />
+            <Label htmlFor="erosion_control">Erosion Control Required</Label>
+          </div>
+        </div>
+
+        {/* Utilities */}
+        <SectionHeader>Utilities</SectionHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {['water', 'sewer', 'electric', 'gas'].map(u => (
+            <div key={u} className="space-y-2">
+              <FieldRow label={u.charAt(0).toUpperCase() + u.slice(1)}>
+                <Select value={lotCondition[u]} onValueChange={v => updateLot(u, v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available_at_lot">Available at Lot</SelectItem>
+                    <SelectItem value="available_nearby">Available Nearby</SelectItem>
+                    <SelectItem value="requires_extension">Requires Extension</SelectItem>
+                    <SelectItem value="not_available">Not Available</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldRow>
+              {lotCondition[u] !== 'available_at_lot' && lotCondition[u] !== 'not_available' && (
+                <FieldRow label="Distance (ft)">
+                  <Input type="number" value={lotCondition[`${u}_distance`]} onChange={e => updateLot(`${u}_distance`, Number(e.target.value) || 0)} min={0} />
+                </FieldRow>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Environmental */}
+        <SectionHeader>Environmental</SectionHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-3">
+            <Checkbox checked={lotCondition.wetlands} onCheckedChange={v => updateLot('wetlands', v)} id="wetlands" />
+            <Label htmlFor="wetlands">Wetlands Present</Label>
+          </div>
+          <FieldRow label="Flood Zone">
+            <Select value={lotCondition.flood_zone} onValueChange={v => updateLot('flood_zone', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="None">None (Zone X)</SelectItem>
+                <SelectItem value="Zone A">Zone A</SelectItem>
+                <SelectItem value="Zone AE">Zone AE</SelectItem>
+                <SelectItem value="Zone VE">Zone VE</SelectItem>
+              </SelectContent>
+            </Select>
+          </FieldRow>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={lotCondition.soil_issues} onCheckedChange={v => updateLot('soil_issues', v)} id="soil_issues" />
+              <Label htmlFor="soil_issues">Known Soil Issues</Label>
+            </div>
+            {lotCondition.soil_issues && (
+              <Input placeholder="Describe soil issues..." value={lotCondition.soil_issues_notes} onChange={e => updateLot('soil_issues_notes', e.target.value)} />
+            )}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox checked={lotCondition.tree_removal} onCheckedChange={v => updateLot('tree_removal', v)} id="tree_removal" />
+              <Label htmlFor="tree_removal">Tree Removal Required</Label>
+            </div>
+            {lotCondition.tree_removal && (
+              <FieldRow label="Number of Trees"><Input type="number" value={lotCondition.tree_removal_count} onChange={e => updateLot('tree_removal_count', Number(e.target.value) || 0)} min={0} /></FieldRow>
+            )}
+          </div>
+        </div>
+
+        {/* Existing Structures */}
+        <SectionHeader>Existing Structures</SectionHeader>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Switch checked={lotCondition.existing_structures} onCheckedChange={v => updateLot('existing_structures', v)} id="existing_structures" />
+            <Label htmlFor="existing_structures">Existing structures on lot</Label>
+          </div>
+          {lotCondition.existing_structures && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-1">
+              <FieldRow label="Description">
+                <Textarea value={lotCondition.existing_structures_desc} onChange={e => updateLot('existing_structures_desc', e.target.value)} rows={2} />
+              </FieldRow>
+              <FieldRow label="Estimated Demo Cost">
+                <Input type="number" value={lotCondition.demo_cost} onChange={e => updateLot('demo_cost', Number(e.target.value) || 0)} min={0} className="tabular-nums" />
+              </FieldRow>
             </div>
           )}
         </div>
-      </FormSection>
 
-      {/* Photos */}
-      <FormSection title="Site Photos">
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-          <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-500 mb-1">Drag & drop photos or click to upload</p>
-          <p className="text-xs text-gray-400">Photos will be included in Exhibit C of the contract</p>
+        {/* Site Cost Adjustment */}
+        <SectionHeader>Site Cost Adjustment</SectionHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FieldRow label="Adjustment Amount ($)">
+            <Input type="number" value={lotCondition.site_cost_adjustment} onChange={e => updateLot('site_cost_adjustment', Number(e.target.value) || 0)} className="tabular-nums" />
+          </FieldRow>
+          <FieldRow label="Reason">
+            <Input value={lotCondition.site_cost_reason} onChange={e => updateLot('site_cost_reason', e.target.value)} placeholder="Reason for adjustment..." />
+          </FieldRow>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1">
+          <div className="flex justify-between"><span className="text-gray-500">Original Lot Prep</span><span className="tabular-nums">{fmt(originalLotPrep)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Adjusted</span><span className="tabular-nums">{fmt(adjustedLotPrep)}</span></div>
+          <div className="flex justify-between font-semibold border-t pt-1"><span className="text-emerald-700">New Contract Total</span><span className="text-emerald-700 tabular-nums">{fmt(newTotal)}</span></div>
+        </div>
+
+        {/* Photos */}
+        <SectionHeader>Site Photos</SectionHeader>
+        <div className="border-2 border-dashed rounded-lg p-6 text-center">
+          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+          <p className="text-sm text-gray-500 mb-2">Drop photos here or click to browse</p>
           <input
             type="file"
-            multiple
             accept="image/*"
-            onChange={(e) => {
+            multiple
+            onChange={e => {
               const files = Array.from(e.target.files || []);
-              setLotPhotos(prev => [...prev, ...files.map(f => ({ file: f, caption: '' }))]);
+              const newPhotos = files.map(f => ({ file: f, caption: '', preview: URL.createObjectURL(f) }));
+              updateLot('photos', [...(lotCondition.photos || []), ...newPhotos]);
             }}
-            className="mt-3"
+            className="text-sm"
           />
         </div>
-        {lotPhotos.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 mt-3">
-            {lotPhotos.map((photo, idx) => (
-              <div key={idx} className="border rounded-lg p-2 bg-white">
-                <div className="aspect-video bg-gray-100 rounded mb-2 flex items-center justify-center">
-                  <Camera className="w-6 h-6 text-gray-300" />
-                </div>
-                <input
-                  type="text"
-                  value={photo.caption}
-                  onChange={(e) => {
-                    setLotPhotos(prev => prev.map((p, i) => i === idx ? { ...p, caption: e.target.value } : p));
-                  }}
+        {lotCondition.photos?.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            {lotCondition.photos.map((p, i) => (
+              <div key={i} className="relative border rounded-lg overflow-hidden">
+                <img src={p.preview} alt="" className="w-full h-24 object-cover" />
+                <Input
                   placeholder="Caption..."
-                  className="w-full text-xs px-2 py-1 border rounded"
+                  value={p.caption}
+                  onChange={e => {
+                    const updated = [...lotCondition.photos];
+                    updated[i] = { ...updated[i], caption: e.target.value };
+                    updateLot('photos', updated);
+                  }}
+                  className="text-xs h-7 border-0 border-t rounded-none"
                 />
                 <button
-                  onClick={() => setLotPhotos(prev => prev.filter((_, i) => i !== idx))}
-                  className="text-xs text-red-500 mt-1 hover:text-red-700"
+                  onClick={() => updateLot('photos', lotCondition.photos.filter((_, j) => j !== i))}
+                  className="absolute top-1 right-1 bg-black/50 rounded-full p-0.5 text-white hover:bg-black/70"
                 >
-                  Remove
+                  <X className="w-3 h-3" />
                 </button>
               </div>
             ))}
           </div>
         )}
-      </FormSection>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// STEP 4: REVIEW
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function Step4Review({ houseData, contractTerms, drawAmounts, lotCondition, contractPrice, estimatedCompletion, groupedBudget }) {
-  const [expandedExhibit, setExpandedExhibit] = useState({ A: true, B: false, C: false, D: false, E: false });
-  const toggle = (key) => setExpandedExhibit(prev => ({ ...prev, [key]: !prev[key] }));
-
-  const h = houseData?.house || {};
-  const buyer = houseData?.buyer;
-  const plan = houseData?.plan;
-  const selections = houseData?.selections || {};
-  const hasSelections = Object.keys(selections).length > 0;
-  const hasBudgetItems = Object.keys(groupedBudget).length > 0;
-  const hasLotCondition = !!lotCondition.access_road_type || !!lotCondition.lot_condition || !!lotCondition.water;
-
-  const exhibits = [
-    { key: 'A', label: 'Exhibit A — Contract Summary', complete: true },
-    { key: 'B', label: 'Exhibit B — Budget Breakdown', complete: hasBudgetItems },
-    { key: 'C', label: 'Exhibit C — Lot Condition Report', complete: hasLotCondition },
-    { key: 'D', label: 'Exhibit D — Selections Sheet', complete: hasSelections },
-    { key: 'E', label: 'Exhibit E — Floor Plan Drawing', complete: false },
-  ];
-
-  return (
-    <div className="max-w-4xl space-y-4">
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800 flex items-start gap-2">
-        <Eye className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <div>Review the complete contract package below. Each exhibit can be expanded to verify data. Proceed to Step 5 to generate the final documents.</div>
       </div>
+    );
+  };
 
-      {exhibits.map(ex => (
-        <div key={ex.key} className="bg-white border rounded-lg overflow-hidden">
-          <button
-            onClick={() => toggle(ex.key)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {ex.complete ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-              )}
-              <span className="text-sm font-medium text-gray-900">{ex.label}</span>
-              {!ex.complete && <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded">Incomplete</span>}
-            </div>
-            <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${expandedExhibit[ex.key] ? 'rotate-90' : ''}`} />
-          </button>
+  // ==========================================================
+  // STEP 4 — REVIEW
+  // ==========================================================
+  const ExhibitSection = ({ title, status, children, defaultOpen = false }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+      <div className="border rounded-lg bg-white">
+        <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+          <div className="flex items-center gap-2">
+            {status === 'complete' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+            <span className="font-semibold text-sm text-gray-900">{title}</span>
+          </div>
+          {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        </button>
+        {open && <div className="px-4 pb-4 border-t">{children}</div>}
+      </div>
+    );
+  };
 
-          {expandedExhibit[ex.key] && (
-            <div className="border-t px-4 py-4">
-              {ex.key === 'A' && (
-                <div className="font-mono text-xs leading-relaxed text-gray-700 space-y-4">
-                  <div className="text-center font-bold text-sm">RESIDENTIAL CONSTRUCTION AGREEMENT</div>
-                  <div className="grid grid-cols-2 gap-8">
-                    <div>
-                      <div className="font-bold mb-1">BUILDER:</div>
-                      <div>Red Cedar Homes LLC</div>
-                      <div>Greenville, SC</div>
-                    </div>
-                    <div>
-                      <div className="font-bold mb-1">OWNER:</div>
-                      <div>{buyer?.full_name || h.buyer_name || '—'}</div>
-                      <div>{buyer?.phone || '—'} | {buyer?.email || '—'}</div>
-                      <div>{buyer?.address || '—'}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-bold mb-1">PROPERTY:</div>
-                    <div>{h.address}, {h.city}, {h.state} {h.zip_code}</div>
-                    <div>County: {h.county || '—'} | Subdivision: {h.subdivision || '—'}</div>
-                  </div>
-                  <div>
-                    <div className="font-bold mb-1">SCOPE OF WORK:</div>
-                    <div>Floor Plan: {h.plan_name || plan?.plan_name} — Elevation {h.elevation || '—'}</div>
-                    <div>SqFt: {plan?.square_footage || h.plan_sqft} | Beds: {plan?.bedrooms || h.bedrooms} | Baths: {plan?.bathrooms || h.bathrooms} | Garage: {plan?.garage_type || `${h.garage_spaces}-Car`}</div>
-                    {h.upgrade_package && <div>Upgrade Package: {h.upgrade_package}</div>}
-                  </div>
-                  <div>
-                    <div className="font-bold mb-1">CONTRACT PRICE: {fmt(contractPrice)}</div>
-                    <div className="ml-4 space-y-0.5">
-                      <div>Base Construction: {fmt(h.base_build_cost)}</div>
-                      <div>Site Work: {fmt(h.lot_prep_cost)}</div>
-                      <div>Soft Costs: {fmt(h.soft_costs)}</div>
-                      <div>Upgrades: {fmt(h.upgrade_cost)}</div>
-                      <div>Lot Premium: {fmt(h.lot_premium)}</div>
-                      {lotCondition.site_cost_adjustment ? <div>Site Adjustment: {fmt(lotCondition.site_cost_adjustment)}</div> : null}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-bold mb-1">PAYMENT SCHEDULE:</div>
-                    {drawAmounts.map(d => (
-                      <div key={d.draw} className="ml-4">Draw {d.draw} — {d.milestone} ({d.pct}%): {fmtCents(d.amount)}</div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="font-bold mb-1">TIMELINE:</div>
-                    <div className="ml-4">Contract Date: {contractTerms.contract_date}</div>
-                    <div className="ml-4">Estimated Start: {contractTerms.estimated_start_date}</div>
-                    <div className="ml-4">Estimated Completion: {estimatedCompletion}</div>
-                    <div className="ml-4">Build Duration: {contractTerms.build_duration_days} calendar days</div>
-                  </div>
-                  <div>
-                    <div className="font-bold mb-1">WARRANTY:</div>
-                    <div className="ml-4">Builder's Warranty: {contractTerms.warranty_period_months} months</div>
-                    {contractTerms.structural_warranty_years > 0 && <div className="ml-4">Structural: {contractTerms.structural_warranty_years} years</div>}
-                  </div>
-                </div>
-              )}
+  const renderStep4 = () => (
+    <div className="space-y-4">
+      <SectionHeader>Contract Preview</SectionHeader>
 
-              {ex.key === 'B' && (
-                <div className="space-y-4">
-                  {Object.entries(groupedBudget).map(([category, items]) => (
-                    <div key={category}>
-                      <h5 className="text-xs font-semibold uppercase text-gray-500 tracking-wide mb-1">{category}</h5>
-                      <div className="space-y-0.5">
-                        {items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between text-sm text-gray-700 py-0.5">
-                            <span>{item.item || item.name || item.description}</span>
-                            <span className="tabular-nums font-medium">{fmt(item.amount || item.total)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <div className="border-t pt-2 flex justify-between text-sm font-bold text-gray-900">
-                    <span>CONTRACT TOTAL</span>
-                    <span className="tabular-nums">{fmt(contractPrice)}</span>
-                  </div>
-                </div>
-              )}
-
-              {ex.key === 'C' && (
-                <div className="text-sm text-gray-700 space-y-2">
-                  {hasLotCondition ? (
-                    <>
-                      <ReviewRow label="Access Road" value={lotCondition.access_road_type} />
-                      <ReviewRow label="Lot Condition" value={lotCondition.lot_condition} />
-                      <ReviewRow label="Topography" value={lotCondition.topography} />
-                      <ReviewRow label="Water" value={lotCondition.water} />
-                      <ReviewRow label="Sewer" value={lotCondition.sewer} />
-                      <ReviewRow label="Electric" value={lotCondition.electric} />
-                      <ReviewRow label="Flood Zone" value={lotCondition.flood_zone} />
-                      <ReviewRow label="Tree Removal" value={lotCondition.tree_removal} />
-                      {lotCondition.soil_issues && <ReviewRow label="Soil Issues" value={lotCondition.soil_notes} />}
-                      {lotCondition.site_cost_adjustment ? <ReviewRow label="Site Cost Adjustment" value={fmt(lotCondition.site_cost_adjustment)} /> : null}
-                    </>
-                  ) : (
-                    <p className="text-gray-400 italic">No lot condition data entered. This exhibit will be blank in the contract.</p>
-                  )}
-                </div>
-              )}
-
-              {ex.key === 'D' && (
-                <div className="text-sm text-gray-700 space-y-3">
-                  {hasSelections ? (
-                    Object.entries(selections).map(([section, items]) => (
-                      <div key={section}>
-                        <h5 className="text-xs font-semibold uppercase text-gray-500 tracking-wide mb-1">{section}</h5>
-                        {Object.entries(items).map(([key, value]) => (
-                          <ReviewRow key={key} label={key.replace(/_/g, ' ')} value={value} />
-                        ))}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 italic">No selections recorded on the house record.</p>
-                  )}
-                </div>
-              )}
-
-              {ex.key === 'E' && (
-                <div className="text-center py-8">
-                  <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">Floor plan drawing will be attached to the final document.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ReviewRow({ label, value }) {
-  if (!value) return null;
-  return (
-    <div className="flex justify-between py-0.5">
-      <span className="text-gray-500 capitalize">{label}</span>
-      <span className="text-gray-900">{value}</span>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// STEP 5: GENERATE & SEND
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function Step5Generate({ houseData, isGenerating, generatedContract, onGenerate, contractPrice }) {
-  const statusSteps = [
-    { label: 'Draft', complete: true },
-    { label: 'Generated', complete: !!generatedContract },
-    { label: 'Sent', complete: generatedContract?.status === 'sent' || generatedContract?.status === 'signed' },
-    { label: 'Signed', complete: generatedContract?.status === 'signed' },
-  ];
-
-  return (
-    <div className="max-w-3xl space-y-6">
-      {generatedContract && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
-          <div>
-            <p className="font-medium text-emerald-800">Contract Generated Successfully</p>
-            <p className="text-sm text-emerald-700 mt-0.5">
-              Contract #{generatedContract.contract_number || 'RCH-2026-001'} for {houseData?.house?.house_name} &middot; {fmt(contractPrice)}
-            </p>
+      {/* Exhibit A — Contract Summary */}
+      <ExhibitSection title="Exhibit A — Contract Summary" status="complete" defaultOpen>
+        <div className="space-y-4 pt-3 text-sm">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+            <div><span className="text-gray-500">Builder:</span> <span className="font-medium">Red Cedar Homes</span></div>
+            <div><span className="text-gray-500">Buyer:</span> <span className="font-medium">{houseData?.buyer?.display_name || '—'}</span></div>
+            <div><span className="text-gray-500">Property:</span> <span className="font-medium">{houseData?.house?.lot_label || '—'}</span></div>
+            <div><span className="text-gray-500">Plan:</span> <span className="font-medium">{houseData?.plan?.name || '—'} ({houseData?.plan?.sqft?.toLocaleString() || '—'} sf)</span></div>
+            <div><span className="text-gray-500">Contract Date:</span> <span className="font-medium">{contractTerms.contract_date}</span></div>
+            <div><span className="text-gray-500">Est. Start:</span> <span className="font-medium">{contractTerms.estimated_start}</span></div>
+            <div><span className="text-gray-500">Duration:</span> <span className="font-medium">{contractTerms.build_duration} days</span></div>
+            <div><span className="text-gray-500">Est. Completion:</span> <span className="font-medium">{estimatedCompletion}</span></div>
+          </div>
+          <div className="border-t pt-3">
+            <p className="font-semibold text-gray-700 mb-2">Payment Schedule</p>
+            <table className="w-full text-sm">
+              <thead><tr className="text-gray-500 border-b"><th className="text-left py-1">Draw</th><th className="text-left py-1">Milestone</th><th className="text-right py-1">%</th><th className="text-right py-1">Amount</th></tr></thead>
+              <tbody>
+                {drawAmounts.map(d => (
+                  <tr key={d.draw} className="border-b last:border-0">
+                    <td className="py-1">{d.draw}</td>
+                    <td className="py-1">{d.milestone}</td>
+                    <td className="py-1 text-right tabular-nums">{d.pct}%</td>
+                    <td className="py-1 text-right tabular-nums font-mono">{fmtFull(d.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr className="font-semibold border-t-2"><td /><td>Total</td><td className="text-right">{drawTotal}%</td><td className="text-right tabular-nums font-mono text-emerald-700">{fmtFull(totalContractPrice)}</td></tr></tfoot>
+            </table>
+          </div>
+          <div className="border-t pt-3 grid grid-cols-2 gap-x-8 gap-y-1">
+            <div><span className="text-gray-500">Warranty:</span> <span className="font-medium">{contractTerms.warranty_period}</span></div>
+            <div><span className="text-gray-500">Structural:</span> <span className="font-medium">{contractTerms.structural_warranty}</span></div>
+            <div><span className="text-gray-500">Jurisdiction:</span> <span className="font-medium">{contractTerms.jurisdiction}</span></div>
+            <div><span className="text-gray-500">Dispute Resolution:</span> <span className="font-medium">{contractTerms.dispute_resolution}</span></div>
           </div>
         </div>
-      )}
+      </ExhibitSection>
 
-      {/* Action Cards */}
-      <div className="grid gap-4">
-        <ActionCard
-          icon={FileText}
-          title="Generate PDF"
-          description="Create the complete contract package as a multi-page PDF with all exhibits attached."
-          buttonLabel={isGenerating ? 'Generating...' : generatedContract ? 'Regenerate PDF' : 'Generate PDF'}
-          buttonColor="emerald"
-          onClick={onGenerate}
-          disabled={isGenerating}
-          loading={isGenerating}
-        />
-        <ActionCard
-          icon={FileDown}
-          title="Download Word Doc"
-          description="Generate an editable .docx for manual adjustments before sending."
-          buttonLabel="Download DOCX"
-          buttonColor="outline"
-          onClick={() => {
-            if (!generatedContract) return;
-            // Create a downloadable blob from the contract HTML
-            const blob = new Blob([generatedContract.html || generatedContract.content || ''], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `contract-${generatedContract.id || 'draft'}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }}
-          disabled={!generatedContract}
-        />
-        <ActionCard
-          icon={Send}
-          title="Send for E-Signature"
-          description={`Send via DocuSeal to ${houseData?.buyer?.full_name || houseData?.house?.buyer_name || 'buyer'} for electronic signatures.`}
-          buttonLabel="Send for E-Sign"
-          buttonColor="blue"
-          onClick={async () => {
-            if (!generatedContract) return;
-            try {
-              const { createSigningRequest } = await import('@/services/esignService');
-              await createSigningRequest({
-                document_id: generatedContract.id,
-                signers: [{ name: houseData?.buyer?.full_name || houseData?.house?.buyer_name || 'Buyer', email: houseData?.buyer?.email || '' }],
-              });
-              toast?.({ title: 'Sent for E-Signature', description: 'The contract has been sent for electronic signatures.' });
-            } catch (err) {
-              console.error('Error sending for e-signature:', err);
-              toast?.({ title: 'Error', description: 'Failed to send for e-signature. Please try again.', variant: 'destructive' });
-            }
-          }}
-          disabled={!generatedContract}
-        />
+      {/* Exhibit B — Budget */}
+      <ExhibitSection title="Exhibit B — Budget Breakdown" status={houseData?.budgetItems?.length ? 'complete' : 'incomplete'}>
+        <div className="pt-3 text-sm">
+          {Object.entries(budgetByCategory).map(([cat, items]) => (
+            <div key={cat} className="mb-3">
+              <p className="font-semibold text-gray-700 mb-1">{cat}</p>
+              {items.map(item => (
+                <div key={item.id} className="flex justify-between py-0.5 pl-4">
+                  <span className="text-gray-600">{item.description}</span>
+                  <span className="tabular-nums font-mono">{fmt(item.amount)}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div className="border-t pt-2 flex justify-between font-semibold">
+            <span>Total Budget</span>
+            <span className="tabular-nums font-mono text-emerald-700">{fmt(houseData?.budgetTotal)}</span>
+          </div>
+        </div>
+      </ExhibitSection>
+
+      {/* Exhibit C — Lot Condition */}
+      <ExhibitSection title="Exhibit C — Lot Condition Report" status="complete">
+        <div className="pt-3 text-sm grid grid-cols-2 gap-x-8 gap-y-1">
+          <div><span className="text-gray-500">Access Road:</span> <span className="font-medium capitalize">{lotCondition.access_road_type?.replace('_', ' ')}</span></div>
+          <div><span className="text-gray-500">Topography:</span> <span className="font-medium capitalize">{lotCondition.topography?.replace('_', ' ')}</span></div>
+          <div><span className="text-gray-500">Lot Condition:</span> <span className="font-medium capitalize">{lotCondition.lot_condition?.replace('_', ' ')}</span></div>
+          <div><span className="text-gray-500">Flood Zone:</span> <span className="font-medium">{lotCondition.flood_zone}</span></div>
+          {lotCondition.fill_dirt && <div><span className="text-gray-500">Fill Dirt:</span> <span className="font-medium">{lotCondition.fill_dirt_yards} cy</span></div>}
+          {lotCondition.retaining_wall && <div><span className="text-gray-500">Retaining Wall:</span> <span className="font-medium">{lotCondition.retaining_wall_lf} lf</span></div>}
+          {lotCondition.tree_removal && <div><span className="text-gray-500">Tree Removal:</span> <span className="font-medium">{lotCondition.tree_removal_count} trees</span></div>}
+          {lotCondition.site_cost_adjustment !== 0 && (
+            <div className="col-span-2"><span className="text-gray-500">Site Cost Adjustment:</span> <span className="font-medium text-emerald-700">{fmt(lotCondition.site_cost_adjustment)}</span> — {lotCondition.site_cost_reason || 'No reason specified'}</div>
+          )}
+        </div>
+      </ExhibitSection>
+
+      {/* Exhibit D — Selections */}
+      <ExhibitSection title="Exhibit D — Selections Sheet" status={houseData?.upgradePackage ? 'complete' : 'incomplete'}>
+        <div className="pt-3 text-sm">
+          {houseData?.upgradePackage?.items?.length ? (
+            <>
+              <p className="font-semibold text-gray-700 mb-2">{houseData.upgradePackage.name}</p>
+              {houseData.upgradePackage.items.map((item, i) => (
+                <div key={i} className="flex justify-between py-0.5 pl-4">
+                  <span className="text-gray-600">{item.name}</span>
+                  <span className="tabular-nums font-mono">{fmt(item.price)}</span>
+                </div>
+              ))}
+              <div className="border-t pt-2 flex justify-between font-semibold mt-2">
+                <span>Upgrade Total</span>
+                <span className="tabular-nums font-mono text-emerald-700">{fmt(houseData.upgradeTotal)}</span>
+              </div>
+            </>
+          ) : (
+            <p className="text-gray-400 italic">No upgrade package assigned</p>
+          )}
+        </div>
+      </ExhibitSection>
+
+      {/* Exhibit E — Floor Plan */}
+      <ExhibitSection title="Exhibit E — Floor Plan" status={houseData?.plan ? 'complete' : 'incomplete'}>
+        <div className="pt-3 text-sm text-center py-8">
+          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500">{houseData?.plan?.name || 'No plan'} — {houseData?.plan?.sqft?.toLocaleString() || '—'} sf</p>
+          <p className="text-gray-400 text-xs mt-1">Floor plan PDF will be attached to the generated contract</p>
+        </div>
+      </ExhibitSection>
+    </div>
+  );
+
+  // ==========================================================
+  // STEP 5 — GENERATE & SEND
+  // ==========================================================
+  const renderStep5 = () => {
+    const statusSteps = [
+      { key: 'draft', label: 'Draft' },
+      { key: 'generated', label: 'Generated' },
+      { key: 'sent', label: 'Sent' },
+      { key: 'signed', label: 'Signed' },
+    ];
+    const currentStatus = generatedContract?.status || 'draft';
+    const statusIdx = statusSteps.findIndex(s => s.key === currentStatus);
+
+    return (
+      <div className="space-y-6">
+        <SectionHeader>Generate &amp; Send</SectionHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Generate PDF */}
+          <div className="bg-white border rounded-lg p-6 text-center space-y-3">
+            <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
+              <FileText className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h4 className="font-semibold text-gray-900">Generate PDF</h4>
+            <p className="text-xs text-gray-500">Create the complete contract package as a PDF</p>
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Generating...</> : 'Generate PDF'}
+            </Button>
+            {generatedContract && (
+              <p className="text-xs text-emerald-600 flex items-center justify-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Generated: {generatedContract.contract_number}
+              </p>
+            )}
+          </div>
+
+          {/* Download DOCX */}
+          <div className="bg-white border rounded-lg p-6 text-center space-y-3">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+              <FileDown className="w-6 h-6 text-gray-600" />
+            </div>
+            <h4 className="font-semibold text-gray-900">Download Word Doc</h4>
+            <p className="text-xs text-gray-500">Generate an editable .docx for manual adjustments</p>
+            <Button variant="outline" className="w-full" disabled={!generatedContract}>
+              Download DOCX
+            </Button>
+          </div>
+
+          {/* Send for Signature */}
+          <div className="bg-white border rounded-lg p-6 text-center space-y-3">
+            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto">
+              <Send className="w-6 h-6 text-blue-600" />
+            </div>
+            <h4 className="font-semibold text-gray-900">Send for Signature</h4>
+            <p className="text-xs text-gray-500">Send via DocuSeal for electronic signatures</p>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={!generatedContract}>
+              Send for E-Sign
+            </Button>
+          </div>
+        </div>
+
+        {/* Status Timeline */}
+        <div className="bg-white border rounded-lg p-6">
+          <p className="text-sm font-semibold text-gray-700 mb-4">Contract Status</p>
+          <div className="flex items-center justify-between max-w-lg mx-auto">
+            {statusSteps.map((s, i) => {
+              const isComplete = i <= statusIdx;
+              const isCurrent = i === statusIdx;
+              return (
+                <React.Fragment key={s.key}>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                      isComplete ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-gray-300 text-gray-400'
+                    } ${isCurrent ? 'ring-2 ring-emerald-200' : ''}`}>
+                      {isComplete ? <Check className="w-4 h-4" /> : <Circle className="w-3 h-3" />}
+                    </div>
+                    <span className={`text-xs ${isComplete ? 'text-emerald-700 font-medium' : 'text-gray-400'}`}>{s.label}</span>
+                  </div>
+                  {i < statusSteps.length - 1 && (
+                    <div className={`flex-1 h-0.5 mx-2 ${i < statusIdx ? 'bg-emerald-600' : 'bg-gray-200'}`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
+  const renderStepContent = () => {
+    switch (step) {
+      case 1: return renderStep1();
+      case 2: return renderStep2();
+      case 3: return renderStep3();
+      case 4: return renderStep4();
+      case 5: return renderStep5();
+      default: return null;
+    }
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-40px)] bg-gray-50">
+      {/* ---- LEFT STEP INDICATOR ---- */}
+      <div className="w-[200px] flex-shrink-0 bg-[#1a1f2e] text-white flex flex-col">
+        <div className="p-4 border-b border-white/10">
+          <h2 className="text-sm font-bold tracking-wide">Contract Assembler</h2>
+          <p className="text-[10px] text-gray-400 mt-0.5">Red Cedar Homes</p>
+        </div>
+        <nav className="flex-1 py-3">
+          {STEPS.map(s => {
+            const Icon = s.icon;
+            const isActive = step === s.num;
+            const isComplete = step > s.num;
+            return (
+              <button
+                key={s.num}
+                onClick={() => { if (s.num <= step || (s.num === step + 1 && canNext)) setStep(s.num); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-xs transition-colors ${
+                  isActive ? 'bg-emerald-600/20 text-emerald-400 border-r-2 border-emerald-400' : isComplete ? 'text-gray-300 hover:text-white' : 'text-gray-500'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  isComplete ? 'bg-emerald-600 text-white' : isActive ? 'border border-emerald-400 text-emerald-400' : 'border border-gray-600 text-gray-600'
+                }`}>
+                  {isComplete ? <Check className="w-3 h-3" /> : <span className="text-[10px]">{s.num}</span>}
+                </div>
+                <span className="font-medium">{s.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        {houseData && (
+          <div className="p-4 border-t border-white/10 text-xs space-y-1">
+            <p className="text-gray-400">Selected:</p>
+            <p className="font-medium text-white truncate">{houseData.house?.lot_label || `Lot ${houseData.house?.lot_number}`}</p>
+            <p className="text-emerald-400 font-semibold tabular-nums">{fmt(totalContractPrice)}</p>
+          </div>
+        )}
       </div>
 
-      {/* Status Timeline */}
-      <div className="bg-white border rounded-lg p-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">Contract Status</h4>
-        <div className="flex items-center justify-between">
-          {statusSteps.map((s, idx) => (
-            <React.Fragment key={s.label}>
-              <div className="flex flex-col items-center gap-1.5">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  s.complete ? 'bg-emerald-600' : 'bg-gray-200'
-                }`}>
-                  {s.complete ? <Check className="w-4 h-4 text-white" /> : <Circle className="w-4 h-4 text-gray-400" />}
-                </div>
-                <span className={`text-xs ${s.complete ? 'text-emerald-700 font-medium' : 'text-gray-400'}`}>{s.label}</span>
-              </div>
-              {idx < statusSteps.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-2 ${s.complete ? 'bg-emerald-400' : 'bg-gray-200'}`} />
-              )}
-            </React.Fragment>
-          ))}
+      {/* ---- MAIN CONTENT ---- */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white shadow-sm rounded-lg p-6">
+              <h1 className="text-lg font-bold text-gray-900 mb-1">{STEPS[step - 1].label}</h1>
+              <p className="text-sm text-gray-500 mb-6">
+                {step === 1 && 'Choose a house to build a contract package for.'}
+                {step === 2 && 'Set contract dates, payment schedule, warranty, and terms.'}
+                {step === 3 && 'Document lot conditions and any site cost adjustments.'}
+                {step === 4 && 'Review the full contract package before generating.'}
+                {step === 5 && 'Generate the contract PDF and send for signatures.'}
+              </p>
+              {renderStepContent()}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t bg-white px-6 py-3 flex items-center justify-between flex-shrink-0">
+          <div>
+            {step > 1 && (
+              <Button variant="ghost" onClick={() => setStep(step - 1)} className="text-gray-600">
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {step > 1 && step < 5 && (
+              <Button variant="outline" onClick={handleSaveDraft} className="text-gray-600">
+                Save Draft
+              </Button>
+            )}
+            {step < 5 ? (
+              <Button
+                onClick={() => setStep(step + 1)}
+                disabled={!canNext}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                Next Step <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => navigate('/construction/contract-assembler')} className="text-gray-600">
+                Close
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
 
-function ActionCard({ icon: Icon, title, description, buttonLabel, buttonColor, onClick, disabled, loading }) {
-  const btnClass = {
-    emerald: 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-300',
-    blue: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
-    outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:text-gray-400',
-  }[buttonColor] || '';
-
-  return (
-    <div className="bg-white border rounded-lg p-4 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-        <Icon className="w-5 h-5 text-gray-600" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-medium text-gray-900">{title}</h4>
-        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-      </div>
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 flex-shrink-0 ${btnClass}`}
-      >
-        {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-        {buttonLabel}
-      </button>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SHARED FORM COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function FormSection({ title, children, collapsible }) {
-  const [open, setOpen] = useState(!collapsible);
-  return (
-    <div>
-      <button
-        onClick={() => collapsible && setOpen(!open)}
-        className={`flex items-center gap-2 mb-3 ${collapsible ? 'cursor-pointer' : 'cursor-default'}`}
-      >
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{title}</h3>
-        {collapsible && <ChevronRight className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />}
-      </button>
-      {open && children}
-    </div>
-  );
-}
-
-function FormField({ label, children, span2 }) {
-  return (
-    <div className={span2 ? 'col-span-2' : ''}>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function CheckboxField({ label, checked, onChange }) {
-  return (
-    <label className="flex items-center gap-2 cursor-pointer py-1">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={e => onChange(e.target.checked)}
-        className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-      />
-      <span className="text-sm text-gray-700">{label}</span>
-    </label>
-  );
-}
+export default ContractAssemblerPage;
