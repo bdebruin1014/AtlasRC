@@ -28,7 +28,7 @@ import OpportunityTasks from '@/pages/pipeline/OpportunityTasks';
 import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
 import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
-import ConvertToProjectModal from '@/components/ConvertToProjectModal';
+import ConversionDialog from '@/components/opportunities/ConversionDialog';
 
 const OPPORTUNITY_TYPES = [
   { value: 'vacant-lot', label: 'Vacant Lot' },
@@ -243,8 +243,8 @@ const OpportunityDetailPage = () => {
     setShowConvertModal(true);
   };
 
-  const handleConversionSuccess = (newProject) => {
-    navigate(`/projects/${newProject.id}`);
+  const handleConversionSuccess = (data) => {
+    navigate(`/projects/${data.project_id}`);
   };
 
   const handleAdvanceStage = () => {
@@ -1603,12 +1603,11 @@ const OpportunityDetailPage = () => {
         {renderContent()}
       </div>
 
-      {/* Convert to Project Modal */}
-      <ConvertToProjectModal
+      {/* Convert to Project Dialog */}
+      <ConversionDialog
         isOpen={showConvertModal}
         onClose={() => setShowConvertModal(false)}
         opportunity={formData}
-        dealSheet={null}
         onSuccess={handleConversionSuccess}
       />
     </div>
