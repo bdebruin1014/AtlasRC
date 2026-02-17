@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowRight, Building2, DollarSign, MapPin, FileText, Calculator,
-  CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronUp
+  CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { activityService } from '@/services/activityService';
 import { notificationTriggers } from '@/services/notificationTriggers';
+import { EntitySelector } from '@/components/shared/EntitySelector';
 
 const PROJECT_TYPES = [
   { id: 'scattered-lot', name: 'Scattered Lot', description: 'Buy a lot, build a spec home, sell it' },
@@ -50,6 +51,8 @@ export default function ConvertToProjectModal({
   const [projectName, setProjectName] = useState('');
   const [projectType, setProjectType] = useState('');
   const [description, setDescription] = useState('');
+  const [ownerEntityId, setOwnerEntityId] = useState(null);
+  const [builderEntityId, setBuilderEntityId] = useState(null);
   const [transferDealSheet, setTransferDealSheet] = useState(true);
   const [createProForma, setCreateProForma] = useState(true);
   const [notifyTeam, setNotifyTeam] = useState(true);
@@ -59,6 +62,8 @@ export default function ConvertToProjectModal({
     if (opportunity) {
       setProjectName(opportunity.deal_number || opportunity.address || 'New Project');
       setDescription(opportunity.notes || '');
+      setOwnerEntityId(opportunity.entity_id || null);
+      setBuilderEntityId(null);
 
       // Auto-select project type — opportunity types now mirror project types 1:1
       const oppType = opportunity.opportunity_type || opportunity.property_type;
@@ -73,10 +78,12 @@ export default function ConvertToProjectModal({
             setProjectType('scattered-lot');
             break;
           case 'development-lot-sale':
+          case 'lot_dev':
             setProjectType('lot-development');
             break;
           case 'development-for-sale':
-            setProjectType('lot-purchase-development');
+          case 'for_sale_dev':
+            setProjectType('scattered-lot');
             break;
           case 'development-btr':
           case 'community':
@@ -127,6 +134,9 @@ export default function ConvertToProjectModal({
         potential_lots: opportunity?.potential_lots,
         zoning: opportunity?.zoning,
         opportunity_id: opportunity?.id,
+        // Entity assignments
+        ...(ownerEntityId && { entity_id: ownerEntityId }),
+        ...(builderEntityId && { builder_entity_id: builderEntityId }),
         // Financial data from opportunity
         purchase_price: opportunity?.asking_price,
         estimated_value: opportunity?.estimated_value,
@@ -222,8 +232,8 @@ export default function ConvertToProjectModal({
       }).catch(() => {});
 
       toast({
-        title: 'Project Created',
-        description: `"${projectName}" has been created from this opportunity.`,
+        title: 'Success',
+        description: 'Opportunity converted to project successfully',
       });
 
       onSuccess?.(newProject);
@@ -259,7 +269,7 @@ export default function ConvertToProjectModal({
         <div className="space-y-6 py-4">
           {/* Opportunity Summary */}
           <div className="bg-gray-50 border rounded-lg p-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">Opportunity Summary</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Data Being Carried Over</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Address:</span>
@@ -268,17 +278,37 @@ export default function ConvertToProjectModal({
               <div>
                 <span className="text-gray-500">Location:</span>
                 <p className="font-medium">
-                  {[opportunity.city, opportunity.state].filter(Boolean).join(', ') || 'N/A'}
+                  {[opportunity.city, opportunity.state, opportunity.zip_code].filter(Boolean).join(', ') || 'N/A'}
                 </p>
               </div>
               <div>
-                <span className="text-gray-500">Asking Price:</span>
+                <span className="text-gray-500">Property Type:</span>
+                <p className="font-medium capitalize">{(opportunity.opportunity_type || opportunity.property_type || 'N/A').replace(/-/g, ' ')}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">Purchase Price:</span>
                 <p className="font-medium">{formatCurrency(opportunity.asking_price)}</p>
               </div>
               <div>
                 <span className="text-gray-500">Estimated Value:</span>
                 <p className="font-medium">{formatCurrency(opportunity.estimated_value)}</p>
               </div>
+              <div>
+                <span className="text-gray-500">Earnest Money:</span>
+                <p className="font-medium">{formatCurrency(opportunity.earnest_money)}</p>
+              </div>
+              {opportunity.dd_deadline && (
+                <div>
+                  <span className="text-gray-500">DD Deadline:</span>
+                  <p className="font-medium">{new Date(opportunity.dd_deadline).toLocaleDateString()}</p>
+                </div>
+              )}
+              {opportunity.close_date && (
+                <div>
+                  <span className="text-gray-500">Close Date:</span>
+                  <p className="font-medium">{new Date(opportunity.close_date).toLocaleDateString()}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -360,6 +390,33 @@ export default function ConvertToProjectModal({
                 className="mt-1"
                 rows={3}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Owner Entity</Label>
+                <div className="mt-1">
+                  <EntitySelector
+                    value={ownerEntityId}
+                    onChange={setOwnerEntityId}
+                    placeholder="Select owner entity..."
+                    showCreateButton={true}
+                    filterTypes={['project_entity', 'holding_company', 'operating_entity']}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Builder Entity</Label>
+                <div className="mt-1">
+                  <EntitySelector
+                    value={builderEntityId}
+                    onChange={setBuilderEntityId}
+                    placeholder="Select builder entity..."
+                    showCreateButton={true}
+                    filterTypes={['operating_entity', 'project_entity']}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -490,7 +547,7 @@ export default function ConvertToProjectModal({
           <Button
             onClick={handleConvert}
             disabled={loading || !projectName.trim() || !projectType}
-            className="bg-[#047857] hover:bg-[#065f46]"
+            className="bg-[#1a5632] hover:bg-[#143f25]"
           >
             {loading ? (
               <>

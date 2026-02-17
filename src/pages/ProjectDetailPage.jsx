@@ -5,7 +5,7 @@ import PropertyDetailsPage from '@/pages/projects/PropertyDetailsPage';
 import TasksPage from '@/pages/projects/TasksPage';
 import ProjectMilestonesPage from '@/pages/projects/ProjectMilestonesPage';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, Truck, FileCheck, Receipt, Shield, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen, ClipboardList, MapPin, Calendar, Landmark, Truck, FileCheck, Receipt, Shield, Mail, MessageSquare, TrendingUp, CreditCard, PieChart, Calculator, Loader2, ExternalLink } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -185,7 +185,26 @@ const ProjectDetailPage = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'basic-info':
-        return <BasicInfoPage />;
+        return (
+          <div>
+            {(formData?.opportunity_id || rawProject?.opportunity_id) && (
+              <div className="mx-6 mt-6 mb-0 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-emerald-800">
+                  <Building2 className="w-4 h-4" />
+                  <span>This project was converted from an opportunity</span>
+                </div>
+                <button
+                  onClick={() => navigate(`/opportunities/${formData?.opportunity_id || rawProject?.opportunity_id}`)}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
+                >
+                  View Source Opportunity
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <BasicInfoPage />
+          </div>
+        );
 
       case 'property':
         return <PropertyDetailsPage projectId={projectId} />;
@@ -1024,6 +1043,15 @@ const ProjectDetailPage = () => {
               <span className="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded">{budgetTypeInfo.name}</span>
             )}
           </div>
+          {(formData?.opportunity_id || rawProject?.opportunity_id) && (
+            <button
+              onClick={() => navigate(`/opportunities/${formData?.opportunity_id || rawProject?.opportunity_id}`)}
+              className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Source Opportunity
+            </button>
+          )}
         </div>
 
         <nav className="flex-1 p-2 overflow-y-auto">
