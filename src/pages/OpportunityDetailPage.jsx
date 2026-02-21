@@ -4,7 +4,7 @@ import {
   ArrowLeft, Edit2, ChevronDown, FileText, Building2, Users, DollarSign, FolderOpen,
   ClipboardList, MapPin, Calculator, TrendingUp, Target, ArrowRight, Mail, MessageSquare,
   FileSignature, CheckCircle, Send, FileCheck, Plus, Calendar, Clock, Eye, Download,
-  Phone, ExternalLink, Loader2, RefreshCw
+  Phone, ExternalLink, Loader2, RefreshCw, Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +28,7 @@ import OpportunityTasks from '@/pages/pipeline/OpportunityTasks';
 import ESignButton from '@/components/esign/ESignButton';
 import DocumentLibrary from '@/components/documents/DocumentLibrary';
 import ContractGenerationModal from '@/components/contracts/ContractGenerationModal';
-import ConvertToProjectModal from '@/components/ConvertToProjectModal';
+import ConversionDialog from '@/components/opportunities/ConversionDialog';
 
 const OPPORTUNITY_TYPES = [
   { value: 'vacant-lot', label: 'Vacant Lot' },
@@ -243,12 +243,8 @@ const OpportunityDetailPage = () => {
     setShowConvertModal(true);
   };
 
-  const handleConversionSuccess = (newProject) => {
-    toast({
-      title: 'Success',
-      description: 'Opportunity has been converted to a project.',
-    });
-    navigate(`/project/${newProject.id}`);
+  const handleConversionSuccess = (data) => {
+    navigate(`/projects/${data.project_id}`);
   };
 
   const handleAdvanceStage = () => {
@@ -411,10 +407,19 @@ const OpportunityDetailPage = () => {
                 <Button onClick={() => setField('stage', stageName)} className="bg-[#047857] hover:bg-[#065f46]">
                   Set as Current Stage
                 </Button>
-                {stageName === 'Under Contract' && (
-                  <Button onClick={handleConvertToProject} variant="outline">
+                {stageName === 'Under Contract' && !formData?.project_id && formData?.stage !== 'Converted' && (
+                  <Button onClick={handleConvertToProject} className="bg-[#1a5632] hover:bg-[#143f25] text-white">
                     <ArrowRight className="w-4 h-4 mr-2" />Convert to Project
                   </Button>
+                )}
+                {stageName === 'Under Contract' && (formData?.project_id || formData?.stage === 'Converted') && (
+                  <button
+                    onClick={() => navigate(`/projects/${formData.project_id}`)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Converted — View Project
+                  </button>
                 )}
               </div>
             </div>
@@ -1326,9 +1331,19 @@ const OpportunityDetailPage = () => {
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Under Contract</h2>
-              <Button className="bg-[#047857] hover:bg-[#065f46]">
-                Convert to Project
-              </Button>
+              {formData?.project_id || formData?.stage === 'Converted' ? (
+                <button
+                  onClick={() => navigate(`/projects/${formData.project_id}`)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Converted — View Project
+                </button>
+              ) : (
+                <Button onClick={handleConvertToProject} className="bg-[#1a5632] hover:bg-[#143f25]">
+                  <ArrowRight className="w-4 h-4 mr-1" />Convert to Project
+                </Button>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white border rounded-lg p-6">
@@ -1528,8 +1543,17 @@ const OpportunityDetailPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {formData?.stage === 'Under Contract' ? (
-              <Button onClick={handleConvertToProject} className="bg-[#047857] hover:bg-[#065f46]">
+            {formData?.stage === 'Converted' || formData?.project_id ? (
+              <button
+                onClick={() => navigate(`/projects/${formData.project_id}`)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Converted
+                <LinkIcon className="w-3 h-3" />
+              </button>
+            ) : formData?.stage === 'Under Contract' ? (
+              <Button onClick={handleConvertToProject} className="bg-[#1a5632] hover:bg-[#143f25]">
                 <ArrowRight className="w-4 h-4 mr-1" />Convert to Project
               </Button>
             ) : (
@@ -1579,12 +1603,11 @@ const OpportunityDetailPage = () => {
         {renderContent()}
       </div>
 
-      {/* Convert to Project Modal */}
-      <ConvertToProjectModal
+      {/* Convert to Project Dialog */}
+      <ConversionDialog
         isOpen={showConvertModal}
         onClose={() => setShowConvertModal(false)}
         opportunity={formData}
-        dealSheet={null}
         onSuccess={handleConversionSuccess}
       />
     </div>
