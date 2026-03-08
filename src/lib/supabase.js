@@ -7,40 +7,88 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-k
 const isPlaceholderCreds = !import.meta.env.VITE_SUPABASE_URL || supabaseUrl.includes('placeholder') || supabaseAnonKey.includes('placeholder');
 export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isPlaceholderCreds;
 
+// Chainable mock query builder — returns empty data for all operations
+// so pages render an empty state rather than showing a network error.
+function createMockQuery() {
+  const chainMethod = () => mockQuery;
+  const mockQuery = {
+    select: chainMethod,
+    eq: chainMethod,
+    neq: chainMethod,
+    gt: chainMethod,
+    gte: chainMethod,
+    lt: chainMethod,
+    lte: chainMethod,
+    like: chainMethod,
+    ilike: chainMethod,
+    or: chainMethod,
+    not: chainMethod,
+    is: chainMethod,
+    in: chainMethod,
+    contains: chainMethod,
+    containedBy: chainMethod,
+    overlaps: chainMethod,
+    filter: chainMethod,
+    match: chainMethod,
+    order: chainMethod,
+    limit: chainMethod,
+    range: chainMethod,
+    abortSignal: chainMethod,
+    single: async () => ({ data: null, error: null }),
+    maybeSingle: async () => ({ data: null, error: null }),
+    csv: async () => ({ data: '', error: null }),
+    // Allow `await query` to resolve with empty result
+    then: (resolve, reject) => Promise.resolve({ data: [], error: null }).then(resolve, reject),
+    catch: (reject) => Promise.resolve({ data: [], error: null }).catch(reject),
+    finally: (cb) => Promise.resolve({ data: [], error: null }).finally(cb),
+  };
+  return mockQuery;
+}
+
+// Full mock Supabase client used when no real credentials are configured
+const mockSupabaseClient = {
+  auth: {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    getUser: async () => ({ data: { user: null }, error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    signInWithPassword: async () => ({ data: null, error: new Error('Supabase not configured') }),
+    signUp: async () => ({ data: null, error: new Error('Supabase not configured') }),
+    signOut: async () => ({ error: null }),
+    updateUser: async () => ({ data: null, error: new Error('Supabase not configured') }),
+    resetPasswordForEmail: async () => ({ data: null, error: null }),
+  },
+  from: () => ({
+    select: () => createMockQuery(),
+    insert: () => createMockQuery(),
+    update: () => createMockQuery(),
+    delete: () => createMockQuery(),
+    upsert: () => createMockQuery(),
+  }),
+  rpc: async () => ({ data: null, error: null }),
+  channel: () => ({ on: () => ({ subscribe: () => ({}) }), unsubscribe: () => {} }),
+  removeChannel: () => {},
+};
+
 // Create Supabase client with defensive error handling
 let supabaseClient;
-try {
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: !isDemoMode,
-      persistSession: !isDemoMode,
-      detectSessionInUrl: true,
-    },
-  });
-} catch (err) {
-  console.error('Failed to create Supabase client:', err);
-  // Create a minimal mock client so the app doesn't crash
-  supabaseClient = {
-    auth: {
-      getSession: async () => ({ data: { session: null }, error: null }),
-      getUser: async () => ({ data: { user: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signInWithPassword: async () => ({ data: null, error: new Error('Supabase not configured') }),
-      signUp: async () => ({ data: null, error: new Error('Supabase not configured') }),
-      signOut: async () => ({ error: null }),
-      updateUser: async () => ({ data: null, error: new Error('Supabase not configured') }),
-      resetPasswordForEmail: async () => ({ data: null, error: null }),
-    },
-    from: () => ({
-      select: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }), data: [], error: null }), in: () => ({ data: [], error: null }), limit: async () => ({ data: [], error: null, count: 0 }), data: [], error: null }),
-      insert: async () => ({ data: null, error: null }),
-      update: async () => ({ data: null, error: null }),
-      delete: async () => ({ data: null, error: null }),
-      upsert: async () => ({ data: null, error: null }),
-    }),
-    channel: () => ({ on: () => ({ subscribe: () => ({}) }), unsubscribe: () => {} }),
-    removeChannel: () => {},
-  };
+
+if (isDemoMode) {
+  // No real credentials — use mock client so pages show empty state
+  // instead of network errors.
+  supabaseClient = mockSupabaseClient;
+} else {
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to create Supabase client:', err);
+    supabaseClient = mockSupabaseClient;
+  }
 }
 
 export const supabase = supabaseClient;
